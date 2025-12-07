@@ -12,9 +12,14 @@ public class BuildingGridUI : MonoBehaviour
     public GameObject cellPrefab;     // CellUI 프리팹
 
     [Header("Floor Colors")]
-    public Color unreachedColor = new Color(0f, 0f, 0f, 0.9f);   // 아직 도달 X (암전)
-    public Color currentColor = Color.white;                    // 현재 층 (밝게)
-    public Color passedColor = new Color(0.3f, 0.3f, 0.3f, 1f); // 이미 지난 층 (어둡게)
+    public Color unreachedColor = new Color(0f, 0f, 0f, 0.9f);      // 아직 도달 X (암전)
+    public Color currentColor = Color.white;                      // 현재 층 (밝게)
+    public Color passedColor = new Color(0.3f, 0.3f, 0.3f, 1f);  // 이미 지난 층 (살짝 어둡게)
+
+    [Header("State (Debug / 초기값)")]
+    [Range(0, 9)]
+    public int currentFloorIndex = 0;      // 현재 플레이어가 있는 층 (0 = 맨 아래)
+    private int maxReachedFloorIndex = 0;  // 지금까지 도달한 최고 층
 
     private Image[,] cellImages;
     private GridLayoutGroup gridLayout;
@@ -22,7 +27,6 @@ public class BuildingGridUI : MonoBehaviour
 
     private void Awake()
     {
-        // gridPanel 비어 있으면 자기 RectTransform 사용
         if (gridPanel == null)
             gridPanel = GetComponent<RectTransform>();
 
@@ -34,7 +38,6 @@ public class BuildingGridUI : MonoBehaviour
         RegenerateGrid();
     }
 
-    // RectTransform 크기가 바뀔 때마다 호출됨 (Canvas 리사이즈 등)
     private void OnRectTransformDimensionsChange()
     {
         if (isInitialized)
@@ -52,7 +55,6 @@ public class BuildingGridUI : MonoBehaviour
             return;
         }
 
-        // 기존 자식 제거
         for (int i = gridPanel.childCount - 1; i >= 0; i--)
         {
             DestroyImmediate(gridPanel.GetChild(i).gameObject);
@@ -60,10 +62,8 @@ public class BuildingGridUI : MonoBehaviour
 
         cellImages = new Image[columns, rows];
 
-        // 먼저 Cell Size를 패널 크기 기준으로 계산
         UpdateCellSize();
 
-        // 셀 생성
         for (int y = 0; y < rows; y++)
         {
             for (int x = 0; x < columns; x++)
@@ -77,7 +77,9 @@ public class BuildingGridUI : MonoBehaviour
         }
 
         isInitialized = true;
-        ApplyFloorStates(0, 0); // 초기 상태 적용 (옵션)
+
+        maxReachedFloorIndex = Mathf.Max(maxReachedFloorIndex, currentFloorIndex);
+        ApplyFloorStates(currentFloorIndex, maxReachedFloorIndex);
     }
 
     // === GridPanel 크기에 맞게 Cell Size 조정 ===
@@ -87,7 +89,6 @@ public class BuildingGridUI : MonoBehaviour
 
         Vector2 size = gridPanel.rect.size;
 
-        // GridLayoutGroup의 패딩을 고려해서 내부 실제 영역 계산
         var padding = gridLayout.padding;
         float innerWidth = size.x - padding.left - padding.right;
         float innerHeight = size.y - padding.top - padding.bottom;
@@ -116,19 +117,20 @@ public class BuildingGridUI : MonoBehaviour
     }
 
     // === 현재/지난/미도달 층 상태 적용 ===
-    public void ApplyFloorStates(int currentFloorIndex, int maxReachedFloorIndex)
+    public void ApplyFloorStates(int current, int maxReached)
     {
         if (cellImages == null) return;
 
-        currentFloorIndex = Mathf.Clamp(currentFloorIndex, 0, rows - 1);
+        current = Mathf.Clamp(current, 0, rows - 1);
+        maxReached = Mathf.Clamp(maxReached, 0, rows - 1);
 
         for (int y = 0; y < rows; y++)
         {
-            if (y < currentFloorIndex)
+            if (y < current)
             {
-                SetFloorColor(y, passedColor);     // 이미 지난 층
+                SetFloorColor(y, passedColor);     // 이미 지나간 층
             }
-            else if (y == currentFloorIndex)
+            else if (y == current)
             {
                 SetFloorColor(y, currentColor);    // 현재 층
             }
@@ -137,5 +139,24 @@ public class BuildingGridUI : MonoBehaviour
                 SetFloorColor(y, unreachedColor);  // 아직 도달 X
             }
         }
+    }
+
+    // === 외부에서 현재 층 바꾸기 ===
+    public void SetCurrentFloor(int floorIndex)
+    {
+        currentFloorIndex = Mathf.Clamp(floorIndex, 0, rows - 1);
+        maxReachedFloorIndex = Mathf.Max(maxReachedFloorIndex, currentFloorIndex);
+        ApplyFloorStates(currentFloorIndex, maxReachedFloorIndex);
+    }
+
+    // === [새로 추가] 특정 셀의 RectTransform 가져오기 ===
+    public RectTransform GetCellRectTransform(int column, int row)
+    {
+        if (cellImages == null) return null;
+        if (column < 0 || column >= columns) return null;
+        if (row < 0 || row >= rows) return null;
+
+        Image img = cellImages[column, row];
+        return img != null ? img.rectTransform : null;
     }
 }
