@@ -1,0 +1,6 @@
+ItemId,ServerItemId,TableVersion,Enabled,DisplayName,ItemType,IconKey,MinFloor,MaxFloor,SpawnWeight,RequiredPassCount,LifetimeSeconds,PassDirection,EffectKey,EffectValue,AffectsScore,AffectsProgression,ServerValidated,MaxAcquirePerRun,Rarity
+score_coin_01,srv_score_coin_01,items_v1,true,Score Coin,Score,score_default,1,0,100,1,8,Any,add_score,100,true,false,true,0,Common
+time_chip_01,srv_time_chip_01,items_v1,true,Time Chip,Time,time_default,3,0,35,1,8,Any,add_time,5,false,false,true,0,Common
+heart_pack_01,srv_heart_pack_01,items_v1,true,Heart Pack,Heal,heal_default,2,0,30,1,10,Any,heal_heart,1,false,false,true,0,Common
+pass_orb_01,srv_pass_orb_01,items_v1,true,Pass Orb,Score,score_default,1,0,45,3,12,Any,add_score,250,true,false,true,0,Uncommon
+growth_core_01,srv_growth_core_01,items_v1,false,Growth Core,Collection,collection_default,8,0,10,2,15,Any,add_growth_core,1,false,true,true,1,Rare
