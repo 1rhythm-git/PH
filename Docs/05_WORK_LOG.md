@@ -195,18 +195,21 @@ ________________________________________
 • Time Over 테스트를 위해 InGame 씬의 `runDurationSeconds`를 30초로 설정
 • Game Over 시 전체 화면 반투명 검은 오버레이 표시
 • 오버레이 중앙에 흰색 `GAME OVER` 텍스트 표시
-• Game Over 오버레이 터치/클릭 시 인게임 종료 흐름 실행
+• Game Over 결과창에 종료 사유, 최고 도달 층, 점수, 남은 시간, 남은 HP, 획득 아이템 수 표시
+• Game Over 결과창의 `CONFIRM` 버튼 터치/클릭 시 인게임 종료 흐름 실행
 • 현재 인게임 종료 흐름은 `SceneFlowManager.LoadLobby()` 호출로 연결
 
 고려 사항:
 • 현재 Game Over는 인게임 종료 상태까지만 담당한다.
 • 추후 결과창과 로비 이동은 `GameStateController`에서 직접 UI를 만들기보다 결과 데이터 생성 후 별도 UI/SceneFlow 계층으로 전달하는 방식이 적합하다.
-• 현재 오버레이 클릭은 임시로 로비 이동에 바로 연결되어 있으므로, 결과창이 생기면 `결과창 표시 -> 확인 -> 로비 이동`으로 교체한다.
+• 현재 흐름은 `GAME OVER -> 결과창 표시 -> 확인 버튼 -> Lobby`로 구성되어 있다.
+• 추후 Google AdMob 보상형 광고를 붙이면 결과창에 광고보기 버튼을 추가하고, 광고 시청 완료 후 부활하는 흐름을 연결한다.
 • HP 감소는 현재 `TopHUDController.DamageHeart()`를 통해 Game Over 이벤트를 발행하므로, 적 충돌/피격 시스템은 이 API 또는 별도 Health 모델을 통해 연결해야 한다.
 • Game Over 이후에도 결과 산정에 필요한 최고 층, 점수, 아이템 이벤트는 보존되어야 한다.
 
 리팩터링 타이밍:
-• Game Over 결과창을 구현하기 직전
+• Game Over 결과창에 상세 보상/저장 상태/재시도 버튼을 추가하기 직전
+• Google AdMob 보상형 광고보기/부활 버튼을 결과창에 추가하기 직전
 • Game Over 연출이 페이드, 사운드, 결과 요약, 버튼 UI를 포함하게 될 때
 • 적 피격/리스폰/무적 시간 시스템이 추가될 때
 • 점수 정산과 최고 층 저장이 붙을 때
@@ -218,23 +221,116 @@ ________________________________________
 • `TopHUDController`는 표시만 담당
 • `GameStateController`는 상태 전환과 결과 데이터 확정만 담당
 • 결과창은 별도 `GameOverResultUI` 또는 `RunResultPresenter`로 분리
+• 광고 부활은 `IRewardedAdService` 같은 인터페이스로 분리해 결과창 UI가 AdMob SDK에 직접 의존하지 않게 처리
 • 로비 이동은 `SceneFlowManager`를 통해 처리
+
+________________________________________
+
+2.8 Game Over 결과 데이터
+
+완료 내용:
+• `RunResultData` 추가
+• Game Over 종료 사유, 최고 도달 층, 점수, 남은 시간, 남은 HP, 획득 아이템 이벤트 목록을 하나의 결과 데이터로 묶음
+• `GameStateController`가 Game Over 확정 시 `LastRunResultData`를 생성해 보관
+• `TopHUDController`의 점수/시간/HP 값과 `InfiniteFloorManager`의 최고 도달 층, `RunItemEventRecorder`의 획득 아이템 이벤트를 연결
+• Game Over 오버레이 클릭으로 바로 Lobby로 이동하지 않고, 결과창의 `CONFIRM` 버튼 클릭 시 Lobby로 이동
+
+고려 사항:
+• 현재 `RunResultData`는 결과창/저장 시스템이 붙기 전까지 `GameStateController.LastRunResultData`로 보관한다.
+• 획득 아이템 이벤트는 결과 생성 시점에 새 리스트로 복사되어 이후 Recorder 변경과 분리된다.
+• 현재 점수/시간/HP의 실제 소유자는 아직 `TopHUDController`이므로, 장기적으로는 표시 UI와 런 데이터 모델을 분리하는 것이 적합하다.
+• 광고 부활이 들어가면 `RunResultData`에 reviveUsed, reviveSource, reviveCount 같은 필드를 추가해 저장/랭킹 검증에 활용한다.
+• 광고 시청 실패/취소/보상 미지급 상태에서는 부활하지 않고 결과창을 유지해야 한다.
+
+리팩터링 타이밍:
+• Game Over 결과창에 상세 보상/저장 상태/재시도 버튼을 추가하기 직전
+• Google AdMob 보상형 광고 부활을 연결하기 직전
+• BackND 런 결과 저장 또는 랭킹 업로드를 연결하기 직전
+• 점수 산식, 층 보너스, 아이템 보너스 등 최종 정산 단계가 추가될 때
+
+권장 리팩터링 방향:
+• `RunResultData`는 저장/표시용 불변 스냅샷으로 유지
+• 결과창은 `GameStateController.LastRunResultData`를 받아 표시만 담당
+• 결과창의 광고보기 버튼은 `IRewardedAdService`를 통해 보상형 광고 결과만 받고, 실제 부활 처리는 GameState/Respawn 계층으로 위임
+• BackND 업로드는 별도 `IRunResultRepository` 또는 서비스 인터페이스 뒤에 둬서 게임플레이 코드가 SDK에 직접 의존하지 않게 유지
+
+________________________________________
+
+2.9 Lobby 1차 구성
+
+완료 내용:
+• `LobbyController` 추가
+• 기존 Lobby 씬의 `Canvas/HeaderUI`, `Canvas/ContentUI`, `Canvas/FooterUI` 구조 유지
+• Header에 게임 제목, 플레이어 레벨/닉네임, 로그인 상태 자리 표시
+• Content에 최고층/최고점수 표시 영역 추가
+• `START` 버튼 추가
+• `START` 버튼 클릭 시 `SceneFlowManager.LoadInGame()`으로 InGame 진입
+• Ranking, Shop, Options, Ad Slot 자리 버튼 추가
+• Footer에 배너 광고/BackND 상태 자리 표시
+• `Lobby -> InGame -> Game Over 결과창 -> Confirm -> Lobby` 전체 순환 테스트가 가능하도록 구성
+
+고려 사항:
+• 현재 최고층/최고점수는 임시 Inspector 값이다.
+• 저장 시스템이 붙으면 `BestHighestFloor`, `BestScore`를 로컬 저장/BackND 동기화 값으로 갱신해야 한다.
+• Ranking, Shop, Options, Ad Slot은 아직 비활성 자리 버튼이다.
+• 최종 UI 아트가 확정되기 전까지는 런타임 생성 UI로 유지한다.
+• 추후 배너 광고는 Footer 영역, 보상형 광고는 Game Over 결과창에서 분리해 연결한다.
+
+리팩터링 타이밍:
+• Lobby 최종 디자인이 확정될 때
+• 로그인, 랭킹, 상점, 광고 SDK가 실제로 붙을 때
+• 기록 표시가 로컬/서버 저장 상태를 함께 보여줘야 할 때
+
+권장 리팩터링 방향:
+• `LobbyController`는 버튼 흐름과 데이터 반영만 담당
+• 실제 UI 오브젝트는 수동 배치 또는 프리팹으로 분리
+• 기록 데이터는 별도 `IPlayerRecordRepository` 또는 런 기록 서비스에서 받아 표시
+
+________________________________________
+
+2.10 씬 전환 후 InGame 초기화 문제 수정
+
+완료 내용:
+• `Loading -> Lobby -> InGame` 경로에서 InGame이 정상 실행되지 않던 원인 확인
+• InGame 단독 실행은 정상이고 씬 전환 진입에서만 문제 발생
+• 원인은 `SceneFlowManager` 중복 처리에서 `Destroy(gameObject)`를 호출하던 구조
+• InGame 씬의 `Managers` GameObject에는 `SceneFlowManager` 외에 `InfiniteFloorManager`, `PlayerSpawner`, `ElevatorController`, `ItemSpawner`, `GameStateController`가 함께 붙어 있음
+• 씬 전환으로 들어오면 기존 `SceneFlowManager`가 `DontDestroyOnLoad`로 유지되어 InGame 쪽 `SceneFlowManager`가 중복으로 판단됨
+• 이때 `Managers` GameObject 전체가 파괴되어 InGame 핵심 컨트롤러들이 함께 사라지는 문제 발생
+• 중복 발견 시 GameObject 전체가 아니라 `SceneFlowManager` 컴포넌트만 `Destroy(this)`로 제거하도록 수정
+
+고려 사항:
+• 씬별 `Managers` 오브젝트는 이름이 같아도 해당 씬의 전용 런타임 컨트롤러를 포함할 수 있다.
+• 싱글톤 중복 처리에서는 GameObject 전체 삭제보다 컴포넌트 단위 삭제가 안전하다.
+• 장기적으로는 영속 매니저와 씬 전용 매니저 GameObject를 분리하는 것이 명확하다.
+
+리팩터링 타이밍:
+• 전역 매니저가 SceneFlow 외 저장, 광고, 사운드, 인증 등으로 늘어날 때
+• 씬 전용 컨트롤러와 전역 컨트롤러의 배치 규칙을 정리할 때
+
+권장 리팩터링 방향:
+• 전역 매니저는 `GlobalManagers` 같은 별도 루트에 배치
+• 씬 전용 매니저는 `SceneManagers` 또는 각 시스템별 GameObject에 배치
+• 중복 싱글톤은 자기 컴포넌트만 제거하고, 같은 GameObject의 다른 컴포넌트는 건드리지 않도록 유지
 
 ________________________________________
 
 3. 다음 작업 후보
 
 우선순위 후보:
-1. Game Over 결과 데이터와 결과창 연결 준비
-2. 점수 시스템 정식화
-3. 하트/리스폰/피격 구조 정리
-4. TopUI 디자인 교체 전 구조 정리
-5. 아이템 아이콘 Addressables 전환 준비
-6. BackND 연동 전 로컬 저장 인터페이스 준비
+1. Enemy / 피격 / HP 테스트 가능 상태 만들기
+2. 하트/리스폰/피격 구조 정리
+3. 점수 시스템 정식화
+4. Lobby 기록 저장값 연결
+5. TopUI 디자인 교체 전 구조 정리
+6. 아이템 아이콘 Addressables 전환 준비
+7. BackND 연동 전 로컬 저장 인터페이스 준비
+8. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• Game Over 이후 결과창으로 넘길 데이터 구조를 먼저 준비한다.
-• 단, 피격/리스폰을 먼저 붙일 계획이면 `PlayerHealth` 분리를 선행한다.
+• Lobby 1차 구성까지 완료했으므로 다음은 Enemy/피격/HP 테스트 가능 상태를 만든다.
+• 피격/리스폰을 안정적으로 붙이려면 `PlayerHealth` 분리를 선행한다.
+• 광고 부활은 Enemy/피격/리스폰이 붙은 뒤 결과창 확장 작업으로 연결한다.
 
 ________________________________________
 

@@ -76,6 +76,7 @@ namespace PH.Core.UI
         public int CurrentHearts => currentHearts;
         public int MaxHearts => maxHearts;
         public float RemainingSeconds => remainingSeconds;
+        public int CurrentScore => currentScore;
 
         private void Awake()
         {

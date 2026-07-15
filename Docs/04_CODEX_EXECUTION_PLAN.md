@@ -125,6 +125,8 @@ PART 6
 •	Hard 모드
 •	GameStateController
 •	GameOverUI
+•	결과창 광고보기 버튼 확장 지점
+•	Google AdMob 보상형 광고 부활 정책 준비
 •	시간 제한
 완료 조건
 •	피격 시 하트 감소
@@ -132,6 +134,7 @@ PART 6
 •	하트 0이면 게임 종료
 •	시간 0이면 게임 종료
 •	게임 오버 시 최고 층 확정
+•	광고 부활은 아직 구현하지 않더라도 결과창/상태 전환 구조에서 확장 가능
 ________________________________________
 PART 7
 점수 시스템
@@ -145,6 +148,7 @@ PART 7
 •	Best Highest Floor
 •	점수 이벤트 API
 •	GameOver 결과 데이터
+•	광고 부활 사용 여부 필드 확장 준비
 •	Game Over 시 runHighestFloor 확정
 •	RunScoreResult에 runHighestFloor 포함
 •	Floor Score 계산: floorMoveCount × floorScoreValue
@@ -162,6 +166,7 @@ PART 7
 •	런 종료 결과 생성 가능
 •	Game Over 결과 데이터에 runHighestFloor가 반드시 포함됨
 •	Game Over 기준 총점이 생성됨
+•	추후 AdMob 보상형 광고 부활 사용 여부를 저장/랭킹 데이터에 포함 가능
 •	보너스별 점수 breakdown을 UI와 저장 데이터에 전달 가능
 •	Line Bonus 계산에 필요한 최소 통과 수와 실제 통과 수가 분리됨
 •	Line Bonus가 비활성 상태여도 Floor Score 계산 구조가 깨지지 않음
@@ -369,9 +374,11 @@ PART 18
 12.	스킬 효과
 13.	수집 아이템 저장
 14.	Game Over
-15.	최고 층과 점수 저장
-16.	Lobby 복귀
-17.	저장 데이터 확인
+15.	결과창 표시
+16.	광고보기 선택 시 보상형 광고 시청 후 부활
+17.	확인 선택 시 최고 층과 점수 저장
+18.	Lobby 복귀
+19.	저장 데이터 확인
 완료 조건
 •	컴파일 에러 없음
 •	Missing Reference 없음
