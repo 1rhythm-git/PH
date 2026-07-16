@@ -6,7 +6,8 @@ namespace PH.Core.Items
         {
             new AddScoreItemEffect(),
             new AddTimeItemEffect(),
-            new HealHeartItemEffect()
+            new HealHeartItemEffect(),
+            new AddMoveSpeedItemEffect()
         };
 
         public void Execute(ItemDefinition definition, ItemEffectContext context)

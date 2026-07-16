@@ -96,6 +96,7 @@ namespace PH.Core.Items
                     GetEnum(row, header, "PassDirection", ItemPassDirection.Any),
                     GetString(row, header, "EffectKey"),
                     GetInt(row, header, "EffectValue", 0),
+                    GetFloat(row, header, "EffectDurationSeconds", 0f),
                     GetBool(row, header, "AffectsScore", false),
                     GetBool(row, header, "AffectsProgression", false),
                     GetBool(row, header, "ServerValidated", false),

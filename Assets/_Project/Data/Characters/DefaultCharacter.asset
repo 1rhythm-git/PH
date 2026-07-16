@@ -29,11 +29,11 @@ MonoBehaviour:
   - {fileID: 21300000, guid: c3c3d2e50bae4ee09fcbf45bf2f0d549, type: 3}
   animationFramesPerSecond: 6
   spriteVisualScale: {x: 1.6, y: 1.6}
-  moveSpeedColumnsPerSecond: 4
-  pivotCooldownSeconds: 0.15
+  moveSpeedColumnsPerSecond: 2
+  pivotCooldownSeconds: 0.3
   boosterGaugeMax: 100
-  boosterGainPerColumn: 1
-  boosterGainPerPivot: 1.5
+  boosterGainPerColumn: 0.5
+  boosterGainPerPivot: 0.75
   boosterBuffKey: Undefined
-  maxLife: 3
+  maxLife: 2
   instantItemAcquireChance: 0

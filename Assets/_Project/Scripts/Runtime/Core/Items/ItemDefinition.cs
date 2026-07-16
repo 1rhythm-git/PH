@@ -52,6 +52,9 @@ namespace PH.Core.Items
         private int effectValue;
 
         [SerializeField]
+        private float effectDurationSeconds;
+
+        [SerializeField]
         private bool affectsScore;
 
         [SerializeField]
@@ -82,6 +85,7 @@ namespace PH.Core.Items
         public ItemPassDirection PassDirection => passDirection;
         public string EffectKey => effectKey;
         public int EffectValue => effectValue;
+        public float EffectDurationSeconds => effectDurationSeconds;
         public bool AffectsScore => affectsScore;
         public bool AffectsProgression => affectsProgression;
         public bool ServerValidated => serverValidated;
@@ -119,6 +123,7 @@ namespace PH.Core.Items
             ItemPassDirection passDirection,
             string effectKey,
             int effectValue,
+            float effectDurationSeconds,
             bool affectsScore,
             bool affectsProgression,
             bool serverValidated,
@@ -142,6 +147,7 @@ namespace PH.Core.Items
                 passDirection = passDirection,
                 effectKey = effectKey,
                 effectValue = effectValue,
+                effectDurationSeconds = Mathf.Max(0f, effectDurationSeconds),
                 affectsScore = affectsScore,
                 affectsProgression = affectsProgression,
                 serverValidated = serverValidated,

@@ -200,6 +200,11 @@ PART 8
 •	수직 이동
 •	플레이어 충돌 시 피격
 •	UI 요소에 가려지지 않음
+•	Game Over 결과창 표시 시 Enemy 이동/충돌/생성 정지
+현행 메모
+•	현재 구현은 정식 Enemy 클래스가 아니라 `TestEnemySpawner`, `TestEnemyHazard` 기반이다.
+•	Enemy 이미지는 경찰 단일 PNG를 사용한다.
+•	히트박스 디버그 표시는 테스트용이며 일반 플레이에서는 숨긴다.
 ________________________________________
 PART 9
 EnemyTrail
@@ -219,7 +224,7 @@ ________________________________________
 PART 10
 아이템 데이터 기반
 목표
-아이템 데이터를 ScriptableObject로 정의한다.
+아이템 데이터를 테이블 또는 ScriptableObject 기반으로 정의한다.
 작업
 •	ItemDefinition
 •	ItemCategory
@@ -228,10 +233,17 @@ PART 10
 •	ItemInstance
 •	Item ID 검증
 •	Required Pass Count
+•	EffectKey
+•	EffectValue
+•	EffectDurationSeconds
 완료 조건
-•	Inspector에서 아이템 데이터 생성 가능
+•	CSV 또는 Inspector에서 아이템 데이터 관리 가능
 •	Score, Skill, Collection 타입 선택 가능
 •	통과 횟수 설정 가능
+•	아이템이 필드에 남아있는 시간과 획득 후 버프 지속시간을 분리 가능
+현행 메모
+•	현재 구현은 `Items.csv`, `ItemIcons.csv` 기반이다.
+•	`LifetimeSeconds`는 필드 수명, `EffectDurationSeconds`는 효과 지속시간으로 사용한다.
 ________________________________________
 PART 11
 아이템 통과 판정
@@ -249,6 +261,7 @@ PART 11
 •	1회 아이템 정상 획득
 •	3회 아이템은 정확히 3번째 통과에 획득
 •	콜라이더 내부 체류 중 횟수 증가하지 않음
+•	통과 카운트 시 SFX와 남은 횟수 UI가 갱신됨
 ________________________________________
 PART 12
 스코어형 아이템
@@ -264,6 +277,9 @@ PART 12
 •	획득 즉시 점수 반영
 •	중복 획득 방지
 •	효과가 ItemInstance와 분리됨
+현행 메모
+•	Score Coin과 Pass Orb가 점수형 아이템으로 동작한다.
+•	Pass Orb는 보석 아이콘을 사용하고 3회 통과 후 획득한다.
 ________________________________________
 PART 13
 스킬형 아이템
@@ -282,10 +298,17 @@ PART 13
 •	중첩 정책
 •	효과 종료
 •	플레이어/적 대상 구분
+•	버프 지속 중 플레이어 시각 효과
 완료 조건
 •	효과 시작과 종료가 정확함
 •	중복 효과 정책이 작동함
 •	게임 오버 시 효과 정리
+현행 메모
+•	현재 구현된 스킬형 아이템은 `Red Sneaker`, `Winged Shoe`이다.
+•	이동속도 증가는 `AddMoveSpeedItemEffect`로 처리한다.
+•	이동속도 증가는 영구 적용하지 않고 `EffectDurationSeconds` 동안만 적용한다.
+•	효과 지속 중 `PlayerBuffVisualFeedback`으로 캐릭터 점멸을 표시한다.
+•	활성 이동속도 버프는 현재 퍼센트 합산 방식으로 계산한다.
 ________________________________________
 PART 14
 수집형 아이템
@@ -315,10 +338,16 @@ PART 15
 •	적 중복 위치 방지
 •	층별 등장 조건
 •	등장 가중치
+•	실행별 랜덤 시드
 완료 조건
 •	도달 가능한 셀에만 아이템 생성
 •	한 셀에 기본 1개
 •	페이지 전환 시 아이템 정리
+•	실행마다 동일한 배치가 반복되지 않음
+현행 메모
+•	현재 `ItemSpawner`는 `randomizeSeedOnStart`가 켜져 있으면 실행마다 `runtimeSeed`를 새로 만든다.
+•	페이지별 난수는 `runtimeSeed`와 page index를 섞어 생성한다.
+•	재현 테스트가 필요하면 `randomizeSeedOnStart`를 끄고 고정 `randomSeed`를 사용한다.
 ________________________________________
 PART 16
 로컬 저장 서비스

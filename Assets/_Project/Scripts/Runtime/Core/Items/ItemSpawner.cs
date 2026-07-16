@@ -39,10 +39,13 @@ namespace PH.Core.Items
         private int randomSeed = 30415;
 
         [SerializeField]
+        private bool randomizeSeedOnStart = true;
+
+        [SerializeField]
         private string forcedTestItemId;
 
         [SerializeField]
-        private Vector2 itemSize = new Vector2(64f, 64f);
+        private Vector2 itemSize = new Vector2(76.8f, 76.8f);
 
         [SerializeField]
         private int passCountFontSize = 32;
@@ -56,6 +59,8 @@ namespace PH.Core.Items
         private IItemIconProvider iconProvider;
         private PlayerMotor playerMotor;
         private int lastSpawnedPageIndex = int.MinValue;
+        private int runtimeSeed;
+        private bool hasRuntimeSeed;
 
         public ItemIconTable IconTable => itemIconTable;
 
@@ -66,6 +71,7 @@ namespace PH.Core.Items
             ReloadIconTable();
             EnsureItemLayer();
             EnsureIconProvider();
+            EnsureRuntimeSeed();
         }
 
         private void OnEnable()
@@ -127,7 +133,10 @@ namespace PH.Core.Items
                 return;
             }
 
-            System.Random random = new System.Random(randomSeed + floorManager.CurrentPageIndex);
+            EnsureRuntimeSeed();
+
+            int pageSeed = unchecked(runtimeSeed + floorManager.CurrentPageIndex * 73856093);
+            System.Random random = new System.Random(pageSeed);
             HashSet<int> occupied = new HashSet<int>();
             int spawnedCount = 0;
 
@@ -284,7 +293,7 @@ namespace PH.Core.Items
 
         private void CreateProgressText(Transform parent)
         {
-            GameObject textObject = new GameObject("ProgressText", typeof(RectTransform), typeof(Text));
+            GameObject textObject = new GameObject("ProgressText", typeof(RectTransform), typeof(Text), typeof(Outline), typeof(Shadow));
             textObject.layer = parent.gameObject.layer;
             textObject.transform.SetParent(parent, false);
 
@@ -296,11 +305,21 @@ namespace PH.Core.Items
 
             Text text = textObject.GetComponent<Text>();
             text.alignment = TextAnchor.MiddleCenter;
-            text.color = Color.black;
+            text.color = Color.white;
             text.fontSize = passCountFontSize;
             text.fontStyle = FontStyle.Bold;
             text.raycastTarget = false;
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            Outline outline = textObject.GetComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+            outline.effectDistance = new Vector2(3f, -3f);
+            outline.useGraphicAlpha = true;
+
+            Shadow shadow = textObject.GetComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.85f);
+            shadow.effectDistance = new Vector2(2f, -2f);
+            shadow.useGraphicAlpha = true;
         }
 
         private Vector2 GetItemAnchoredPosition(int column, int row)
@@ -370,7 +389,7 @@ namespace PH.Core.Items
 
             if (iconProvider == null)
             {
-                iconProvider = new FallbackItemIconProvider(defaultItemColor);
+                iconProvider = new ResourceItemIconProvider(itemIconTable, new FallbackItemIconProvider(defaultItemColor));
             }
         }
 
@@ -404,6 +423,19 @@ namespace PH.Core.Items
             {
                 playerMotor = playerSpawner.SpawnedPlayer.GetComponent<PlayerMotor>();
             }
+        }
+
+        private void EnsureRuntimeSeed()
+        {
+            if (hasRuntimeSeed)
+            {
+                return;
+            }
+
+            runtimeSeed = randomizeSeedOnStart
+                ? unchecked(randomSeed ^ Random.Range(int.MinValue, int.MaxValue) ^ GetInstanceID() ^ System.Environment.TickCount)
+                : randomSeed;
+            hasRuntimeSeed = true;
         }
 
 #if UNITY_EDITOR

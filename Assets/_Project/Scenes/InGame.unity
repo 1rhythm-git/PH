@@ -308,8 +308,9 @@ MonoBehaviour:
   spawnOnStart: 1
   maxItemsPerPage: 6
   randomSeed: 30415
+  randomizeSeedOnStart: 1
   forcedTestItemId: 
-  itemSize: {x: 64, y: 64}
+  itemSize: {x: 76.8, y: 76.8}
   passCountFontSize: 32
   defaultItemColor: {r: 1, g: 0.08, b: 0.06, a: 0.95}
 --- !u!114 &300108

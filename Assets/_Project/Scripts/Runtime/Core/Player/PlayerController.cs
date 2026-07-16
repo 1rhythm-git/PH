@@ -76,6 +76,7 @@ namespace PH.Core.Player
             HandleKeyboardInput();
 
             motor.Move(moveDirection, Time.deltaTime);
+            StopAtHorizontalLimit();
         }
 
         public void Configure(PlayerMotor playerMotor, RectTransform inputTouchArea)
@@ -163,6 +164,21 @@ namespace PH.Core.Player
                 lastPivotTime = Time.time;
                 characterRuntime?.AddPivotCharge();
             }
+        }
+
+        private void StopAtHorizontalLimit()
+        {
+            if (motor == null || moveDirection == 0)
+            {
+                return;
+            }
+
+            if (!motor.IsAtHorizontalLimit(moveDirection))
+            {
+                return;
+            }
+
+            StopAndFace(-moveDirection);
         }
 
         private bool IsInsideTouchArea(Vector2 screenPosition)

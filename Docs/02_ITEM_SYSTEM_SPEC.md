@@ -72,6 +72,23 @@ AllEnemies
 NearestEnemy
 CurrentFloorEnemies
 GameState
+
+현재 구현된 Skill 아이템:
+•	Red Sneaker
+	- EffectKey: add_move_speed_percent
+	- EffectValue: 20
+	- EffectDurationSeconds: 10
+	- 효과: 플레이어 이동속도 20% 증가
+•	Winged Shoe
+	- EffectKey: add_move_speed_percent
+	- EffectValue: 50
+	- EffectDurationSeconds: 12
+	- 효과: 플레이어 이동속도 50% 증가
+
+이동속도 증가 아이템은 영구 강화가 아니다.
+효과 지속시간 동안만 `PlayerMotor`의 이동속도에 반영하고, 시간이 끝나면 자동으로 제거한다.
+효과 지속 중에는 `PlayerBuffVisualFeedback`을 통해 캐릭터 점멸을 표시한다.
+
 Collection
 장기 저장되는 수집 데이터에 반영한다.
 필수 데이터 예시:
@@ -98,6 +115,43 @@ IItemEffect
     └── AddCollectionEffect
 ItemDefinition은 데이터만 보유한다.
 실제 효과는 IItemEffect 구현체가 담당한다.
+
+현재 구현체:
+•	AddScoreItemEffect
+•	AddTimeItemEffect
+•	HealHeartItemEffect
+•	AddMoveSpeedItemEffect
+
+현재 데이터 소스:
+•	`Assets/_Project/Data/Tables/Items.csv`
+•	`Assets/_Project/Data/Tables/ItemIcons.csv`
+
+현재 `Items.csv` 주요 컬럼:
+•	ItemId
+•	ServerItemId
+•	TableVersion
+•	Enabled
+•	DisplayName
+•	ItemType
+•	IconKey
+•	MinFloor
+•	MaxFloor
+•	SpawnWeight
+•	RequiredPassCount
+•	LifetimeSeconds
+•	PassDirection
+•	EffectKey
+•	EffectValue
+•	EffectDurationSeconds
+•	AffectsScore
+•	AffectsProgression
+•	ServerValidated
+•	MaxAcquirePerRun
+•	Rarity
+
+`LifetimeSeconds`는 아이템이 필드에 남아있는 시간이다.
+`EffectDurationSeconds`는 획득 후 적용되는 버프 지속시간이다.
+두 값은 서로 다른 목적이므로 같은 값으로 묶지 않는다.
 ________________________________________
 8. 중첩 정책
 스킬형 아이템은 다음 중첩 정책을 가질 수 있다.
@@ -111,6 +165,10 @@ ReplaceWithStronger
 •	이동 속도 증가: 최대 3중첩
 •	적 정지: 남은 시간에 추가
 •	약한 버프 획득 후 강한 버프 획득: 강한 효과로 교체
+
+현재 이동속도 증가 구현은 동일 런 안에서 복수 버프가 동시에 존재할 수 있다.
+각 버프는 독립적인 만료 시간을 가지며, 활성 버프의 퍼센트 값을 합산해 최종 이동속도 배율을 계산한다.
+정식 밸런스 단계에서 Stack Policy와 Stack Limit을 데이터화할 수 있다.
 ________________________________________
 9. 아이템 진행 UI
 필요 통과 횟수가 2 이상이면 진행 상태를 표시한다.
@@ -124,6 +182,12 @@ ________________________________________
 •	발광 강도
 •	단계별 스프라이트
 진행 UI는 ItemInstance 내부 로직과 분리한다.
+
+현재 구현:
+•	아이템 중앙에 남은 통과 횟수를 숫자로 표시한다.
+•	숫자는 흰색 Bold 텍스트를 사용한다.
+•	검은 Outline과 Shadow를 사용해 시인성을 보강한다.
+•	획득 시 `gain.ogg`, 통과 카운트 시 `pass.ogg` 재생 구조를 사용한다.
 ________________________________________
 10. 스폰 규칙
 아이템은 셀 내부에 생성한다.
@@ -143,6 +207,13 @@ ________________________________________
 •	적과 동일 위치에 생성하지 않음
 •	한 셀에 하나의 아이템만 생성
 •	플레이어가 도달할 수 없는 위치에는 생성하지 않음
+
+현재 구현:
+•	한 페이지 최대 아이템 수는 `maxItemsPerPage`로 제한한다.
+•	좌측 끝 셀과 우측 끝 셀에는 생성하지 않는다.
+•	실행마다 `runtimeSeed`를 생성하고, 페이지 인덱스를 섞어 배치 난수를 만든다.
+•	`randomizeSeedOnStart`가 켜져 있으면 새 실행마다 배치가 달라진다.
+•	`randomizeSeedOnStart`가 꺼져 있으면 `randomSeed` 기반으로 재현 가능한 배치를 만든다.
 ________________________________________
 11. 저장 규칙
 Score 아이템:
@@ -151,6 +222,7 @@ Score 아이템:
 Skill 아이템:
 •	기본적으로 런 종료 시 효과 소멸
 •	영구 스킬인 경우 Collection 또는 Progress 데이터로 처리
+•	이동속도 아이템은 현재 런의 지정 지속시간 동안만 적용하고, 저장 대상이 아니다.
 Collection 아이템:
 •	획득 즉시 로컬 저장
 •	서버 연결 시 동기화 대상

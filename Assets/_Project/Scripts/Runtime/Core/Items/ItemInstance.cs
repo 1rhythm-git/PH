@@ -1,3 +1,4 @@
+using PH.Core.Audio;
 using PH.Core.Characters;
 using PH.Core.Player;
 using PH.Core.UI;
@@ -24,6 +25,7 @@ namespace PH.Core.Items
         private PlayerMotor playerMotor;
         private PlayerCharacterRuntime playerCharacterRuntime;
         private PlayerHealth playerHealth;
+        private PlayerBuffVisualFeedback playerBuffVisualFeedback;
         private RunItemEventRecorder eventRecorder;
         private TopHUDController topHUDController;
         private ItemEffectResolver effectResolver;
@@ -62,6 +64,15 @@ namespace PH.Core.Items
             if (playerHealth == null && playerMotor != null)
             {
                 playerHealth = playerMotor.GetComponent<PlayerHealth>();
+            }
+
+            if (playerBuffVisualFeedback == null && playerMotor != null)
+            {
+                playerBuffVisualFeedback = playerMotor.GetComponent<PlayerBuffVisualFeedback>();
+                if (playerBuffVisualFeedback == null)
+                {
+                    playerBuffVisualFeedback = playerMotor.gameObject.AddComponent<PlayerBuffVisualFeedback>();
+                }
             }
 
             if (acquired || playerMotor == null || floorManager == null)
@@ -159,6 +170,15 @@ namespace PH.Core.Items
                 playerHealth = playerMotor.GetComponent<PlayerHealth>();
             }
 
+            if (playerBuffVisualFeedback == null && playerMotor != null)
+            {
+                playerBuffVisualFeedback = playerMotor.GetComponent<PlayerBuffVisualFeedback>();
+                if (playerBuffVisualFeedback == null)
+                {
+                    playerBuffVisualFeedback = playerMotor.gameObject.AddComponent<PlayerBuffVisualFeedback>();
+                }
+            }
+
             if (playerMotor == null)
             {
                 return;
@@ -173,6 +193,7 @@ namespace PH.Core.Items
             bool instantAcquire = playerCharacterRuntime != null && playerCharacterRuntime.RollInstantItemAcquire();
             remainingPassCount = instantAcquire ? 0 : Mathf.Max(0, remainingPassCount - 1);
             lastPassDirection = passDirection;
+            GameSfxPlayer.Play(GameSfxId.ItemPass);
             UpdateProgressText();
 
             if (remainingPassCount <= 0)
@@ -189,6 +210,7 @@ namespace PH.Core.Items
             }
 
             acquired = true;
+            GameSfxPlayer.Play(GameSfxId.ItemGain);
 
             if (itemImage != null)
             {
@@ -217,7 +239,7 @@ namespace PH.Core.Items
                 effectResolver = new ItemEffectResolver();
             }
 
-            effectResolver.Execute(definition, new ItemEffectContext(topHUDController, playerHealth));
+            effectResolver.Execute(definition, new ItemEffectContext(topHUDController, playerHealth, playerMotor, playerBuffVisualFeedback));
         }
 
         private void Expire()

@@ -156,6 +156,8 @@ namespace PH.Core.World
             isAscending = true;
             playerMotor.SetMovementLocked(true);
             playerMotor.SnapCenterToColumn(GetCurrentElevatorColumn());
+            playerController?.StopAndFace(GetNextTravelDirection());
+            yield return null;
 
             int startAbsoluteFloor = floorManager.CurrentAbsoluteFloor;
             int startPageIndex = floorManager.CurrentPageIndex;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PH.Core.Enemies;
 using PH.Core.Items;
 using PH.Core.Player;
 using PH.Core.SceneFlow;
@@ -185,6 +186,29 @@ namespace PH.Core.Game
             if (itemSpawner != null)
             {
                 itemSpawner.enabled = false;
+            }
+
+            StopEnemyHazards();
+        }
+
+        private void StopEnemyHazards()
+        {
+            TestEnemySpawner[] enemySpawners = FindObjectsByType<TestEnemySpawner>(FindObjectsSortMode.None);
+            for (int i = 0; i < enemySpawners.Length; i++)
+            {
+                if (enemySpawners[i] != null)
+                {
+                    enemySpawners[i].enabled = false;
+                }
+            }
+
+            TestEnemyHazard[] enemyHazards = FindObjectsByType<TestEnemyHazard>(FindObjectsSortMode.None);
+            for (int i = 0; i < enemyHazards.Length; i++)
+            {
+                if (enemyHazards[i] != null)
+                {
+                    enemyHazards[i].enabled = false;
+                }
             }
         }
 

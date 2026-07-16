@@ -125,6 +125,11 @@ namespace PH.Core.Player
                 playerHealth = spawnedPlayer.AddComponent<PlayerHealth>();
             }
 
+            if (spawnedPlayer.GetComponent<PlayerBuffVisualFeedback>() == null)
+            {
+                spawnedPlayer.AddComponent<PlayerBuffVisualFeedback>();
+            }
+
             TopHUDController topHUDController = FindFirstObjectByType<TopHUDController>();
             GameStateController gameStateController = FindFirstObjectByType<GameStateController>();
             ElevatorController elevatorController = FindFirstObjectByType<ElevatorController>();

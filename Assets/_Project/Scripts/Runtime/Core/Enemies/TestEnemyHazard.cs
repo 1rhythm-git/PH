@@ -1,3 +1,4 @@
+using PH.Core.Audio;
 using PH.Core.Player;
 using PH.Core.World;
 using UnityEngine;
@@ -48,6 +49,8 @@ namespace PH.Core.Enemies
         private int verticalDirection = -1;
         private float nextHitAllowedTime;
         private float lastMoveDistance;
+        private PlayerHealth cachedPlayerHealth;
+        private readonly Vector3[] worldCorners = new Vector3[4];
 
         private void Awake()
         {
@@ -174,12 +177,14 @@ namespace PH.Core.Enemies
                 position.y = minY;
                 verticalDirection = 1;
                 currentVerticalSpeed = RollVerticalSpeed();
+                GameSfxPlayer.Play(GameSfxId.Enemy);
             }
             else if (position.y >= maxY)
             {
                 position.y = maxY;
                 verticalDirection = -1;
                 currentVerticalSpeed = RollVerticalSpeed();
+                GameSfxPlayer.Play(GameSfxId.Enemy);
             }
 
             rectTransform.anchoredPosition = position;
@@ -270,7 +275,7 @@ namespace PH.Core.Enemies
                 rectTransform = GetComponent<RectTransform>();
             }
 
-            if (parentRectTransform == null && transform.parent != null)
+            if (transform.parent != null && parentRectTransform != transform.parent)
             {
                 parentRectTransform = transform.parent as RectTransform;
             }
@@ -278,12 +283,19 @@ namespace PH.Core.Enemies
 
         private PlayerHealth ResolvePlayerHealth()
         {
-            if (playerSpawner != null && playerSpawner.SpawnedPlayer != null)
+            if (cachedPlayerHealth != null && cachedPlayerHealth.gameObject.activeInHierarchy)
             {
-                return playerSpawner.SpawnedPlayer.GetComponent<PlayerHealth>();
+                return cachedPlayerHealth;
             }
 
-            return FindFirstObjectByType<PlayerHealth>();
+            if (playerSpawner != null && playerSpawner.SpawnedPlayer != null)
+            {
+                cachedPlayerHealth = playerSpawner.SpawnedPlayer.GetComponent<PlayerHealth>();
+                return cachedPlayerHealth;
+            }
+
+            cachedPlayerHealth = FindFirstObjectByType<PlayerHealth>();
+            return cachedPlayerHealth;
         }
 
         private bool IsPlayerOverlapping(PlayerHealth playerHealth)
@@ -299,25 +311,48 @@ namespace PH.Core.Enemies
                 return false;
             }
 
-            Vector2 enemyPosition = rectTransform.anchoredPosition;
-            float playerY = ConvertWorldPointToParentLocal(playerRect.position).y;
-            float playerX = ConvertWorldPointToParentLocal(playerRect.position).x;
+            Rect enemyLocalRect = GetRectInEnemyParentLocal(rectTransform);
+            Rect playerLocalRect = GetRectInEnemyParentLocal(playerRect);
             Vector2 scale = new Vector2(Mathf.Clamp01(collisionHitboxScale.x), Mathf.Clamp01(collisionHitboxScale.y));
-            float halfEnemyWidth = rectTransform.rect.width * 0.5f * scale.x;
-            float halfPlayerWidth = playerRect.rect.width * 0.5f * scale.x;
-            float halfEnemyHeight = rectTransform.rect.height * 0.5f * scale.y;
-            float halfPlayerHeight = playerRect.rect.height * 0.5f * scale.y;
-            float horizontalTolerance = halfEnemyWidth + halfPlayerWidth;
-            float verticalTolerance = halfEnemyHeight + halfPlayerHeight + Mathf.Max(collisionSweepPadding, lastMoveDistance);
+            enemyLocalRect = ScaleRectFromCenter(enemyLocalRect, scale);
+            playerLocalRect = ScaleRectFromCenter(playerLocalRect, scale);
 
-            return Mathf.Abs(enemyPosition.x - playerX) <= horizontalTolerance
-                && Mathf.Abs(enemyPosition.y - playerY) <= verticalTolerance;
+            float verticalSweep = Mathf.Max(collisionSweepPadding, lastMoveDistance);
+            enemyLocalRect.yMin -= verticalSweep;
+            enemyLocalRect.yMax += verticalSweep;
+
+            return enemyLocalRect.Overlaps(playerLocalRect, true);
         }
 
-        private Vector2 ConvertWorldPointToParentLocal(Vector3 worldPosition)
+        private Rect GetRectInEnemyParentLocal(RectTransform target)
         {
-            Vector3 localPoint = parentRectTransform.InverseTransformPoint(worldPosition);
-            return new Vector2(localPoint.x, localPoint.y);
+            target.GetWorldCorners(worldCorners);
+
+            Vector2 firstPoint = parentRectTransform.InverseTransformPoint(worldCorners[0]);
+            float minX = firstPoint.x;
+            float maxX = firstPoint.x;
+            float minY = firstPoint.y;
+            float maxY = firstPoint.y;
+
+            for (int i = 1; i < worldCorners.Length; i++)
+            {
+                Vector2 localPoint = parentRectTransform.InverseTransformPoint(worldCorners[i]);
+                minX = Mathf.Min(minX, localPoint.x);
+                maxX = Mathf.Max(maxX, localPoint.x);
+                minY = Mathf.Min(minY, localPoint.y);
+                maxY = Mathf.Max(maxY, localPoint.y);
+            }
+
+            return Rect.MinMaxRect(minX, minY, maxX, maxY);
+        }
+
+        private Rect ScaleRectFromCenter(Rect source, Vector2 scale)
+        {
+            Vector2 center = source.center;
+            Vector2 size = new Vector2(source.width * scale.x, source.height * scale.y);
+            Vector2 min = center - size * 0.5f;
+
+            return new Rect(min, size);
         }
 
         private void EnsureHitboxDebug()
