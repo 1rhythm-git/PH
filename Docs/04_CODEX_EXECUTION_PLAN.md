@@ -119,6 +119,8 @@ PART 6
 목표
 하트 3개와 사망 구조를 구현한다.
 작업
+•	CharacterDefinition
+•	캐릭터별 MaxLife 적용
 •	PlayerHealth
 •	PlayerRespawnController
 •	Normal 모드
@@ -172,6 +174,7 @@ PART 7
 •	Line Bonus가 비활성 상태여도 Floor Score 계산 구조가 깨지지 않음
 검토 메모
 •	Time Bonus와 Life Bonus는 기본 점수 공식에서 제외한다.
+•	캐릭터별 이동속도, 방향전환 쿨타임, 아이템 즉시 획득 확률은 점수/랭킹 검증에 영향을 줄 수 있으므로 결과 데이터에 캐릭터 ID를 포함할 수 있어야 한다.
 •	무한 상승 구조라도 Game Over 시 해당 런의 최고 도달 층인 runHighestFloor를 확정한다.
 •	돌파 보너스는 Game Over 시 확정된 runHighestFloor를 기준으로 산정한다.
 •	minimumRequiredVLinePassCount는 runHighestFloor까지 진행하는 데 필요한 최소 세로 경계 통과 수이다.

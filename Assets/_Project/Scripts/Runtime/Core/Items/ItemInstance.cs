@@ -1,3 +1,4 @@
+using PH.Core.Characters;
 using PH.Core.Player;
 using PH.Core.UI;
 using PH.Core.World;
@@ -21,6 +22,8 @@ namespace PH.Core.Items
         private ItemDefinition definition;
         private InfiniteFloorManager floorManager;
         private PlayerMotor playerMotor;
+        private PlayerCharacterRuntime playerCharacterRuntime;
+        private PlayerHealth playerHealth;
         private RunItemEventRecorder eventRecorder;
         private TopHUDController topHUDController;
         private ItemEffectResolver effectResolver;
@@ -49,6 +52,16 @@ namespace PH.Core.Items
             if (playerMotor == null)
             {
                 playerMotor = FindFirstObjectByType<PlayerMotor>();
+            }
+
+            if (playerCharacterRuntime == null && playerMotor != null)
+            {
+                playerCharacterRuntime = playerMotor.GetComponent<PlayerCharacterRuntime>();
+            }
+
+            if (playerHealth == null && playerMotor != null)
+            {
+                playerHealth = playerMotor.GetComponent<PlayerHealth>();
             }
 
             if (acquired || playerMotor == null || floorManager == null)
@@ -136,6 +149,16 @@ namespace PH.Core.Items
                 playerMotor = FindFirstObjectByType<PlayerMotor>();
             }
 
+            if (playerCharacterRuntime == null && playerMotor != null)
+            {
+                playerCharacterRuntime = playerMotor.GetComponent<PlayerCharacterRuntime>();
+            }
+
+            if (playerHealth == null && playerMotor != null)
+            {
+                playerHealth = playerMotor.GetComponent<PlayerHealth>();
+            }
+
             if (playerMotor == null)
             {
                 return;
@@ -147,7 +170,8 @@ namespace PH.Core.Items
                 return;
             }
 
-            remainingPassCount = Mathf.Max(0, remainingPassCount - 1);
+            bool instantAcquire = playerCharacterRuntime != null && playerCharacterRuntime.RollInstantItemAcquire();
+            remainingPassCount = instantAcquire ? 0 : Mathf.Max(0, remainingPassCount - 1);
             lastPassDirection = passDirection;
             UpdateProgressText();
 
@@ -193,7 +217,7 @@ namespace PH.Core.Items
                 effectResolver = new ItemEffectResolver();
             }
 
-            effectResolver.Execute(definition, new ItemEffectContext(topHUDController));
+            effectResolver.Execute(definition, new ItemEffectContext(topHUDController, playerHealth));
         }
 
         private void Expire()

@@ -167,6 +167,7 @@ GameObject:
   - component: {fileID: 300106}
   - component: {fileID: 300107}
   - component: {fileID: 300108}
+  - component: {fileID: 300109}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -241,9 +242,10 @@ MonoBehaviour:
   playerLayer: {fileID: 300931}
   touchArea: {fileID: 300501}
   playerPrefab: {fileID: 0}
+  characterDefinition: {fileID: 11400000, guid: 5ca02f1184e34db0a492fc83cd73682d, type: 2}
   startColumn: 0
   moveSpeedColumnsPerSecond: 4
-  playerSize: {x: 72, y: 72}
+  playerSize: {x: 61, y: 72}
   playerColor: {r: 0.95, g: 0.78, b: 0.22, a: 1}
   playerOutlineColor: {r: 0.05, g: 0.05, b: 0.06, a: 0.85}
 --- !u!114 &300105
@@ -326,12 +328,59 @@ MonoBehaviour:
   playerSpawner: {fileID: 300104}
   elevatorController: {fileID: 300105}
   itemSpawner: {fileID: 300107}
+  floorManager: {fileID: 0}
+  itemEventRecorder: {fileID: 0}
   targetCanvas: {fileID: 300302}
   overlayColor: {r: 0, g: 0, b: 0, a: 0.58}
   gameOverTextColor: {r: 1, g: 1, b: 1, a: 1}
+  resultPanelColor: {r: 0.08, g: 0.1, b: 0.13, a: 0.94}
+  confirmButtonColor: {r: 0.96, g: 0.82, b: 0.22, a: 1}
+  confirmButtonTextColor: {r: 0, g: 0, b: 0, a: 1}
   gameOverFontSize: 74
   clickToLobby: 1
   logGameOver: 1
+  lastRunResultData:
+    gameOverReason: 0
+    highestFloor: 0
+    score: 0
+    remainingSeconds: 0
+    remainingHearts: 0
+    acquiredItemEvents: []
+--- !u!114 &300109
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 300100}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9271fc95806407cb9307522c2aa0d72, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  buildingGridUI: {fileID: 300902}
+  floorManager: {fileID: 300103}
+  playerSpawner: {fileID: 300104}
+  enemyLayer: {fileID: 0}
+  guideLineLayer: {fileID: 0}
+  playerLayer: {fileID: 300931}
+  spawnOnStart: 1
+  spawnAllInternalLines: 1
+  damage: 1
+  hitCooldownSeconds: 0.65
+  minVerticalSpeed: 130
+  maxVerticalSpeed: 360
+  speedStepPerLine: 22
+  guideLineThickness: 4
+  guideLineColor: {r: 1, g: 1, b: 1, a: 0.68}
+  enemySize: {x: 64, y: 120}
+  enemySprite: {fileID: 21300000, guid: 39244805bae152a44bbff1dd7dfef541, type: 3}
+  enemySpriteTint: {r: 1, g: 1, b: 1, a: 1}
+  preserveEnemySpriteAspect: 1
+  enemyVisualScale: {x: 1.015, y: 1.015}
+  enemyVisualOffset: {x: 0, y: 0}
+  enemyColor: {r: 1, g: 0.12, b: 0.1, a: 0.94}
+  enemyOutlineColor: {r: 1, g: 1, b: 1, a: 0.52}
 --- !u!1 &300200
 GameObject:
   m_ObjectHideFlags: 0
@@ -664,13 +713,18 @@ MonoBehaviour:
   maxHearts: 3
   currentHearts: 3
   useTimer: 1
-  runDurationSeconds: 30
+  runDurationSeconds: 90
   currentScore: 0
   fullHeartScoreBonusPerHeart: 100
   itemStatusText: ITEM -
   primaryTextColor: {r: 1, g: 1, b: 1, a: 1}
   secondaryTextColor: {r: 1, g: 1, b: 1, a: 0.74}
   heartColor: {r: 1, g: 0.18, b: 0.24, a: 1}
+  boosterReadyColor: {r: 0.96, g: 0.82, b: 0.22, a: 1}
+  boosterGaugeBackgroundColor: {r: 0, g: 0, b: 0, a: 0.68}
+  boosterGaugeFillColor: {r: 0.16, g: 0.72, b: 0.96, a: 1}
+  boosterGaugeEmptyColor: {r: 1, g: 1, b: 1, a: 0.08}
+  boosterReadyBlinkInterval: 0.18
 --- !u!1 &300500
 GameObject:
   m_ObjectHideFlags: 0

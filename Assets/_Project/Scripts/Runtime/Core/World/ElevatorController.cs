@@ -57,11 +57,14 @@ namespace PH.Core.World
         private InputAction submitAction;
         private bool isAscending;
 
+        public int CurrentFloorStartColumn { get; private set; }
+
         private void Awake()
         {
             EnsureReferences();
             CreateElevatorVisuals();
             CreateSubmitAction();
+            CurrentFloorStartColumn = GetCurrentElevatorColumn();
         }
 
         private void OnEnable()
@@ -76,6 +79,7 @@ namespace PH.Core.World
 
         private void Start()
         {
+            CurrentFloorStartColumn = GetCurrentElevatorColumn();
             ApplyElevatorPosition();
         }
 
@@ -185,6 +189,7 @@ namespace PH.Core.World
             }
 
             floorManager.MoveToNextFloor();
+            CurrentFloorStartColumn = startElevatorColumn;
             bool pageChanged = floorManager.CurrentPageIndex != startPageIndex;
             if (pageChanged)
             {

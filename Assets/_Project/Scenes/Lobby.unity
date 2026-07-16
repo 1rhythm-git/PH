@@ -408,6 +408,9 @@ MonoBehaviour:
   headerRoot: {fileID: 200401}
   contentRoot: {fileID: 200501}
   footerRoot: {fileID: 200601}
+  availableCharacters:
+  - {fileID: 11400000, guid: 5ca02f1184e34db0a492fc83cd73682d, type: 2}
+  - {fileID: 11400000, guid: d0b4e87fbcab4d4f917299b9b05780ca, type: 2}
   playerNickname: Player
   playerLevel: 1
   bestHighestFloor: 0

@@ -192,7 +192,7 @@ ________________________________________
 • 시간 0초 도달 시 Game Over
 • HP 0 도달 시 Game Over
 • Game Over 시 타이머 정지, 플레이어 입력 정지, 플레이어 이동 잠금, 엘리베이터/아이템 스폰 컨트롤러 비활성화
-• Time Over 테스트를 위해 InGame 씬의 `runDurationSeconds`를 30초로 설정
+• Time Over 테스트를 위해 InGame 씬의 `runDurationSeconds`를 90초로 설정
 • Game Over 시 전체 화면 반투명 검은 오버레이 표시
 • 오버레이 중앙에 흰색 `GAME OVER` 텍스트 표시
 • Game Over 결과창에 종료 사유, 최고 도달 층, 점수, 남은 시간, 남은 HP, 획득 아이템 수 표시
@@ -204,7 +204,7 @@ ________________________________________
 • 추후 결과창과 로비 이동은 `GameStateController`에서 직접 UI를 만들기보다 결과 데이터 생성 후 별도 UI/SceneFlow 계층으로 전달하는 방식이 적합하다.
 • 현재 흐름은 `GAME OVER -> 결과창 표시 -> 확인 버튼 -> Lobby`로 구성되어 있다.
 • 추후 Google AdMob 보상형 광고를 붙이면 결과창에 광고보기 버튼을 추가하고, 광고 시청 완료 후 부활하는 흐름을 연결한다.
-• HP 감소는 현재 `TopHUDController.DamageHeart()`를 통해 Game Over 이벤트를 발행하므로, 적 충돌/피격 시스템은 이 API 또는 별도 Health 모델을 통해 연결해야 한다.
+• HP 감소는 현재 `PlayerHealth.TakeDamage()`를 통해 처리하고, HP 0 도달 시 Game Over로 연결한다.
 • Game Over 이후에도 결과 산정에 필요한 최고 층, 점수, 아이템 이벤트는 보존되어야 한다.
 
 리팩터링 타이밍:
@@ -315,22 +315,174 @@ ________________________________________
 
 ________________________________________
 
+2.11 캐릭터 스테이터스 기반
+
+완료 내용:
+• `CharacterDefinition` ScriptableObject 추가
+• 테스트용 `DefaultCharacter` 에셋 추가
+• 테스트용 `TriangleLowSpecCharacter` 에셋 추가
+• 캐릭터 외형 모양 `Square`, `Triangle` 선택 구조 추가
+• `PlayerShapeGraphic` 추가로 UI Player를 네모/세모 형태로 런타임 렌더링
+• InGame 씬의 `PlayerSpawner.characterDefinition`에 `DefaultCharacter` 연결
+• 캐릭터 기본 스탯 5종 정의: 이동속도, 방향전환 쿨타임, 부스터 게이지, MaxLife, 아이템 즉시 획득 확률
+• `PlayerCharacterRuntime` 추가
+• `PlayerSpawner`에서 선택 캐릭터 데이터를 Player/HUD에 적용하는 흐름 추가
+• 캐릭터 이동속도를 `PlayerMotor` 이동속도에 적용
+• 캐릭터 방향전환 쿨타임을 `PlayerController` 피벗 입력에 적용
+• 이동거리와 방향전환에 따라 부스터 게이지가 누적되도록 연결
+• 부스터 게이지를 TopHUD에 배경/채움 게이지와 `BOOST %` 라벨로 표시
+• 캐릭터 MaxLife를 TopHUD 하트 수에 적용
+• 캐릭터 아이템 즉시 획득 확률을 `ItemInstance` 획득 판정에 연결
+
+고려 사항:
+• 부스터 100% 도달 시 버프 효과는 아직 미정이므로 현재는 게이지 표시와 버프 키 로그까지만 처리한다.
+• 캐릭터 데이터가 연결되지 않으면 기존 테스트 기본값이 유지된다.
+• 현재 InGame에는 네모 기본 캐릭터가 연결되어 있으며, 세모 저성능 캐릭터는 `PlayerSpawner.characterDefinition`에 수동으로 교체해 테스트한다.
+• 아이템 즉시 획득 확률은 RequiredPassCount를 무시하는 강한 효과이므로 서버 검증/랭킹 정책과 함께 관리해야 한다.
+• 캐릭터는 게임머니, 광고보상, 업적 보상 등 다양한 방식으로 해금될 예정이므로 보유/장착 상태는 별도 저장 모델이 필요하다.
+
+리팩터링 타이밍:
+• Lobby에 캐릭터 선택/보유 UI를 추가하기 직전
+• BackND 캐릭터 보유/장착 저장을 연결하기 직전
+• 부스터 효과가 캐릭터별로 실제 구현되기 직전
+• 점수/랭킹 검증에 캐릭터 ID와 스탯 버전을 포함해야 할 때
+
+권장 리팩터링 방향:
+• `CharacterDefinition`은 캐릭터 정적 데이터만 담당
+• `PlayerCharacterRuntime`은 한 런에서 변하는 부스터 게이지/확률 판정만 담당
+• 캐릭터 보유/구매/장착은 `ICharacterInventoryRepository` 같은 저장 인터페이스 뒤에 둔다.
+• 부스터 효과는 `ICharacterBoosterEffect` 또는 effect resolver로 분리해 캐릭터별 확장성을 유지한다.
+
+________________________________________
+
+2.12 Lobby 캐릭터 선택 UI / InGame 선택 캐릭터 적용
+
+완료 내용:
+• Lobby에 테스트 캐릭터 선택 영역 추가
+• `DefaultCharacter`, `TriangleLowSpecCharacter`를 Lobby 선택 목록에 연결
+• `CharacterSelectionState` 추가로 씬 전환 중 선택 캐릭터를 보관
+• START 버튼 실행 전 현재 선택 캐릭터를 확정하도록 처리
+• `PlayerSpawner`가 Lobby 선택 캐릭터를 Inspector 기본값보다 우선 적용하도록 변경
+• InGame 단독 실행 시에는 기존 `PlayerSpawner.characterDefinition`을 fallback으로 유지
+
+고려 사항:
+• 현재 선택 상태는 런타임 정적 상태이므로 앱 재실행/에디터 도메인 리로드 이후에는 Lobby 목록의 첫 캐릭터가 기본값이 된다.
+• 캐릭터 보유/구매/장착 저장은 아직 구현하지 않는다.
+• 현재 UI는 테스트용 버튼 기반이며, 캐릭터가 늘어나면 스크롤 목록 또는 카드 리스트로 전환이 필요하다.
+• 세모 캐릭터가 선택되어 InGame에 진입하면 외형과 스탯이 함께 변경되어야 한다.
+
+리팩터링 타이밍:
+• 캐릭터가 4개 이상으로 늘어나는 시점
+• 캐릭터 보유/해금/장착 상태를 저장해야 하는 시점
+• BackND 프로필/인벤토리 저장과 연결하기 직전
+• 캐릭터 스탯 버전이 런 결과/랭킹 검증 데이터에 포함되어야 할 때
+
+권장 리팩터링 방향:
+• `CharacterSelectionState`는 임시 런타임 선택 상태로 유지
+• 저장이 필요해지면 `CharacterSelectionState` 뒤에 로컬 저장/BackND 저장 인터페이스를 추가
+• Lobby UI는 표시/입력만 담당하고, 보유/장착 판정은 별도 서비스로 분리
+
+________________________________________
+
+2.13 PlayerHealth / 테스트 Enemy 피격 흐름
+
+완료 내용:
+• `PlayerHealth` 추가로 HP 소유 책임을 HUD에서 분리
+• 선택 캐릭터의 `MaxLife`를 `PlayerHealth` 초기 체력으로 적용
+• `PlayerHealth`가 HUD 하트 표시를 동기화하도록 연결
+• HP 0 도달 시 `GameStateController.RequestGameOver(GameOverReason.LifeDepleted)` 호출
+• 피격 후 짧은 무적 시간과 시작 컬럼 리스폰 처리 추가
+• 회복 아이템이 `PlayerHealth`를 우선 회복하고, 만피일 때 기존 점수 보너스를 유지하도록 변경
+• `TestEnemySpawner`, `TestEnemyHazard` 추가
+• InGame 씬 `Managers`에 `TestEnemySpawner` 자동 연결
+• EnemyLayer가 없으면 런타임에 `MiddleUI` 아래 자동 생성
+
+고려 사항:
+• 현재 Enemy는 테스트용 고정 Hazard이며, 정식 Enemy AI/순찰/EnemyTrail은 아직 구현하지 않는다.
+• 테스트 Enemy는 현재 플레이 층 기준으로 표시되고, 플레이어와 UI Rect가 겹치면 1 데미지를 준다.
+• 피격 후 리스폰은 현재 시작 컬럼으로 워프하는 최소 구현이다.
+• 기획 문서의 “피격 후 항상 1층부터 다시 시작” 규칙은 아직 전체 층 리셋까지 적용하지 않았다.
+• 광고 부활은 `PlayerHealth.Revive()` 진입점을 통해 연결할 수 있도록 준비만 했다.
+
+리팩터링 타이밍:
+• 정식 Enemy 이동 패턴/경로 예고/EnemyTrail을 추가할 때
+• 피격 후 층 리셋, 아이템 리셋, 적 상태 리셋 규칙을 확정할 때
+• 보상형 광고 부활에서 HP/타이머/위치 복구 정책을 구현할 때
+
+권장 리팩터링 방향:
+• `PlayerHealth`는 HP/무적/부활만 담당
+• 리스폰 위치와 층 리셋은 별도 `PlayerRespawnController`로 분리
+• 테스트 Enemy는 정식 `EnemyStageSpawner`, `EnemyCollisionHandler`로 대체
+
+________________________________________
+
+2.14 Enemy 라인 배치 / 수직 이동 규칙
+
+완료 내용:
+• 테스트 Enemy 배치를 셀 중심이 아니라 셀과 셀 사이 세로 라인 기준으로 변경
+• 좌우 양끝 라인을 제외한 내부 라인만 배치 대상으로 사용
+• 시작 시 내부 라인 1~7에 Enemy 7개가 모두 생성되도록 변경
+• 라인 순번에 따라 각 Enemy 속도 범위가 다르게 적용되도록 변경
+• 최초 생성 위치를 화면 최상단에 머리가 붙은 상태로 설정
+• Enemy 이동을 좌우 이동 없이 상하 수직 이동으로 제한
+• 바닥 또는 천장에 닿으면 방향을 반전하고 수직 속도를 `minVerticalSpeed`~`maxVerticalSpeed` 사이에서 재추첨
+• Enemy 머리부터 최상단까지 흰색 가이드라인을 표시
+• Enemy가 내려갈 때 가이드라인이 길어지고 올라갈 때 줄어드는 연출 추가
+• 빠른 수직 이동 중 프레임 사이를 통과해 충돌이 누락될 수 있어 Enemy 충돌 높이를 이동거리 기준으로 보정
+• UI World Rect 겹침과 라인 허용치 혼합 방식 대신 Enemy/Player를 같은 부모 로컬 좌표로 환산해 히트박스 충돌 판정
+• 아이템 충돌 경로에는 HP 차감 호출이 없으며, 회복 아이템은 `PlayerHealth.Heal()`만 호출하는 것으로 확인
+• Enemy 히트박스 디버그 표시 추가
+• Enemy 가이드라인을 전용 뒤쪽 레이어로 분리해 캐릭터보다 뒤에 표시
+• MiddleUI 렌더링 순서를 `EnemyGuideLineLayer -> EnemyLayer -> PlayerLayer` 순으로 전경 배치해 층 밝기/가시성 오버레이에 가려지지 않도록 조정
+• 시작 엘리베이터 위치에서 정지 중 과판정이 발생하지 않도록 충돌 보정 폭과 라인 허용 범위를 축소
+• 피격 후 복귀 위치를 단순 시작 컬럼이 아니라 현재 층에 진입할 때 사용한 엘리베이터 컬럼으로 변경
+• 피격 직후 이동 입력이 리스폰 위치를 덮어쓰지 않도록 짧은 이동 잠금 처리 추가
+• 리스폰 이동 잠금 시간을 늘리고 무적 시간 동안 플레이어 점멸 연출 추가
+• NextPage 진입 시 Enemy 7개를 다시 최상단에서 생성해 출발하도록 변경
+• 테스트 시간을 30초에서 90초로 상향
+• 기존 피격/HP 감소/Game Over 연결은 유지
+
+고려 사항:
+• 현재는 내부 라인 7개에 테스트 Enemy를 1개씩 생성한다.
+• 라인 인덱스는 8컬럼 기준 1~7이 유효하며, 0과 8은 좌우 외곽선이라 사용하지 않는다.
+• 속도 변화는 벽 접촉 시 즉시 랜덤 재추첨하는 1차 구현이다.
+• 현재 속도 차이는 `speedStepPerLine`으로 라인 순번마다 가산하는 방식이다.
+• 정식 난이도 설계 시 층별 Enemy 개수, 속도 범위, 라인 선택 규칙, 가이드라인 표시 시간을 별도 데이터로 분리해야 한다.
+• 현재 층 시작 위치는 `ElevatorController.CurrentFloorStartColumn` 기준이며, 엘리베이터로 층 이동 완료 시 갱신된다.
+• 현재 점멸은 `CanvasRenderer.SetAlpha()` 기반의 임시 연출이다.
+• NextPage Enemy 재생성은 `InfiniteFloorManager.CurrentFloorChanged`에서 page index 변경을 감지해 처리한다.
+• 히트박스 디버그 표시는 테스트용이며, 최종 연출 단계에서 비활성화하거나 에디터 전용 표시로 전환한다.
+• 추후 난이도/레벨 디자인에서 Enemy 또는 EnemyTrail을 가시성 레이어 뒤로 보내는 규칙을 별도 옵션으로 분리할 수 있다.
+
+리팩터링 타이밍:
+• 여러 Enemy를 층별로 배치할 때
+• EnemyTrail 예고선이 필요할 때
+• Enemy 타입별 이동 패턴이 늘어날 때
+
+권장 리팩터링 방향:
+• `TestEnemySpawner`를 `EnemyStageSpawner`로 확장
+• Enemy 배치 데이터는 라인 인덱스, 속도 범위, 데미지, 크기를 가진 데이터 구조로 분리
+• EnemyTrail은 라인 인덱스와 현재 이동 방향을 받아 표시하는 전용 컨트롤러로 분리
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
-1. Enemy / 피격 / HP 테스트 가능 상태 만들기
-2. 하트/리스폰/피격 구조 정리
-3. 점수 시스템 정식화
-4. Lobby 기록 저장값 연결
-5. TopUI 디자인 교체 전 구조 정리
-6. 아이템 아이콘 Addressables 전환 준비
-7. BackND 연동 전 로컬 저장 인터페이스 준비
-8. Google AdMob 보상형 광고 부활 흐름 설계
+1. Enemy 다중 배치 / 층별 배치 규칙
+2. EnemyTrail 예고선
+3. PlayerRespawnController 정식 분리
+4. 피격 후 1층 리셋 규칙 적용
+5. 캐릭터 부스터 효과 정책 정의
+6. 점수 시스템 정식화
+7. Lobby 캐릭터 보유/장착 저장값 연결
+8. TopUI 디자인 교체 전 구조 정리
+9. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• Lobby 1차 구성까지 완료했으므로 다음은 Enemy/피격/HP 테스트 가능 상태를 만든다.
-• 피격/리스폰을 안정적으로 붙이려면 `PlayerHealth` 분리를 선행한다.
-• 광고 부활은 Enemy/피격/리스폰이 붙은 뒤 결과창 확장 작업으로 연결한다.
+• Enemy 기본 이동 규칙이 생겼으므로 다음은 여러 Enemy를 라인별/층별로 배치하는 구조를 만든다.
+• 이후 EnemyTrail 예고선을 붙이면 실제 회피 판단 테스트가 가능해진다.
+• 광고 부활은 리스폰 정책이 확정된 뒤 결과창 확장 작업으로 연결한다.
 
 ________________________________________
 

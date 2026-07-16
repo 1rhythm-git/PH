@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86f84c038ad34c1ab22af1e428c7325f, type: 3}
+  m_Name: TriangleLowSpecCharacter
+  m_EditorClassIdentifier:
+  characterId: triangle_low_spec
+  displayName: Triangle Low Spec
+  portraitSprite: {fileID: 0}
+  bodyColor: {r: 0.28, g: 0.9, b: 0.72, a: 1}
+  outlineColor: {r: 0.03, g: 0.08, b: 0.07, a: 0.85}
+  bodyShape: 1
+  moveSpeedColumnsPerSecond: 2
+  pivotCooldownSeconds: 0.3
+  boosterGaugeMax: 100
+  boosterGainPerColumn: 0.5
+  boosterGainPerPivot: 0.75
+  boosterBuffKey: Undefined
+  maxLife: 2
+  instantItemAcquireChance: 0

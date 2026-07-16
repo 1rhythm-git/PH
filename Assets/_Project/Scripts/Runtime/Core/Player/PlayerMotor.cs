@@ -1,3 +1,4 @@
+using PH.Core.Characters;
 using PH.Core.World;
 using UnityEngine;
 
@@ -10,6 +11,7 @@ namespace PH.Core.Player
         private RectTransform parentRectTransform;
         private BuildingGridUI buildingGridUI;
         private InfiniteFloorManager floorManager;
+        private PlayerCharacterRuntime characterRuntime;
         private float normalizedX;
         private float moveSpeedColumnsPerSecond;
         private bool isConfigured;
@@ -75,6 +77,11 @@ namespace PH.Core.Player
             ApplyPosition();
         }
 
+        public void SetCharacterRuntime(PlayerCharacterRuntime runtime)
+        {
+            characterRuntime = runtime;
+        }
+
         public void Move(float horizontalInput, float deltaTime)
         {
             if (!isConfigured || buildingGridUI == null || movementLocked)
@@ -88,9 +95,13 @@ namespace PH.Core.Player
                 return;
             }
 
+            float previousNormalizedX = normalizedX;
             normalizedX += input * moveSpeedColumnsPerSecond * deltaTime / Mathf.Max(1, buildingGridUI.Columns);
             normalizedX = ClampNormalizedX(normalizedX);
             ApplyPosition();
+
+            float movedColumns = Mathf.Abs(normalizedX - previousNormalizedX) * Mathf.Max(1, buildingGridUI.Columns);
+            characterRuntime?.AddMoveDistanceColumns(movedColumns);
         }
 
         public void SetMovementLocked(bool isLocked)

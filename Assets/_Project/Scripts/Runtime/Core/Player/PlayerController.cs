@@ -1,3 +1,4 @@
+using PH.Core.Characters;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -21,10 +22,19 @@ namespace PH.Core.Player
         [SerializeField]
         private bool controlEnabled = true;
 
+        [SerializeField]
+        private float pivotCooldownSeconds;
+
         private InputAction leftAction;
         private InputAction rightAction;
         private Camera uiCamera;
+        private PlayerCharacterRuntime characterRuntime;
         private int moveDirection;
+        private float lastPivotTime = -999f;
+
+        public int FacingDirection => facingDirection;
+        public int MoveDirection => moveDirection;
+        public bool IsMoving => moveDirection != 0;
 
         private void Awake()
         {
@@ -70,8 +80,15 @@ namespace PH.Core.Player
 
         public void Configure(PlayerMotor playerMotor, RectTransform inputTouchArea)
         {
+            Configure(playerMotor, inputTouchArea, null, pivotCooldownSeconds);
+        }
+
+        public void Configure(PlayerMotor playerMotor, RectTransform inputTouchArea, PlayerCharacterRuntime runtime, float pivotCooldown)
+        {
             motor = playerMotor;
             touchArea = inputTouchArea;
+            characterRuntime = runtime;
+            pivotCooldownSeconds = Mathf.Max(0f, pivotCooldown);
             facingDirection = NormalizeDirection(facingDirection);
             moveDirection = moveOnStart ? facingDirection : 0;
         }
@@ -130,8 +147,22 @@ namespace PH.Core.Player
 
         private void StartMoving(int direction)
         {
-            facingDirection = NormalizeDirection(direction);
+            int normalizedDirection = NormalizeDirection(direction);
+            bool isPivot = moveDirection != 0 && normalizedDirection != moveDirection;
+
+            if (isPivot && Time.time - lastPivotTime < pivotCooldownSeconds)
+            {
+                return;
+            }
+
+            facingDirection = normalizedDirection;
             moveDirection = facingDirection;
+
+            if (isPivot)
+            {
+                lastPivotTime = Time.time;
+                characterRuntime?.AddPivotCharge();
+            }
         }
 
         private bool IsInsideTouchArea(Vector2 screenPosition)

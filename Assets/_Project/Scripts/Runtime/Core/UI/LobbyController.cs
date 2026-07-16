@@ -1,3 +1,4 @@
+using PH.Core.Characters;
 using PH.Core.SceneFlow;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -18,6 +19,9 @@ namespace PH.Core.UI
 
         [SerializeField]
         private RectTransform footerRoot;
+
+        [SerializeField]
+        private CharacterDefinition[] availableCharacters;
 
         [SerializeField]
         private string playerNickname = "Player";
@@ -48,9 +52,14 @@ namespace PH.Core.UI
 
         private Font lobbyFont;
 
+        private CharacterDefinition selectedCharacter;
+
+        private Text selectedCharacterText;
+
         private void Awake()
         {
             EnsureReferences();
+            EnsureSelectedCharacter();
             BuildLobby();
         }
 
@@ -63,6 +72,9 @@ namespace PH.Core.UI
 
         public void StartGame()
         {
+            EnsureSelectedCharacter();
+            CharacterSelectionState.Select(selectedCharacter);
+
             if (SceneFlowManager.Instance != null)
             {
                 SceneFlowManager.Instance.LoadInGame();
@@ -75,6 +87,7 @@ namespace PH.Core.UI
         private void BuildLobby()
         {
             lobbyFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            EnsureSelectedCharacter();
 
             ClearRuntimeRoot(headerRoot);
             ClearRuntimeRoot(contentRoot);
@@ -114,13 +127,110 @@ namespace PH.Core.UI
             CreateText(recordPanel, "BestFloorText", $"Highest Floor  {Mathf.Max(0, bestHighestFloor)}F", new Vector2(0.08f, 0.38f), new Vector2(0.92f, 0.64f), TextAnchor.MiddleLeft, 34, primaryTextColor);
             CreateText(recordPanel, "BestScoreText", $"Best Score     {Mathf.Max(0, bestScore)}", new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.38f), TextAnchor.MiddleLeft, 34, primaryTextColor);
 
-            CreateButton(root, "StartButton", "START", new Vector2(0.12f, 0.38f), new Vector2(0.88f, 0.52f), startButtonColor, Color.black, StartGame, true);
+            RectTransform characterPanel = CreatePanel(root, "CharacterPanel", new Vector2(0.08f, 0.34f), new Vector2(0.92f, 0.54f), panelColor);
+            Text characterTitle = CreateText(characterPanel, "CharacterTitleText", "CHARACTER", new Vector2(0.06f, 0.64f), new Vector2(0.46f, 0.9f), TextAnchor.MiddleLeft, 30, primaryTextColor);
+            characterTitle.fontStyle = FontStyle.Bold;
+            selectedCharacterText = CreateText(characterPanel, "SelectedCharacterText", GetSelectedCharacterLabel(), new Vector2(0.46f, 0.64f), new Vector2(0.94f, 0.9f), TextAnchor.MiddleRight, 26, secondaryTextColor);
+            BuildCharacterButtons(characterPanel);
 
-            RectTransform menuPanel = CreatePanel(root, "MenuPanel", new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.32f), panelColor);
-            CreateButton(menuPanel, "RankingButton", "RANKING", new Vector2(0.06f, 0.52f), new Vector2(0.47f, 0.86f), disabledButtonColor, secondaryTextColor, null, false);
-            CreateButton(menuPanel, "ShopButton", "SHOP", new Vector2(0.53f, 0.52f), new Vector2(0.94f, 0.86f), disabledButtonColor, secondaryTextColor, null, false);
-            CreateButton(menuPanel, "OptionsButton", "OPTIONS", new Vector2(0.06f, 0.12f), new Vector2(0.47f, 0.46f), disabledButtonColor, secondaryTextColor, null, false);
-            CreateButton(menuPanel, "AdSlotButton", "AD SLOT", new Vector2(0.53f, 0.12f), new Vector2(0.94f, 0.46f), disabledButtonColor, secondaryTextColor, null, false);
+            CreateButton(root, "StartButton", "START", new Vector2(0.12f, 0.22f), new Vector2(0.88f, 0.32f), startButtonColor, Color.black, StartGame, true);
+
+            RectTransform menuPanel = CreatePanel(root, "MenuPanel", new Vector2(0.08f, 0.04f), new Vector2(0.92f, 0.18f), panelColor);
+            CreateButton(menuPanel, "RankingButton", "RANKING", new Vector2(0.04f, 0.16f), new Vector2(0.27f, 0.84f), disabledButtonColor, secondaryTextColor, null, false);
+            CreateButton(menuPanel, "ShopButton", "SHOP", new Vector2(0.29f, 0.16f), new Vector2(0.52f, 0.84f), disabledButtonColor, secondaryTextColor, null, false);
+            CreateButton(menuPanel, "OptionsButton", "OPTIONS", new Vector2(0.54f, 0.16f), new Vector2(0.77f, 0.84f), disabledButtonColor, secondaryTextColor, null, false);
+            CreateButton(menuPanel, "AdSlotButton", "AD", new Vector2(0.79f, 0.16f), new Vector2(0.96f, 0.84f), disabledButtonColor, secondaryTextColor, null, false);
+        }
+
+        private void BuildCharacterButtons(RectTransform parent)
+        {
+            if (availableCharacters == null || availableCharacters.Length == 0)
+            {
+                CreateText(parent, "NoCharacterText", "No character data", new Vector2(0.06f, 0.14f), new Vector2(0.94f, 0.56f), TextAnchor.MiddleLeft, 28, secondaryTextColor);
+                return;
+            }
+
+            int buttonCount = Mathf.Min(availableCharacters.Length, 3);
+            float gap = 0.025f;
+            float startX = 0.06f;
+            float endX = 0.94f;
+            float width = (endX - startX - gap * (buttonCount - 1)) / buttonCount;
+
+            for (int i = 0; i < buttonCount; i++)
+            {
+                CharacterDefinition characterDefinition = availableCharacters[i];
+                float minX = startX + (width + gap) * i;
+                float maxX = minX + width;
+                string label = characterDefinition != null ? characterDefinition.DisplayName : "EMPTY";
+                bool interactable = characterDefinition != null;
+
+                Button characterButton = CreateButton(parent, $"CharacterButton{i + 1}", label, new Vector2(minX, 0.12f), new Vector2(maxX, 0.54f), disabledButtonColor, primaryTextColor, () => SelectCharacter(characterDefinition), interactable);
+                Text characterButtonText = characterButton.GetComponentInChildren<Text>();
+                if (characterButtonText != null)
+                {
+                    characterButtonText.fontSize = 24;
+                }
+            }
+        }
+
+        private void SelectCharacter(CharacterDefinition characterDefinition)
+        {
+            if (characterDefinition == null)
+            {
+                return;
+            }
+
+            selectedCharacter = characterDefinition;
+            CharacterSelectionState.Select(selectedCharacter);
+
+            if (selectedCharacterText != null)
+            {
+                selectedCharacterText.text = GetSelectedCharacterLabel();
+            }
+
+            Debug.Log($"Lobby character selected: {selectedCharacter.DisplayName} ({selectedCharacter.CharacterId})", this);
+        }
+
+        private void EnsureSelectedCharacter()
+        {
+            if (selectedCharacter != null)
+            {
+                CharacterSelectionState.Select(selectedCharacter);
+                return;
+            }
+
+            CharacterDefinition fallbackCharacter = GetFirstAvailableCharacter();
+            selectedCharacter = CharacterSelectionState.Resolve(fallbackCharacter);
+
+            if (selectedCharacter == null)
+            {
+                return;
+            }
+
+            CharacterSelectionState.Select(selectedCharacter);
+        }
+
+        private CharacterDefinition GetFirstAvailableCharacter()
+        {
+            if (availableCharacters == null)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < availableCharacters.Length; i++)
+            {
+                if (availableCharacters[i] != null)
+                {
+                    return availableCharacters[i];
+                }
+            }
+
+            return null;
+        }
+
+        private string GetSelectedCharacterLabel()
+        {
+            return selectedCharacter != null ? $"Selected  {selectedCharacter.DisplayName}" : "Selected  None";
         }
 
         private void BuildFooter()

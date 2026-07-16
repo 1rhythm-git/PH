@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using PH.Core.Characters;
 using PH.Core.Game;
 using PH.Core.World;
 using UnityEngine;
@@ -37,7 +38,7 @@ namespace PH.Core.UI
         private bool useTimer = true;
 
         [SerializeField]
-        private float runDurationSeconds = 30f;
+        private float runDurationSeconds = 90f;
 
         [SerializeField]
         private int currentScore;
@@ -57,6 +58,21 @@ namespace PH.Core.UI
         [SerializeField]
         private Color heartColor = new Color(1f, 0.18f, 0.24f, 1f);
 
+        [SerializeField]
+        private Color boosterReadyColor = new Color(0.96f, 0.82f, 0.22f, 1f);
+
+        [SerializeField]
+        private Color boosterGaugeBackgroundColor = new Color(0f, 0f, 0f, 0.68f);
+
+        [SerializeField]
+        private Color boosterGaugeFillColor = new Color(0.16f, 0.72f, 0.96f, 1f);
+
+        [SerializeField]
+        private Color boosterGaugeEmptyColor = new Color(1f, 1f, 1f, 0.08f);
+
+        [SerializeField]
+        private float boosterReadyBlinkInterval = 0.18f;
+
         private RectTransform runtimeRoot;
         private Image portraitImage;
         private Text nicknameText;
@@ -66,8 +82,13 @@ namespace PH.Core.UI
         private Text floorText;
         private Text scoreText;
         private Text itemText;
+        private Text boosterText;
+        private RectTransform boosterGaugeFillRect;
+        private Image boosterGaugeFillImage;
         private Font hudFont;
+        private PlayerCharacterRuntime characterRuntime;
         private float remainingSeconds;
+        private float currentBoosterGaugeNormalized;
         private bool timerPaused;
         private bool gameOverRequested;
 
@@ -77,6 +98,7 @@ namespace PH.Core.UI
         public int MaxHearts => maxHearts;
         public float RemainingSeconds => remainingSeconds;
         public int CurrentScore => currentScore;
+        public int FullHeartScoreBonusPerHeart => Mathf.Max(0, fullHeartScoreBonusPerHeart);
 
         private void Awake()
         {
@@ -102,6 +124,8 @@ namespace PH.Core.UI
 
         private void Update()
         {
+            UpdateBoosterReadyBlink();
+
             if (!useTimer || timerPaused || remainingSeconds <= 0f)
             {
                 return;
@@ -122,6 +146,11 @@ namespace PH.Core.UI
             {
                 floorManager.CurrentFloorChanged -= HandleCurrentFloorChanged;
             }
+
+            if (characterRuntime != null)
+            {
+                characterRuntime.BoosterGaugeChanged -= HandleBoosterGaugeChanged;
+            }
         }
 
         public void AddScore(int amount)
@@ -139,6 +168,13 @@ namespace PH.Core.UI
         public void HealHeart(int amount)
         {
             currentHearts = Mathf.Min(maxHearts, currentHearts + Mathf.Max(0, amount));
+            RefreshHearts();
+        }
+
+        public void SetHearts(int maximum, int current)
+        {
+            maxHearts = Mathf.Max(1, maximum);
+            currentHearts = Mathf.Clamp(current, 0, maxHearts);
             RefreshHearts();
         }
 
@@ -181,6 +217,40 @@ namespace PH.Core.UI
         public void SetTimerPaused(bool isPaused)
         {
             timerPaused = isPaused;
+        }
+
+        public void BindCharacterRuntime(PlayerCharacterRuntime runtime)
+        {
+            if (characterRuntime != null)
+            {
+                characterRuntime.BoosterGaugeChanged -= HandleBoosterGaugeChanged;
+            }
+
+            characterRuntime = runtime;
+
+            if (characterRuntime != null)
+            {
+                ApplyCharacterDefinition(characterRuntime.CharacterDefinition);
+                characterRuntime.BoosterGaugeChanged += HandleBoosterGaugeChanged;
+                RefreshBoosterGauge(characterRuntime.BoosterGaugeNormalized);
+                return;
+            }
+
+            RefreshBoosterGauge(0f);
+        }
+
+        public void ApplyCharacterDefinition(CharacterDefinition definition)
+        {
+            if (definition == null)
+            {
+                return;
+            }
+
+            characterPortrait = definition.PortraitSprite;
+            maxHearts = Mathf.Max(1, definition.MaxLife);
+            currentHearts = maxHearts;
+            RefreshPortrait();
+            RefreshHearts();
         }
 
         [ContextMenu("Debug/Add 100 Score")]
@@ -261,6 +331,7 @@ namespace PH.Core.UI
             timerText = CreateText("TimerText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -58f), new Vector2(-18f, -12f), TextAnchor.UpperRight, 43, primaryTextColor);
             scoreText = CreateText("ScoreText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -104f), new Vector2(-18f, -60f), TextAnchor.UpperRight, 36, secondaryTextColor);
             itemText = CreateText("ItemStatusText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -138f), new Vector2(-18f, -106f), TextAnchor.UpperRight, 29, secondaryTextColor);
+            CreateBoosterGauge();
             heartsText.transform.SetAsLastSibling();
         }
 
@@ -331,6 +402,64 @@ namespace PH.Core.UI
             return text;
         }
 
+        private void CreateBoosterGauge()
+        {
+            GameObject gaugeObject = new GameObject("BoosterGauge", typeof(RectTransform), typeof(Image), typeof(Outline));
+            gaugeObject.layer = gameObject.layer;
+            gaugeObject.transform.SetParent(runtimeRoot, false);
+
+            RectTransform gaugeRect = gaugeObject.GetComponent<RectTransform>();
+            gaugeRect.anchorMin = new Vector2(0.36f, 1f);
+            gaugeRect.anchorMax = new Vector2(0.68f, 1f);
+            gaugeRect.offsetMin = new Vector2(0f, -168f);
+            gaugeRect.offsetMax = new Vector2(0f, -132f);
+            gaugeRect.pivot = new Vector2(0.5f, 0.5f);
+
+            Image gaugeBackground = gaugeObject.GetComponent<Image>();
+            gaugeBackground.color = boosterGaugeBackgroundColor;
+            gaugeBackground.raycastTarget = false;
+
+            Outline outline = gaugeObject.GetComponent<Outline>();
+            outline.effectColor = new Color(1f, 1f, 1f, 0.25f);
+            outline.effectDistance = new Vector2(2f, -2f);
+            outline.useGraphicAlpha = true;
+
+            GameObject emptyObject = new GameObject("BoosterGaugeEmpty", typeof(RectTransform), typeof(Image));
+            emptyObject.layer = gameObject.layer;
+            emptyObject.transform.SetParent(gaugeRect, false);
+
+            RectTransform emptyRect = emptyObject.GetComponent<RectTransform>();
+            emptyRect.anchorMin = Vector2.zero;
+            emptyRect.anchorMax = Vector2.one;
+            emptyRect.offsetMin = new Vector2(4f, 4f);
+            emptyRect.offsetMax = new Vector2(-4f, -4f);
+            emptyRect.pivot = new Vector2(0.5f, 0.5f);
+
+            Image emptyImage = emptyObject.GetComponent<Image>();
+            emptyImage.color = boosterGaugeEmptyColor;
+            emptyImage.raycastTarget = false;
+
+            GameObject fillObject = new GameObject("BoosterGaugeFill", typeof(RectTransform), typeof(Image));
+            fillObject.layer = gameObject.layer;
+            fillObject.transform.SetParent(gaugeRect, false);
+
+            RectTransform fillRect = fillObject.GetComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = new Vector2(0f, 1f);
+            fillRect.offsetMin = new Vector2(4f, 4f);
+            fillRect.offsetMax = new Vector2(4f, -4f);
+            fillRect.pivot = new Vector2(0f, 0.5f);
+            boosterGaugeFillRect = fillRect;
+
+            boosterGaugeFillImage = fillObject.GetComponent<Image>();
+            boosterGaugeFillImage.color = boosterGaugeFillColor;
+            boosterGaugeFillImage.type = Image.Type.Simple;
+            boosterGaugeFillImage.raycastTarget = false;
+
+            boosterText = CreateText("BoosterText", new Vector2(0.36f, 1f), new Vector2(0.68f, 1f), new Vector2(0f, -168f), new Vector2(0f, -132f), TextAnchor.MiddleCenter, 24, Color.white);
+            boosterText.transform.SetAsLastSibling();
+        }
+
         private void AddOutline(GameObject target, Color color, Vector2 distance)
         {
             Outline outline = target.AddComponent<Outline>();
@@ -348,6 +477,7 @@ namespace PH.Core.UI
             RefreshFloor(floorManager != null ? floorManager.CurrentAbsoluteFloor : 1);
             RefreshScore();
             RefreshItemStatus();
+            RefreshBoosterGauge(characterRuntime != null ? characterRuntime.BoosterGaugeNormalized : 0f);
         }
 
         private void RefreshIdentity()
@@ -435,6 +565,48 @@ namespace PH.Core.UI
             {
                 itemText.text = itemStatusText;
             }
+        }
+
+        private void HandleBoosterGaugeChanged(float normalizedGauge)
+        {
+            RefreshBoosterGauge(normalizedGauge);
+        }
+
+        private void RefreshBoosterGauge(float normalizedGauge)
+        {
+            if (boosterText == null)
+            {
+                return;
+            }
+
+            float clampedGauge = Mathf.Clamp01(normalizedGauge);
+            currentBoosterGaugeNormalized = clampedGauge;
+            int percent = Mathf.RoundToInt(clampedGauge * 100f);
+            boosterText.text = $"BOOST {percent}%";
+            boosterText.color = Color.white;
+
+            if (boosterGaugeFillImage != null)
+            {
+                boosterGaugeFillImage.color = clampedGauge >= 1f ? boosterReadyColor : boosterGaugeFillColor;
+            }
+
+            if (boosterGaugeFillRect != null)
+            {
+                boosterGaugeFillRect.anchorMax = new Vector2(clampedGauge, 1f);
+                boosterGaugeFillRect.offsetMax = new Vector2(clampedGauge <= 0f ? 4f : -4f, -4f);
+            }
+        }
+
+        private void UpdateBoosterReadyBlink()
+        {
+            if (boosterGaugeFillImage == null || currentBoosterGaugeNormalized < 1f)
+            {
+                return;
+            }
+
+            float interval = Mathf.Max(0.01f, boosterReadyBlinkInterval);
+            bool showReadyColor = Mathf.FloorToInt(Time.unscaledTime / interval) % 2 == 0;
+            boosterGaugeFillImage.color = showReadyColor ? boosterReadyColor : boosterGaugeFillColor;
         }
 
         private void EnsureReferences()
