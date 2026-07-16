@@ -193,8 +193,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4b752f80c76c4b72b8a3c6e0d6a8c101, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!1 &200200
 GameObject:
   m_ObjectHideFlags: 0
@@ -299,6 +299,7 @@ GameObject:
   - component: {fileID: 200302}
   - component: {fileID: 200303}
   - component: {fileID: 200304}
+  - component: {fileID: 200305}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -392,6 +393,33 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &200305
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 200300}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3ef75d151e6b4a4e92823d00ca29428a, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  headerRoot: {fileID: 200401}
+  contentRoot: {fileID: 200501}
+  footerRoot: {fileID: 200601}
+  availableCharacters:
+  - {fileID: 11400000, guid: 5ca02f1184e34db0a492fc83cd73682d, type: 2}
+  - {fileID: 11400000, guid: d0b4e87fbcab4d4f917299b9b05780ca, type: 2}
+  playerNickname: Player
+  playerLevel: 1
+  bestHighestFloor: 0
+  bestScore: 0
+  primaryTextColor: {r: 1, g: 1, b: 1, a: 1}
+  secondaryTextColor: {r: 1, g: 1, b: 1, a: 0.72}
+  panelColor: {r: 0.05, g: 0.07, b: 0.1, a: 0.78}
+  startButtonColor: {r: 0.96, g: 0.82, b: 0.22, a: 1}
+  disabledButtonColor: {r: 0.18, g: 0.2, b: 0.24, a: 0.92}
 --- !u!1 &200800
 GameObject:
   m_ObjectHideFlags: 0

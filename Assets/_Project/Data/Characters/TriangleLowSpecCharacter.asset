@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86f84c038ad34c1ab22af1e428c7325f, type: 3}
+  m_Name: TriangleLowSpecCharacter
+  m_EditorClassIdentifier:
+  characterId: triangle_low_spec
+  displayName: Ninja
+  portraitSprite: {fileID: 21300000, guid: 622f21fd948d4d08be613a40dade9853, type: 3}
+  bodyColor: {r: 0.28, g: 0.9, b: 0.72, a: 1}
+  outlineColor: {r: 0.03, g: 0.08, b: 0.07, a: 0.85}
+  bodyShape: 1
+  idleSprites:
+  - {fileID: 21300000, guid: 9c1083f762234a4492043ab78605f027, type: 3}
+  - {fileID: 21300000, guid: 60ed663838504c7c840122c7ed6f72f9, type: 3}
+  walkSprites:
+  - {fileID: 21300000, guid: c04ab9f19ec0464da2ba4cfe65ec70f7, type: 3}
+  - {fileID: 21300000, guid: e0d66874bd39483b98d748fa7fa17e5b, type: 3}
+  runSprites:
+  - {fileID: 21300000, guid: 9ee4ccc9f64648bbb97d7e17c5e48bcf, type: 3}
+  - {fileID: 21300000, guid: 1f3b7b4bb89748f986ea10007d33145a, type: 3}
+  animationFramesPerSecond: 6
+  spriteVisualScale: {x: 1.6, y: 1.6}
+  moveSpeedColumnsPerSecond: 4
+  pivotCooldownSeconds: 0.15
+  boosterGaugeMax: 100
+  boosterGainPerColumn: 1
+  boosterGainPerPivot: 1.5
+  boosterBuffKey: Undefined
+  maxLife: 2
+  instantItemAcquireChance: 0

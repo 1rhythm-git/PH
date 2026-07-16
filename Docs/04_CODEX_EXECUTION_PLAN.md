@@ -12,6 +12,7 @@ ________________________________________
 8.	대규모 리팩터링을 하지 않는다.
 9.	클래스 책임을 분리한다.
 10.	코드 주석은 한국어로 작성한다.
+11.	작업 완료 후 `05_WORK_LOG.md`에 완료 내용, 고려 요소, 리팩터링 타이밍을 기록한다.
 ________________________________________
 PART 1
 프로젝트 베이스 구축
@@ -118,12 +119,16 @@ PART 6
 목표
 하트 3개와 사망 구조를 구현한다.
 작업
+•	CharacterDefinition
+•	캐릭터별 MaxLife 적용
 •	PlayerHealth
 •	PlayerRespawnController
 •	Normal 모드
 •	Hard 모드
 •	GameStateController
 •	GameOverUI
+•	결과창 광고보기 버튼 확장 지점
+•	Google AdMob 보상형 광고 부활 정책 준비
 •	시간 제한
 완료 조건
 •	피격 시 하트 감소
@@ -131,6 +136,7 @@ PART 6
 •	하트 0이면 게임 종료
 •	시간 0이면 게임 종료
 •	게임 오버 시 최고 층 확정
+•	광고 부활은 아직 구현하지 않더라도 결과창/상태 전환 구조에서 확장 가능
 ________________________________________
 PART 7
 점수 시스템
@@ -144,6 +150,7 @@ PART 7
 •	Best Highest Floor
 •	점수 이벤트 API
 •	GameOver 결과 데이터
+•	광고 부활 사용 여부 필드 확장 준비
 •	Game Over 시 runHighestFloor 확정
 •	RunScoreResult에 runHighestFloor 포함
 •	Floor Score 계산: floorMoveCount × floorScoreValue
@@ -161,11 +168,13 @@ PART 7
 •	런 종료 결과 생성 가능
 •	Game Over 결과 데이터에 runHighestFloor가 반드시 포함됨
 •	Game Over 기준 총점이 생성됨
+•	추후 AdMob 보상형 광고 부활 사용 여부를 저장/랭킹 데이터에 포함 가능
 •	보너스별 점수 breakdown을 UI와 저장 데이터에 전달 가능
 •	Line Bonus 계산에 필요한 최소 통과 수와 실제 통과 수가 분리됨
 •	Line Bonus가 비활성 상태여도 Floor Score 계산 구조가 깨지지 않음
 검토 메모
 •	Time Bonus와 Life Bonus는 기본 점수 공식에서 제외한다.
+•	캐릭터별 이동속도, 방향전환 쿨타임, 아이템 즉시 획득 확률은 점수/랭킹 검증에 영향을 줄 수 있으므로 결과 데이터에 캐릭터 ID를 포함할 수 있어야 한다.
 •	무한 상승 구조라도 Game Over 시 해당 런의 최고 도달 층인 runHighestFloor를 확정한다.
 •	돌파 보너스는 Game Over 시 확정된 runHighestFloor를 기준으로 산정한다.
 •	minimumRequiredVLinePassCount는 runHighestFloor까지 진행하는 데 필요한 최소 세로 경계 통과 수이다.
@@ -191,6 +200,11 @@ PART 8
 •	수직 이동
 •	플레이어 충돌 시 피격
 •	UI 요소에 가려지지 않음
+•	Game Over 결과창 표시 시 Enemy 이동/충돌/생성 정지
+현행 메모
+•	현재 구현은 정식 Enemy 클래스가 아니라 `TestEnemySpawner`, `TestEnemyHazard` 기반이다.
+•	Enemy 이미지는 경찰 단일 PNG를 사용한다.
+•	히트박스 디버그 표시는 테스트용이며 일반 플레이에서는 숨긴다.
 ________________________________________
 PART 9
 EnemyTrail
@@ -206,11 +220,15 @@ EnemyTrail
 •	적 이동과 라인이 동기화됨
 •	상단과 하단을 넘지 않음
 •	라인 단절 없음
+구현 상태
+•	완료
+•	현재 `TestEnemyHazard`가 Enemy 머리부터 상단까지 가이드라인을 생성하고 이동에 맞춰 길이를 갱신한다.
+•	전용 `EnemyTrailLineController` 분리는 정식 Enemy 구조 전환 시 진행할 리팩터링 항목이다.
 ________________________________________
 PART 10
 아이템 데이터 기반
 목표
-아이템 데이터를 ScriptableObject로 정의한다.
+아이템 데이터를 테이블 또는 ScriptableObject 기반으로 정의한다.
 작업
 •	ItemDefinition
 •	ItemCategory
@@ -219,10 +237,17 @@ PART 10
 •	ItemInstance
 •	Item ID 검증
 •	Required Pass Count
+•	EffectKey
+•	EffectValue
+•	EffectDurationSeconds
 완료 조건
-•	Inspector에서 아이템 데이터 생성 가능
+•	CSV 또는 Inspector에서 아이템 데이터 관리 가능
 •	Score, Skill, Collection 타입 선택 가능
 •	통과 횟수 설정 가능
+•	아이템이 필드에 남아있는 시간과 획득 후 버프 지속시간을 분리 가능
+현행 메모
+•	현재 구현은 `Items.csv`, `ItemIcons.csv` 기반이다.
+•	`LifetimeSeconds`는 필드 수명, `EffectDurationSeconds`는 효과 지속시간으로 사용한다.
 ________________________________________
 PART 11
 아이템 통과 판정
@@ -240,6 +265,7 @@ PART 11
 •	1회 아이템 정상 획득
 •	3회 아이템은 정확히 3번째 통과에 획득
 •	콜라이더 내부 체류 중 횟수 증가하지 않음
+•	통과 카운트 시 SFX와 남은 횟수 UI가 갱신됨
 ________________________________________
 PART 12
 스코어형 아이템
@@ -255,28 +281,43 @@ PART 12
 •	획득 즉시 점수 반영
 •	중복 획득 방지
 •	효과가 ItemInstance와 분리됨
+현행 메모
+•	Score Coin과 Pass Orb가 점수형 아이템으로 동작한다.
+•	Pass Orb는 보석 아이콘을 사용하고 3회 통과 후 획득한다.
+•	Score 계열 아이템은 현재 스폰 시 1~5회 랜덤 통과 카운트를 받고, 추가 통과 1회당 +25% 점수 보정을 받는다.
+•	Time 계열 아이템은 현재 스폰 시 1~5회 랜덤 통과 카운트를 받고, `EffectValue x 통과 카운트`만큼 시간을 증가시킨다.
 ________________________________________
 PART 13
 스킬형 아이템
 목표
-플레이어와 적에게 영향을 주는 아이템 효과를 구현한다.
-초기 효과
+플레이어에게 영향을 주는 스킬형 아이템 효과 기반을 구현한다.
+현재 범위
 •	하트 회복
+•	Max Life 증가
 •	시간 증가
 •	플레이어 이동 속도 증가
-•	무적
-•	적 일시 정지
-•	적 이동 속도 감소
 작업
-•	ItemEffectManager
+•	IItemEffect / ItemEffectResolver
 •	지속 시간
 •	중첩 정책
 •	효과 종료
-•	플레이어/적 대상 구분
+•	버프 지속 중 플레이어 시각 효과
 완료 조건
 •	효과 시작과 종료가 정확함
 •	중복 효과 정책이 작동함
 •	게임 오버 시 효과 정리
+구현 상태
+•	완료
+현행 메모
+•	현재 구현된 스킬형 아이템은 `Red Sneaker`, `Winged Shoe`, `Winged Heart`이다.
+•	이동속도 증가는 `AddMoveSpeedItemEffect`로 처리한다.
+•	이동속도 증가는 영구 적용하지 않으며, 기본 5초에 스폰 시 부여된 1~3 카운트를 곱해 5초, 10초, 15초 동안 적용한다.
+•	효과 지속 중 `PlayerBuffVisualFeedback`으로 캐릭터 점멸을 표시한다.
+•	활성 이동속도 버프는 현재 퍼센트 합산 방식으로 계산한다.
+•	Max Life 증가는 `AddMaxLifeItemEffect`로 처리하며, 현재 런에서 최대 +1까지만 허용한다.
+•	Heart Pack은 3회, Winged Heart는 5회 통과 후 획득한다.
+•	Enemy 일시 정지 아이템은 필요성이 낮아 기획 범위에서 제외한다.
+•	무적, Enemy 감속 등 추가 효과와 세부 중첩 제한은 추후 레벨 디자인 및 밸런스 단계에서 검토한다.
 ________________________________________
 PART 14
 수집형 아이템
@@ -306,10 +347,16 @@ PART 15
 •	적 중복 위치 방지
 •	층별 등장 조건
 •	등장 가중치
+•	실행별 랜덤 시드
 완료 조건
 •	도달 가능한 셀에만 아이템 생성
 •	한 셀에 기본 1개
 •	페이지 전환 시 아이템 정리
+•	실행마다 동일한 배치가 반복되지 않음
+현행 메모
+•	현재 `ItemSpawner`는 `randomizeSeedOnStart`가 켜져 있으면 실행마다 `runtimeSeed`를 새로 만든다.
+•	페이지별 난수는 `runtimeSeed`와 page index를 섞어 생성한다.
+•	재현 테스트가 필요하면 `randomizeSeedOnStart`를 끄고 고정 `randomSeed`를 사용한다.
 ________________________________________
 PART 16
 로컬 저장 서비스
@@ -368,9 +415,11 @@ PART 18
 12.	스킬 효과
 13.	수집 아이템 저장
 14.	Game Over
-15.	최고 층과 점수 저장
-16.	Lobby 복귀
-17.	저장 데이터 확인
+15.	결과창 표시
+16.	광고보기 선택 시 보상형 광고 시청 후 부활
+17.	확인 선택 시 최고 층과 점수 저장
+18.	Lobby 복귀
+19.	저장 데이터 확인
 완료 조건
 •	컴파일 에러 없음
 •	Missing Reference 없음
