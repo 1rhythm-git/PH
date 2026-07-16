@@ -77,17 +77,27 @@ GameState
 •	Red Sneaker
 	- EffectKey: add_move_speed_percent
 	- EffectValue: 20
-	- EffectDurationSeconds: 10
+	- EffectDurationSeconds: 5
+	- RequiredPassCount: 스폰 시 1~3 랜덤
 	- 효과: 플레이어 이동속도 20% 증가
 •	Winged Shoe
 	- EffectKey: add_move_speed_percent
 	- EffectValue: 50
-	- EffectDurationSeconds: 12
+	- EffectDurationSeconds: 5
+	- RequiredPassCount: 스폰 시 1~3 랜덤
 	- 효과: 플레이어 이동속도 50% 증가
+•	Winged Heart
+	- EffectKey: add_max_life
+	- EffectValue: 1
+	- 효과: 현재 생명력이 Max일 때 런 중 1회에 한해 Max Life +1
+	- 차감 상태에서는 Max Life 증가 없이 생명력만 회복
+	- 이미 Max Life 증가를 받은 상태에서 재획득하면 SCORE로 환산
 
 이동속도 증가 아이템은 영구 강화가 아니다.
 효과 지속시간 동안만 `PlayerMotor`의 이동속도에 반영하고, 시간이 끝나면 자동으로 제거한다.
 효과 지속 중에는 `PlayerBuffVisualFeedback`을 통해 캐릭터 점멸을 표시한다.
+최종 이동속도 버프 지속시간은 `EffectDurationSeconds × RequiredPassCount`로 계산한다.
+현재 설정에서는 카운트에 따라 5초, 10초, 15초가 적용된다.
 
 Collection
 장기 저장되는 수집 데이터에 반영한다.
@@ -120,6 +130,7 @@ ItemDefinition은 데이터만 보유한다.
 •	AddScoreItemEffect
 •	AddTimeItemEffect
 •	HealHeartItemEffect
+•	AddMaxLifeItemEffect
 •	AddMoveSpeedItemEffect
 
 현재 데이터 소스:
@@ -152,6 +163,16 @@ ItemDefinition은 데이터만 보유한다.
 `LifetimeSeconds`는 아이템이 필드에 남아있는 시간이다.
 `EffectDurationSeconds`는 획득 후 적용되는 버프 지속시간이다.
 두 값은 서로 다른 목적이므로 같은 값으로 묶지 않는다.
+
+현재 통과 카운트 규칙:
+•	Heart Pack은 3회 통과 후 획득한다.
+•	Winged Heart는 5회 통과 후 획득한다.
+•	Time, Score 계열 아이템은 스폰 시 1~5회 중 랜덤 통과 카운트를 부여한다.
+•	Red Sneaker, Winged Shoe는 스폰 시 1~3회 중 랜덤 통과 카운트를 부여한다.
+•	이동속도 아이템은 통과 카운트에 비례해 버프 지속시간이 상승한다.
+•	Time 계열 아이템은 통과 카운트에 비례해 시간 증가량이 상승한다.
+•	Score 계열 아이템은 랜덤 통과 카운트가 높을수록 점수 보정이 붙는다.
+•	현재 보정값은 추가 통과 1회당 +25%이다.
 ________________________________________
 8. 중첩 정책
 스킬형 아이템은 다음 중첩 정책을 가질 수 있다.

@@ -23,6 +23,8 @@ namespace PH.Core.Player
         public float CurrentNormalizedX => normalizedX;
         public float MoveSpeedColumnsPerSecond => moveSpeedColumnsPerSecond;
         public float MoveSpeedBonusPercent => GetActiveMoveSpeedBonusPercent();
+        public float MoveSpeedBuffRemainingSeconds => GetMaxRemainingMoveSpeedBuffSeconds();
+        public bool HasActiveMoveSpeedBuff => moveSpeedBuffs.Count > 0;
         public int ColumnCount => buildingGridUI != null ? Mathf.Max(1, buildingGridUI.Columns) : BuildingGridUI.DefaultColumns;
         public RectTransform RectTransform
         {
@@ -310,6 +312,18 @@ namespace PH.Core.Player
             }
 
             return totalBonusPercent;
+        }
+
+        private float GetMaxRemainingMoveSpeedBuffSeconds()
+        {
+            float maxRemainingSeconds = 0f;
+            float now = Time.time;
+            for (int i = 0; i < moveSpeedBuffs.Count; i++)
+            {
+                maxRemainingSeconds = Mathf.Max(maxRemainingSeconds, moveSpeedBuffs[i].ExpiresAt - now);
+            }
+
+            return Mathf.Max(0f, maxRemainingSeconds);
         }
 
         private bool RemoveExpiredMoveSpeedBuffs()

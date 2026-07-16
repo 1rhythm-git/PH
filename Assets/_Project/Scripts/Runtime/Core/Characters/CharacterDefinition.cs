@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace PH.Core.Characters
 {
@@ -45,16 +46,20 @@ namespace PH.Core.Characters
         private float pivotCooldownSeconds;
 
         [SerializeField]
-        private float boosterGaugeMax = 100f;
+        [FormerlySerializedAs("boosterGaugeMax")]
+        private float feverGaugeMax = 100f;
 
         [SerializeField]
-        private float boosterGainPerColumn = 8f;
+        [FormerlySerializedAs("boosterGainPerColumn")]
+        private float feverGainPerColumn = 8f;
 
         [SerializeField]
-        private float boosterGainPerPivot = 12f;
+        [FormerlySerializedAs("boosterGainPerPivot")]
+        private float feverGainPerPivot = 12f;
 
         [SerializeField]
-        private string boosterBuffKey = "Undefined";
+        [FormerlySerializedAs("boosterBuffKey")]
+        private string feverBuffKey = "Undefined";
 
         [SerializeField]
         private int maxLife = 3;
@@ -75,10 +80,14 @@ namespace PH.Core.Characters
         public Vector2 SpriteVisualScale => spriteVisualScale;
         public float MoveSpeedColumnsPerSecond => moveSpeedColumnsPerSecond;
         public float PivotCooldownSeconds => pivotCooldownSeconds;
-        public float BoosterGaugeMax => boosterGaugeMax;
-        public float BoosterGainPerColumn => boosterGainPerColumn;
-        public float BoosterGainPerPivot => boosterGainPerPivot;
-        public string BoosterBuffKey => boosterBuffKey;
+        public float FeverGaugeMax => feverGaugeMax;
+        public float FeverGainPerColumn => feverGainPerColumn;
+        public float FeverGainPerPivot => feverGainPerPivot;
+        public string FeverBuffKey => feverBuffKey;
+        public float BoosterGaugeMax => FeverGaugeMax;
+        public float BoosterGainPerColumn => FeverGainPerColumn;
+        public float BoosterGainPerPivot => FeverGainPerPivot;
+        public string BoosterBuffKey => FeverBuffKey;
         public int MaxLife => maxLife;
         public float InstantItemAcquireChance => instantItemAcquireChance;
 
@@ -90,9 +99,9 @@ namespace PH.Core.Characters
             spriteVisualScale.x = Mathf.Max(0.01f, spriteVisualScale.x);
             spriteVisualScale.y = Mathf.Max(0.01f, spriteVisualScale.y);
             pivotCooldownSeconds = Mathf.Max(0f, pivotCooldownSeconds);
-            boosterGaugeMax = Mathf.Max(1f, boosterGaugeMax);
-            boosterGainPerColumn = Mathf.Max(0f, boosterGainPerColumn);
-            boosterGainPerPivot = Mathf.Max(0f, boosterGainPerPivot);
+            feverGaugeMax = Mathf.Max(1f, feverGaugeMax);
+            feverGainPerColumn = Mathf.Max(0f, feverGainPerColumn);
+            feverGainPerPivot = Mathf.Max(0f, feverGainPerPivot);
             maxLife = Mathf.Max(1, maxLife);
             instantItemAcquireChance = Mathf.Clamp01(instantItemAcquireChance);
         }

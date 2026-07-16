@@ -2,8 +2,10 @@ using System;
 using System.Text;
 using PH.Core.Characters;
 using PH.Core.Game;
+using PH.Core.Player;
 using PH.Core.World;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace PH.Core.UI
@@ -59,19 +61,24 @@ namespace PH.Core.UI
         private Color heartColor = new Color(1f, 0.18f, 0.24f, 1f);
 
         [SerializeField]
-        private Color boosterReadyColor = new Color(0.96f, 0.82f, 0.22f, 1f);
+        [FormerlySerializedAs("boosterReadyColor")]
+        private Color feverReadyColor = new Color(0.96f, 0.82f, 0.22f, 1f);
 
         [SerializeField]
-        private Color boosterGaugeBackgroundColor = new Color(0f, 0f, 0f, 0.68f);
+        [FormerlySerializedAs("boosterGaugeBackgroundColor")]
+        private Color feverGaugeBackgroundColor = new Color(0f, 0f, 0f, 0.68f);
 
         [SerializeField]
-        private Color boosterGaugeFillColor = new Color(0.16f, 0.72f, 0.96f, 1f);
+        [FormerlySerializedAs("boosterGaugeFillColor")]
+        private Color feverGaugeFillColor = new Color(0.16f, 0.72f, 0.96f, 1f);
 
         [SerializeField]
-        private Color boosterGaugeEmptyColor = new Color(1f, 1f, 1f, 0.08f);
+        [FormerlySerializedAs("boosterGaugeEmptyColor")]
+        private Color feverGaugeEmptyColor = new Color(1f, 1f, 1f, 0.08f);
 
         [SerializeField]
-        private float boosterReadyBlinkInterval = 0.18f;
+        [FormerlySerializedAs("boosterReadyBlinkInterval")]
+        private float feverReadyBlinkInterval = 0.18f;
 
         private RectTransform runtimeRoot;
         private Image portraitImage;
@@ -82,13 +89,15 @@ namespace PH.Core.UI
         private Text floorText;
         private Text scoreText;
         private Text itemText;
-        private Text boosterText;
-        private RectTransform boosterGaugeFillRect;
-        private Image boosterGaugeFillImage;
+        private Text feverText;
+        private Text speedBuffText;
+        private RectTransform feverGaugeFillRect;
+        private Image feverGaugeFillImage;
         private Font hudFont;
         private PlayerCharacterRuntime characterRuntime;
+        private PlayerMotor playerMotor;
         private float remainingSeconds;
-        private float currentBoosterGaugeNormalized;
+        private float currentFeverGaugeNormalized;
         private bool timerPaused;
         private bool gameOverRequested;
 
@@ -124,7 +133,8 @@ namespace PH.Core.UI
 
         private void Update()
         {
-            UpdateBoosterReadyBlink();
+            UpdateFeverReadyBlink();
+            RefreshSpeedBuffStatus();
 
             if (!useTimer || timerPaused || remainingSeconds <= 0f)
             {
@@ -149,7 +159,7 @@ namespace PH.Core.UI
 
             if (characterRuntime != null)
             {
-                characterRuntime.BoosterGaugeChanged -= HandleBoosterGaugeChanged;
+                characterRuntime.FeverGaugeChanged -= HandleFeverGaugeChanged;
             }
         }
 
@@ -223,7 +233,7 @@ namespace PH.Core.UI
         {
             if (characterRuntime != null)
             {
-                characterRuntime.BoosterGaugeChanged -= HandleBoosterGaugeChanged;
+                characterRuntime.FeverGaugeChanged -= HandleFeverGaugeChanged;
             }
 
             characterRuntime = runtime;
@@ -231,12 +241,18 @@ namespace PH.Core.UI
             if (characterRuntime != null)
             {
                 ApplyCharacterDefinition(characterRuntime.CharacterDefinition);
-                characterRuntime.BoosterGaugeChanged += HandleBoosterGaugeChanged;
-                RefreshBoosterGauge(characterRuntime.BoosterGaugeNormalized);
+                characterRuntime.FeverGaugeChanged += HandleFeverGaugeChanged;
+                RefreshFeverGauge(characterRuntime.FeverGaugeNormalized);
                 return;
             }
 
-            RefreshBoosterGauge(0f);
+            RefreshFeverGauge(0f);
+        }
+
+        public void BindPlayerMotor(PlayerMotor motor)
+        {
+            playerMotor = motor;
+            RefreshSpeedBuffStatus();
         }
 
         public void ApplyCharacterDefinition(CharacterDefinition definition)
@@ -331,7 +347,8 @@ namespace PH.Core.UI
             timerText = CreateText("TimerText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -58f), new Vector2(-18f, -12f), TextAnchor.UpperRight, 43, primaryTextColor);
             scoreText = CreateText("ScoreText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -104f), new Vector2(-18f, -60f), TextAnchor.UpperRight, 36, secondaryTextColor);
             itemText = CreateText("ItemStatusText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -138f), new Vector2(-18f, -106f), TextAnchor.UpperRight, 29, secondaryTextColor);
-            CreateBoosterGauge();
+            speedBuffText = CreateText("SpeedBuffText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -172f), new Vector2(-18f, -140f), TextAnchor.UpperRight, 27, feverReadyColor);
+            CreateFeverGauge();
             heartsText.transform.SetAsLastSibling();
         }
 
@@ -402,9 +419,9 @@ namespace PH.Core.UI
             return text;
         }
 
-        private void CreateBoosterGauge()
+        private void CreateFeverGauge()
         {
-            GameObject gaugeObject = new GameObject("BoosterGauge", typeof(RectTransform), typeof(Image), typeof(Outline));
+            GameObject gaugeObject = new GameObject("FeverGauge", typeof(RectTransform), typeof(Image), typeof(Outline));
             gaugeObject.layer = gameObject.layer;
             gaugeObject.transform.SetParent(runtimeRoot, false);
 
@@ -416,7 +433,7 @@ namespace PH.Core.UI
             gaugeRect.pivot = new Vector2(0.5f, 0.5f);
 
             Image gaugeBackground = gaugeObject.GetComponent<Image>();
-            gaugeBackground.color = boosterGaugeBackgroundColor;
+            gaugeBackground.color = feverGaugeBackgroundColor;
             gaugeBackground.raycastTarget = false;
 
             Outline outline = gaugeObject.GetComponent<Outline>();
@@ -424,7 +441,7 @@ namespace PH.Core.UI
             outline.effectDistance = new Vector2(2f, -2f);
             outline.useGraphicAlpha = true;
 
-            GameObject emptyObject = new GameObject("BoosterGaugeEmpty", typeof(RectTransform), typeof(Image));
+            GameObject emptyObject = new GameObject("FeverGaugeEmpty", typeof(RectTransform), typeof(Image));
             emptyObject.layer = gameObject.layer;
             emptyObject.transform.SetParent(gaugeRect, false);
 
@@ -436,10 +453,10 @@ namespace PH.Core.UI
             emptyRect.pivot = new Vector2(0.5f, 0.5f);
 
             Image emptyImage = emptyObject.GetComponent<Image>();
-            emptyImage.color = boosterGaugeEmptyColor;
+            emptyImage.color = feverGaugeEmptyColor;
             emptyImage.raycastTarget = false;
 
-            GameObject fillObject = new GameObject("BoosterGaugeFill", typeof(RectTransform), typeof(Image));
+            GameObject fillObject = new GameObject("FeverGaugeFill", typeof(RectTransform), typeof(Image));
             fillObject.layer = gameObject.layer;
             fillObject.transform.SetParent(gaugeRect, false);
 
@@ -449,15 +466,15 @@ namespace PH.Core.UI
             fillRect.offsetMin = new Vector2(4f, 4f);
             fillRect.offsetMax = new Vector2(4f, -4f);
             fillRect.pivot = new Vector2(0f, 0.5f);
-            boosterGaugeFillRect = fillRect;
+            feverGaugeFillRect = fillRect;
 
-            boosterGaugeFillImage = fillObject.GetComponent<Image>();
-            boosterGaugeFillImage.color = boosterGaugeFillColor;
-            boosterGaugeFillImage.type = Image.Type.Simple;
-            boosterGaugeFillImage.raycastTarget = false;
+            feverGaugeFillImage = fillObject.GetComponent<Image>();
+            feverGaugeFillImage.color = feverGaugeFillColor;
+            feverGaugeFillImage.type = Image.Type.Simple;
+            feverGaugeFillImage.raycastTarget = false;
 
-            boosterText = CreateText("BoosterText", new Vector2(0.36f, 1f), new Vector2(0.68f, 1f), new Vector2(0f, -168f), new Vector2(0f, -132f), TextAnchor.MiddleCenter, 24, Color.white);
-            boosterText.transform.SetAsLastSibling();
+            feverText = CreateText("FeverText", new Vector2(0.36f, 1f), new Vector2(0.68f, 1f), new Vector2(0f, -168f), new Vector2(0f, -132f), TextAnchor.MiddleCenter, 24, Color.white);
+            feverText.transform.SetAsLastSibling();
         }
 
         private void AddOutline(GameObject target, Color color, Vector2 distance)
@@ -477,7 +494,8 @@ namespace PH.Core.UI
             RefreshFloor(floorManager != null ? floorManager.CurrentAbsoluteFloor : 1);
             RefreshScore();
             RefreshItemStatus();
-            RefreshBoosterGauge(characterRuntime != null ? characterRuntime.BoosterGaugeNormalized : 0f);
+            RefreshFeverGauge(characterRuntime != null ? characterRuntime.FeverGaugeNormalized : 0f);
+            RefreshSpeedBuffStatus();
         }
 
         private void RefreshIdentity()
@@ -567,46 +585,66 @@ namespace PH.Core.UI
             }
         }
 
-        private void HandleBoosterGaugeChanged(float normalizedGauge)
+        private void RefreshSpeedBuffStatus()
         {
-            RefreshBoosterGauge(normalizedGauge);
+            if (speedBuffText == null)
+            {
+                return;
+            }
+
+            if (playerMotor == null || !playerMotor.HasActiveMoveSpeedBuff)
+            {
+                speedBuffText.text = string.Empty;
+                return;
+            }
+
+            int bonusPercent = Mathf.RoundToInt(playerMotor.MoveSpeedBonusPercent);
+            int remainingSecondsCeil = Mathf.CeilToInt(playerMotor.MoveSpeedBuffRemainingSeconds);
+            speedBuffText.text = bonusPercent > 0 && remainingSecondsCeil > 0
+                ? $"SPEED +{bonusPercent}%  {remainingSecondsCeil}s"
+                : string.Empty;
         }
 
-        private void RefreshBoosterGauge(float normalizedGauge)
+        private void HandleFeverGaugeChanged(float normalizedGauge)
         {
-            if (boosterText == null)
+            RefreshFeverGauge(normalizedGauge);
+        }
+
+        private void RefreshFeverGauge(float normalizedGauge)
+        {
+            if (feverText == null)
             {
                 return;
             }
 
             float clampedGauge = Mathf.Clamp01(normalizedGauge);
-            currentBoosterGaugeNormalized = clampedGauge;
+            currentFeverGaugeNormalized = clampedGauge;
             int percent = Mathf.RoundToInt(clampedGauge * 100f);
-            boosterText.text = $"BOOST {percent}%";
-            boosterText.color = Color.white;
+            feverText.text = $"FEVER {percent}%";
+            feverText.color = Color.white;
 
-            if (boosterGaugeFillImage != null)
+            if (feverGaugeFillImage != null)
             {
-                boosterGaugeFillImage.color = clampedGauge >= 1f ? boosterReadyColor : boosterGaugeFillColor;
+                feverGaugeFillImage.color = clampedGauge >= 1f ? feverReadyColor : feverGaugeFillColor;
             }
 
-            if (boosterGaugeFillRect != null)
+            if (feverGaugeFillRect != null)
             {
-                boosterGaugeFillRect.anchorMax = new Vector2(clampedGauge, 1f);
-                boosterGaugeFillRect.offsetMax = new Vector2(clampedGauge <= 0f ? 4f : -4f, -4f);
+                feverGaugeFillRect.anchorMax = new Vector2(clampedGauge, 1f);
+                feverGaugeFillRect.offsetMax = new Vector2(clampedGauge <= 0f ? 4f : -4f, -4f);
             }
         }
 
-        private void UpdateBoosterReadyBlink()
+        private void UpdateFeverReadyBlink()
         {
-            if (boosterGaugeFillImage == null || currentBoosterGaugeNormalized < 1f)
+            if (feverGaugeFillImage == null || currentFeverGaugeNormalized < 1f)
             {
                 return;
             }
 
-            float interval = Mathf.Max(0.01f, boosterReadyBlinkInterval);
+            float interval = Mathf.Max(0.01f, feverReadyBlinkInterval);
             bool showReadyColor = Mathf.FloorToInt(Time.unscaledTime / interval) % 2 == 0;
-            boosterGaugeFillImage.color = showReadyColor ? boosterReadyColor : boosterGaugeFillColor;
+            feverGaugeFillImage.color = showReadyColor ? feverReadyColor : feverGaugeFillColor;
         }
 
         private void EnsureReferences()

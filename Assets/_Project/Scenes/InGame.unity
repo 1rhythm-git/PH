@@ -312,6 +312,11 @@ MonoBehaviour:
   forcedTestItemId: 
   itemSize: {x: 76.8, y: 76.8}
   passCountFontSize: 32
+  randomPassCountMin: 1
+  randomPassCountMax: 5
+  speedItemPassCountMin: 1
+  speedItemPassCountMax: 3
+  scoreBonusPercentPerExtraPass: 25
   defaultItemColor: {r: 1, g: 0.08, b: 0.06, a: 0.95}
 --- !u!114 &300108
 MonoBehaviour:
@@ -366,12 +371,18 @@ MonoBehaviour:
   guideLineLayer: {fileID: 0}
   playerLayer: {fileID: 300931}
   spawnOnStart: 1
-  spawnAllInternalLines: 1
+  baseEnemiesPerPage: 4
+  maxEnemiesPerPage: 7
+  floorsPerEnemyIncrease: 10
+  enemyLineRandomSeed: 81473
+  randomizeSeedOnStart: 1
+  randomizeLinesPerPage: 1
   damage: 1
   hitCooldownSeconds: 0.65
   minVerticalSpeed: 130
   maxVerticalSpeed: 360
   speedStepPerLine: 22
+  speedStepPerDifficulty: 18
   guideLineThickness: 4
   guideLineColor: {r: 1, g: 1, b: 1, a: 0.68}
   enemySize: {x: 64, y: 120}
@@ -600,7 +611,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 7476515eb3494cc4d9dec35faba24811, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 842ea0a68f874aa68d093283d2d3d65d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

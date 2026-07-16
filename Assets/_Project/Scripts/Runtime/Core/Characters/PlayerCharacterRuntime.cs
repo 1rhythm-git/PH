@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace PH.Core.Characters
 {
@@ -9,10 +10,12 @@ namespace PH.Core.Characters
         private CharacterDefinition characterDefinition;
 
         [SerializeField]
-        private float boosterGauge;
+        [FormerlySerializedAs("boosterGauge")]
+        private float feverGauge;
 
-        private bool boosterReadyLogged;
+        private bool feverReadyLogged;
 
+        public event Action<float> FeverGaugeChanged;
         public event Action<float> BoosterGaugeChanged;
 
         public CharacterDefinition CharacterDefinition => characterDefinition;
@@ -20,28 +23,31 @@ namespace PH.Core.Characters
         public float PivotCooldownSeconds => characterDefinition != null ? characterDefinition.PivotCooldownSeconds : 0f;
         public int MaxLife => characterDefinition != null ? characterDefinition.MaxLife : 3;
         public float InstantItemAcquireChance => characterDefinition != null ? characterDefinition.InstantItemAcquireChance : 0f;
-        public float BoosterGauge => boosterGauge;
-        public float BoosterGaugeMax => characterDefinition != null ? characterDefinition.BoosterGaugeMax : 100f;
-        public float BoosterGaugeNormalized => BoosterGaugeMax <= 0f ? 0f : Mathf.Clamp01(boosterGauge / BoosterGaugeMax);
+        public float FeverGauge => feverGauge;
+        public float FeverGaugeMax => characterDefinition != null ? characterDefinition.FeverGaugeMax : 100f;
+        public float FeverGaugeNormalized => FeverGaugeMax <= 0f ? 0f : Mathf.Clamp01(feverGauge / FeverGaugeMax);
+        public float BoosterGauge => FeverGauge;
+        public float BoosterGaugeMax => FeverGaugeMax;
+        public float BoosterGaugeNormalized => FeverGaugeNormalized;
 
         public void Configure(CharacterDefinition definition)
         {
             characterDefinition = definition;
-            boosterGauge = 0f;
-            boosterReadyLogged = false;
-            BoosterGaugeChanged?.Invoke(BoosterGaugeNormalized);
+            feverGauge = 0f;
+            feverReadyLogged = false;
+            NotifyFeverGaugeChanged();
         }
 
         public void AddMoveDistanceColumns(float movedColumns)
         {
-            float gainPerColumn = characterDefinition != null ? characterDefinition.BoosterGainPerColumn : 0f;
-            AddBoosterGauge(Mathf.Max(0f, movedColumns) * gainPerColumn);
+            float gainPerColumn = characterDefinition != null ? characterDefinition.FeverGainPerColumn : 0f;
+            AddFeverGauge(Mathf.Max(0f, movedColumns) * gainPerColumn);
         }
 
         public void AddPivotCharge()
         {
-            float gain = characterDefinition != null ? characterDefinition.BoosterGainPerPivot : 0f;
-            AddBoosterGauge(gain);
+            float gain = characterDefinition != null ? characterDefinition.FeverGainPerPivot : 0f;
+            AddFeverGauge(gain);
         }
 
         public bool RollInstantItemAcquire()
@@ -50,21 +56,27 @@ namespace PH.Core.Characters
             return chance > 0f && UnityEngine.Random.value <= chance;
         }
 
-        private void AddBoosterGauge(float amount)
+        private void AddFeverGauge(float amount)
         {
-            if (amount <= 0f || boosterGauge >= BoosterGaugeMax)
+            if (amount <= 0f || feverGauge >= FeverGaugeMax)
             {
                 return;
             }
 
-            boosterGauge = Mathf.Min(BoosterGaugeMax, boosterGauge + amount);
-            BoosterGaugeChanged?.Invoke(BoosterGaugeNormalized);
+            feverGauge = Mathf.Min(FeverGaugeMax, feverGauge + amount);
+            NotifyFeverGaugeChanged();
 
-            if (!boosterReadyLogged && boosterGauge >= BoosterGaugeMax)
+            if (!feverReadyLogged && feverGauge >= FeverGaugeMax)
             {
-                boosterReadyLogged = true;
-                Debug.Log($"Booster Ready: {(characterDefinition != null ? characterDefinition.BoosterBuffKey : "Undefined")}", this);
+                feverReadyLogged = true;
+                Debug.Log($"Fever Ready: {(characterDefinition != null ? characterDefinition.FeverBuffKey : "Undefined")}", this);
             }
+        }
+
+        private void NotifyFeverGaugeChanged()
+        {
+            FeverGaugeChanged?.Invoke(FeverGaugeNormalized);
+            BoosterGaugeChanged?.Invoke(FeverGaugeNormalized);
         }
     }
 }

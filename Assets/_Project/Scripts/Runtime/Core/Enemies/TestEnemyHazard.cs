@@ -1,4 +1,5 @@
 using PH.Core.Audio;
+using PH.Core.Game;
 using PH.Core.Player;
 using PH.Core.World;
 using UnityEngine;
@@ -7,7 +8,7 @@ using UnityEngine.UI;
 namespace PH.Core.Enemies
 {
     [RequireComponent(typeof(RectTransform))]
-    public sealed class TestEnemyHazard : MonoBehaviour
+    public sealed class TestEnemyHazard : MonoBehaviour, IGameplayPausable
     {
         [SerializeField]
         private int damage = 1;
@@ -75,14 +76,36 @@ namespace PH.Core.Enemies
 
             if (playerHealth.TakeDamage(damage))
             {
+                ShowHitFeedback(playerHealth);
                 nextHitAllowedTime = Time.time + Mathf.Max(0f, hitCooldownSeconds);
             }
+        }
+
+        private void ShowHitFeedback(PlayerHealth playerHealth)
+        {
+            if (playerHealth == null)
+            {
+                return;
+            }
+
+            PlayerItemPickupFeedback feedback = playerHealth.GetComponent<PlayerItemPickupFeedback>();
+            if (feedback == null)
+            {
+                feedback = playerHealth.gameObject.AddComponent<PlayerItemPickupFeedback>();
+            }
+
+            feedback.Show("Oops!", new Color(1f, 0.38f, 0.22f, 1f), 2f);
         }
 
         private void OnDestroy()
         {
             DestroyLinkedRuntimeObject(guideLineRectTransform);
             DestroyLinkedRuntimeObject(hitboxDebugRectTransform);
+        }
+
+        public void SetGameplayPaused(bool isPaused)
+        {
+            enabled = !isPaused;
         }
 
         private void DestroyLinkedRuntimeObject(RectTransform target)

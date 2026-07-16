@@ -51,6 +51,21 @@ namespace PH.Core.Items
         private int passCountFontSize = 32;
 
         [SerializeField]
+        private int randomPassCountMin = 1;
+
+        [SerializeField]
+        private int randomPassCountMax = 5;
+
+        [SerializeField]
+        private int speedItemPassCountMin = 1;
+
+        [SerializeField]
+        private int speedItemPassCountMax = 3;
+
+        [SerializeField]
+        private int scoreBonusPercentPerExtraPass = 25;
+
+        [SerializeField]
         private Color defaultItemColor = new Color(1f, 0.08f, 0.06f, 0.95f);
 
         private readonly List<ItemInstance> spawnedItems = new List<ItemInstance>();
@@ -158,7 +173,7 @@ namespace PH.Core.Items
                     continue;
                 }
 
-                CreateItem(definition, address, column);
+                CreateItem(definition, address, column, random);
                 occupied.Add(key);
                 spawnedCount++;
             }
@@ -238,7 +253,7 @@ namespace PH.Core.Items
             return candidates[candidates.Count - 1];
         }
 
-        private void CreateItem(ItemDefinition definition, FloorAddress address, int column)
+        private void CreateItem(ItemDefinition definition, FloorAddress address, int column, System.Random random)
         {
             GameObject itemObject = new GameObject($"Item_{definition.ItemId}_{address.AbsoluteFloor}_{column}", typeof(RectTransform), typeof(Image), typeof(ItemInstance));
             itemObject.layer = itemLayer.gameObject.layer;
@@ -262,8 +277,62 @@ namespace PH.Core.Items
             CreateProgressText(itemObject.transform);
 
             ItemInstance item = itemObject.GetComponent<ItemInstance>();
-            item.Configure(definition, floorManager, playerMotor, eventRecorder, address.AbsoluteFloor, address.PageIndex, address.PageFloorIndex, column, new Color(1f, 1f, 1f, 0f));
+            int runtimePassCount = ResolveRuntimePassCount(definition, random);
+            int scoreBonusPercent = ResolveScoreBonusPercent(definition, runtimePassCount);
+            item.Configure(definition, floorManager, playerMotor, eventRecorder, address.AbsoluteFloor, address.PageIndex, address.PageFloorIndex, column, new Color(1f, 1f, 1f, 0f), runtimePassCount, scoreBonusPercent);
             spawnedItems.Add(item);
+        }
+
+        private int ResolveRuntimePassCount(ItemDefinition definition, System.Random random)
+        {
+            if (definition == null)
+            {
+                return 1;
+            }
+
+            if (IsMoveSpeedItem(definition))
+            {
+                return RollPassCount(random, speedItemPassCountMin, speedItemPassCountMax);
+            }
+
+            if (ShouldRandomizePassCount(definition))
+            {
+                return RollPassCount(random, randomPassCountMin, randomPassCountMax);
+            }
+
+            return Mathf.Max(1, definition.RequiredPassCount);
+        }
+
+        private int ResolveScoreBonusPercent(ItemDefinition definition, int passCount)
+        {
+            if (definition == null || !IsScoreRelated(definition))
+            {
+                return 0;
+            }
+
+            return Mathf.Max(0, passCount - 1) * Mathf.Max(0, scoreBonusPercentPerExtraPass);
+        }
+
+        private bool ShouldRandomizePassCount(ItemDefinition definition)
+        {
+            return definition != null && (definition.ItemType == ItemType.Time || IsScoreRelated(definition));
+        }
+
+        private bool IsMoveSpeedItem(ItemDefinition definition)
+        {
+            return definition != null && definition.EffectKey == ItemEffectKeys.AddMoveSpeedPercent;
+        }
+
+        private int RollPassCount(System.Random random, int minimum, int maximum)
+        {
+            int min = Mathf.Max(1, Mathf.Min(minimum, maximum));
+            int max = Mathf.Max(min, Mathf.Max(minimum, maximum));
+            return random.Next(min, max + 1);
+        }
+
+        private bool IsScoreRelated(ItemDefinition definition)
+        {
+            return definition != null && (definition.ItemType == ItemType.Score || definition.EffectKey == ItemEffectKeys.AddScore || definition.AffectsScore);
         }
 
         private void CreateIconImage(Transform parent, ItemDefinition definition)
@@ -443,6 +512,11 @@ namespace PH.Core.Items
         {
             maxItemsPerPage = Mathf.Max(0, maxItemsPerPage);
             passCountFontSize = Mathf.Max(1, passCountFontSize);
+            randomPassCountMin = Mathf.Max(1, randomPassCountMin);
+            randomPassCountMax = Mathf.Max(randomPassCountMin, randomPassCountMax);
+            speedItemPassCountMin = Mathf.Max(1, speedItemPassCountMin);
+            speedItemPassCountMax = Mathf.Max(speedItemPassCountMin, speedItemPassCountMax);
+            scoreBonusPercentPerExtraPass = Mathf.Max(0, scoreBonusPercentPerExtraPass);
             itemSize.x = Mathf.Max(1f, itemSize.x);
             itemSize.y = Mathf.Max(1f, itemSize.y);
         }

@@ -130,6 +130,11 @@ namespace PH.Core.Player
                 spawnedPlayer.AddComponent<PlayerBuffVisualFeedback>();
             }
 
+            if (spawnedPlayer.GetComponent<PlayerItemPickupFeedback>() == null)
+            {
+                spawnedPlayer.AddComponent<PlayerItemPickupFeedback>();
+            }
+
             TopHUDController topHUDController = FindFirstObjectByType<TopHUDController>();
             GameStateController gameStateController = FindFirstObjectByType<GameStateController>();
             ElevatorController elevatorController = FindFirstObjectByType<ElevatorController>();
@@ -144,6 +149,7 @@ namespace PH.Core.Player
             if (topHUDController != null)
             {
                 topHUDController.BindCharacterRuntime(characterRuntime);
+                topHUDController.BindPlayerMotor(motor);
                 topHUDController.SetHearts(playerHealth.MaxLife, playerHealth.CurrentLife);
             }
         }

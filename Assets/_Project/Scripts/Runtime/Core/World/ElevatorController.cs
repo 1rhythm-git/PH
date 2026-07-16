@@ -58,6 +58,7 @@ namespace PH.Core.World
         private bool isAscending;
 
         public int CurrentFloorStartColumn { get; private set; }
+        public int CurrentAbsoluteFloor => floorManager != null ? floorManager.CurrentAbsoluteFloor : 1;
 
         private void Awake()
         {

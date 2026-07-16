@@ -1,11 +1,13 @@
 using PH.Core.Player;
+using PH.Core.Game;
 using PH.Core.World;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace PH.Core.Enemies
 {
-    public sealed class TestEnemySpawner : MonoBehaviour
+    public sealed class TestEnemySpawner : MonoBehaviour, IGameplayPausable
     {
         private const string EnemyLayerName = "EnemyLayer";
         private const string EnemyGuideLineLayerName = "EnemyGuideLineLayer";
@@ -32,7 +34,22 @@ namespace PH.Core.Enemies
         private bool spawnOnStart = true;
 
         [SerializeField]
-        private bool spawnAllInternalLines = true;
+        private int baseEnemiesPerPage = 4;
+
+        [SerializeField]
+        private int maxEnemiesPerPage = 7;
+
+        [SerializeField]
+        private int floorsPerEnemyIncrease = 10;
+
+        [SerializeField]
+        private int enemyLineRandomSeed = 81473;
+
+        [SerializeField]
+        private bool randomizeSeedOnStart = true;
+
+        [SerializeField]
+        private bool randomizeLinesPerPage = true;
 
         [SerializeField]
         private int damage = 1;
@@ -48,6 +65,9 @@ namespace PH.Core.Enemies
 
         [SerializeField]
         private float speedStepPerLine = 22f;
+
+        [SerializeField]
+        private float speedStepPerDifficulty = 18f;
 
         [SerializeField]
         private float guideLineThickness = 4f;
@@ -80,7 +100,10 @@ namespace PH.Core.Enemies
         private Color enemyOutlineColor = new Color(1f, 1f, 1f, 0.52f);
 
         private readonly System.Collections.Generic.List<TestEnemyHazard> spawnedEnemies = new System.Collections.Generic.List<TestEnemyHazard>();
+        private readonly List<int> availableLineIndices = new List<int>();
         private int lastPageIndex = -1;
+        private int runtimeEnemyLineRandomSeed;
+        private bool hasRuntimeEnemyLineRandomSeed;
 
         private void Awake()
         {
@@ -93,6 +116,8 @@ namespace PH.Core.Enemies
             {
                 lastPageIndex = floorManager.CurrentPageIndex;
             }
+
+            InitializeRuntimeSeed();
 
             if (spawnOnStart)
             {
@@ -132,15 +157,22 @@ namespace PH.Core.Enemies
             ClearSpawnedEnemies();
             lastPageIndex = floorManager != null ? floorManager.CurrentPageIndex : lastPageIndex;
 
-            int lineCount = spawnAllInternalLines ? Mathf.Max(1, buildingGridUI.Columns - 1) : 1;
-            for (int i = 0; i < lineCount; i++)
+            int difficultyStep = GetDifficultyStep();
+            int enemyCount = GetEnemyCountForDifficulty(difficultyStep);
+            BuildLineSelection(enemyCount);
+
+            for (int i = 0; i < availableLineIndices.Count; i++)
             {
-                int lineIndex = i + 1;
-                SpawnEnemyAtLine(lineIndex, i);
+                SpawnEnemyAtLine(availableLineIndices[i], i, difficultyStep);
             }
         }
 
-        private void SpawnEnemyAtLine(int lineIndex, int sequenceIndex)
+        public void SetGameplayPaused(bool isPaused)
+        {
+            enabled = !isPaused;
+        }
+
+        private void SpawnEnemyAtLine(int lineIndex, int sequenceIndex, int difficultyStep)
         {
             GameObject enemyObject = new GameObject($"TestEnemy_Line_{lineIndex}", typeof(RectTransform), typeof(TestEnemyHazard));
             enemyObject.layer = enemyLayer.gameObject.layer;
@@ -151,8 +183,9 @@ namespace PH.Core.Enemies
 
             CreateEnemyVisual(enemyObject.transform, enemyObject.layer);
 
-            float lineMinSpeed = Mathf.Max(0f, minVerticalSpeed + speedStepPerLine * sequenceIndex);
-            float lineMaxSpeed = Mathf.Max(lineMinSpeed, maxVerticalSpeed + speedStepPerLine * sequenceIndex);
+            float difficultySpeedBonus = Mathf.Max(0f, speedStepPerDifficulty) * Mathf.Max(0, difficultyStep);
+            float lineMinSpeed = Mathf.Max(0f, minVerticalSpeed + difficultySpeedBonus + speedStepPerLine * sequenceIndex);
+            float lineMaxSpeed = Mathf.Max(lineMinSpeed, maxVerticalSpeed + difficultySpeedBonus + speedStepPerLine * sequenceIndex);
             TestEnemyHazard enemy = enemyObject.GetComponent<TestEnemyHazard>();
             enemy.Configure(buildingGridUI, playerSpawner, lineIndex, damage, hitCooldownSeconds, lineMinSpeed, lineMaxSpeed, guideLineThickness, guideLineColor, guideLineLayer);
             spawnedEnemies.Add(enemy);
@@ -195,6 +228,81 @@ namespace PH.Core.Enemies
             }
 
             spawnedEnemies.Clear();
+        }
+
+        private int GetDifficultyStep()
+        {
+            int currentFloor = floorManager != null ? floorManager.CurrentAbsoluteFloor : 1;
+            int interval = Mathf.Max(1, floorsPerEnemyIncrease);
+
+            return Mathf.Max(0, (Mathf.Max(1, currentFloor) - 1) / interval);
+        }
+
+        private int GetEnemyCountForDifficulty(int difficultyStep)
+        {
+            int internalLineCount = GetInternalLineCount();
+            int minCount = Mathf.Clamp(baseEnemiesPerPage, 1, internalLineCount);
+            int maxCount = Mathf.Clamp(maxEnemiesPerPage, minCount, internalLineCount);
+
+            return Mathf.Clamp(minCount + Mathf.Max(0, difficultyStep), minCount, maxCount);
+        }
+
+        private int GetInternalLineCount()
+        {
+            int columns = buildingGridUI != null ? Mathf.Max(1, buildingGridUI.Columns) : BuildingGridUI.DefaultColumns;
+
+            return Mathf.Max(1, columns - 1);
+        }
+
+        private void BuildLineSelection(int enemyCount)
+        {
+            availableLineIndices.Clear();
+
+            int internalLineCount = GetInternalLineCount();
+            for (int i = 0; i < internalLineCount; i++)
+            {
+                availableLineIndices.Add(i + 1);
+            }
+
+            if (randomizeLinesPerPage)
+            {
+                int pageIndex = floorManager != null ? floorManager.CurrentPageIndex : 0;
+                System.Random random = new System.Random(unchecked(GetRuntimeEnemyLineRandomSeed() + pageIndex * 73856093));
+
+                for (int i = availableLineIndices.Count - 1; i > 0; i--)
+                {
+                    int swapIndex = random.Next(0, i + 1);
+                    int temp = availableLineIndices[i];
+                    availableLineIndices[i] = availableLineIndices[swapIndex];
+                    availableLineIndices[swapIndex] = temp;
+                }
+            }
+
+            int clampedEnemyCount = Mathf.Clamp(enemyCount, 1, availableLineIndices.Count);
+            if (availableLineIndices.Count > clampedEnemyCount)
+            {
+                availableLineIndices.RemoveRange(clampedEnemyCount, availableLineIndices.Count - clampedEnemyCount);
+            }
+
+            availableLineIndices.Sort();
+        }
+
+        private int GetRuntimeEnemyLineRandomSeed()
+        {
+            if (!hasRuntimeEnemyLineRandomSeed)
+            {
+                InitializeRuntimeSeed();
+            }
+
+            return runtimeEnemyLineRandomSeed;
+        }
+
+        private void InitializeRuntimeSeed()
+        {
+            runtimeEnemyLineRandomSeed = randomizeSeedOnStart
+                ? unchecked(enemyLineRandomSeed ^ Random.Range(int.MinValue, int.MaxValue) ^ GetInstanceID() ^ System.Environment.TickCount)
+                : enemyLineRandomSeed;
+            hasRuntimeEnemyLineRandomSeed = true;
         }
 
         private void HandleCurrentFloorChanged(int currentAbsoluteFloor)
@@ -337,11 +445,15 @@ namespace PH.Core.Enemies
 #if UNITY_EDITOR
         private void OnValidate()
         {
+            baseEnemiesPerPage = Mathf.Max(1, baseEnemiesPerPage);
+            maxEnemiesPerPage = Mathf.Max(baseEnemiesPerPage, maxEnemiesPerPage);
+            floorsPerEnemyIncrease = Mathf.Max(1, floorsPerEnemyIncrease);
             damage = Mathf.Max(1, damage);
             hitCooldownSeconds = Mathf.Max(0f, hitCooldownSeconds);
             minVerticalSpeed = Mathf.Max(0f, minVerticalSpeed);
             maxVerticalSpeed = Mathf.Max(minVerticalSpeed, maxVerticalSpeed);
             speedStepPerLine = Mathf.Max(0f, speedStepPerLine);
+            speedStepPerDifficulty = Mathf.Max(0f, speedStepPerDifficulty);
             guideLineThickness = Mathf.Max(1f, guideLineThickness);
             enemySize.x = Mathf.Max(1f, enemySize.x);
             enemySize.y = Mathf.Max(1f, enemySize.y);

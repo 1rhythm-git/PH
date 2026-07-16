@@ -5,6 +5,14 @@ using UnityEngine;
 
 namespace PH.Core.Player
 {
+    public enum PlayerMaxLifeItemResult
+    {
+        None,
+        Healed,
+        IncreasedMaxLife,
+        ScoreBonus
+    }
+
     [DisallowMultipleComponent]
     public sealed class PlayerHealth : MonoBehaviour
     {
@@ -37,9 +45,11 @@ namespace PH.Core.Player
         private float nextBlinkTime;
         private bool blinkVisible = true;
         private bool isDepleted;
+        private int maxLifeBonusFromItems;
 
         public int MaxLife => maxLife;
         public int CurrentLife => currentLife;
+        public int MaxLifeBonusFromItems => maxLifeBonusFromItems;
         public bool IsInvincible => Time.time < invincibleUntilTime;
         public bool IsDepleted => isDepleted;
 
@@ -86,6 +96,7 @@ namespace PH.Core.Player
             blinkVisible = true;
             SetVisible(true);
             isDepleted = false;
+            maxLifeBonusFromItems = 0;
 
             SyncHUD();
         }
@@ -138,6 +149,34 @@ namespace PH.Core.Player
             return currentLife - before;
         }
 
+        public PlayerMaxLifeItemResult ApplyMaxLifeItem(int amount, int maxBonusFromItems)
+        {
+            int value = Mathf.Max(1, amount);
+            int bonusLimit = Mathf.Max(0, maxBonusFromItems);
+            if (isDepleted)
+            {
+                return PlayerMaxLifeItemResult.None;
+            }
+
+            if (currentLife < maxLife)
+            {
+                Heal(value);
+                return PlayerMaxLifeItemResult.Healed;
+            }
+
+            if (maxLifeBonusFromItems < bonusLimit)
+            {
+                int increase = Mathf.Min(value, bonusLimit - maxLifeBonusFromItems);
+                maxLife += increase;
+                maxLifeBonusFromItems += increase;
+                currentLife = maxLife;
+                SyncHUD();
+                return PlayerMaxLifeItemResult.IncreasedMaxLife;
+            }
+
+            return PlayerMaxLifeItemResult.ScoreBonus;
+        }
+
         public void Revive(int reviveLife)
         {
             currentLife = Mathf.Clamp(reviveLife, 1, maxLife);
@@ -162,7 +201,10 @@ namespace PH.Core.Player
         {
             playerMotor ??= GetComponent<PlayerMotor>();
             playerController ??= GetComponent<PlayerController>();
-            int targetColumn = elevatorController != null ? elevatorController.CurrentFloorStartColumn : respawnColumn;
+            int currentFloor = elevatorController != null ? elevatorController.CurrentAbsoluteFloor : 1;
+            int targetColumn = currentFloor <= 1 || elevatorController == null
+                ? respawnColumn
+                : elevatorController.CurrentFloorStartColumn;
             playerMotor?.SetMovementLocked(true);
             playerController?.SetControlEnabled(false);
             playerMotor?.WarpToColumn(targetColumn);

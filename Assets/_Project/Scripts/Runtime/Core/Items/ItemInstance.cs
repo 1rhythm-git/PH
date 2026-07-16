@@ -26,6 +26,7 @@ namespace PH.Core.Items
         private PlayerCharacterRuntime playerCharacterRuntime;
         private PlayerHealth playerHealth;
         private PlayerBuffVisualFeedback playerBuffVisualFeedback;
+        private PlayerItemPickupFeedback playerItemPickupFeedback;
         private RunItemEventRecorder eventRecorder;
         private TopHUDController topHUDController;
         private ItemEffectResolver effectResolver;
@@ -34,13 +35,16 @@ namespace PH.Core.Items
         private int pageIndex;
         private int pageFloorIndex;
         private int columnIndex;
+        private int requiredPassCount;
         private int remainingPassCount;
+        private int scoreBonusPercent;
         private int lastPassDirection;
         private float spawnedAtTime;
         private float lifetimeSeconds;
         private bool isPlayerInside;
         private bool acquired;
         private bool hasPlayerReachedFloor;
+        private readonly Vector3[] worldCorners = new Vector3[4];
 
         public bool Acquired => acquired;
 
@@ -51,29 +55,7 @@ namespace PH.Core.Items
 
         private void Update()
         {
-            if (playerMotor == null)
-            {
-                playerMotor = FindFirstObjectByType<PlayerMotor>();
-            }
-
-            if (playerCharacterRuntime == null && playerMotor != null)
-            {
-                playerCharacterRuntime = playerMotor.GetComponent<PlayerCharacterRuntime>();
-            }
-
-            if (playerHealth == null && playerMotor != null)
-            {
-                playerHealth = playerMotor.GetComponent<PlayerHealth>();
-            }
-
-            if (playerBuffVisualFeedback == null && playerMotor != null)
-            {
-                playerBuffVisualFeedback = playerMotor.GetComponent<PlayerBuffVisualFeedback>();
-                if (playerBuffVisualFeedback == null)
-                {
-                    playerBuffVisualFeedback = playerMotor.gameObject.AddComponent<PlayerBuffVisualFeedback>();
-                }
-            }
+            ResolvePlayerRuntimeComponents();
 
             if (acquired || playerMotor == null || floorManager == null)
             {
@@ -123,6 +105,22 @@ namespace PH.Core.Items
             int itemColumnIndex,
             Color itemColor)
         {
+            Configure(itemDefinition, manager, motor, recorder, itemAbsoluteFloor, itemPageIndex, itemPageFloorIndex, itemColumnIndex, itemColor, itemDefinition != null ? itemDefinition.RequiredPassCount : 1, 0);
+        }
+
+        public void Configure(
+            ItemDefinition itemDefinition,
+            InfiniteFloorManager manager,
+            PlayerMotor motor,
+            RunItemEventRecorder recorder,
+            int itemAbsoluteFloor,
+            int itemPageIndex,
+            int itemPageFloorIndex,
+            int itemColumnIndex,
+            Color itemColor,
+            int runtimeRequiredPassCount,
+            int runtimeScoreBonusPercent)
+        {
             CacheComponents();
 
             definition = itemDefinition;
@@ -135,7 +133,9 @@ namespace PH.Core.Items
             pageIndex = itemPageIndex;
             pageFloorIndex = itemPageFloorIndex;
             columnIndex = itemColumnIndex;
-            remainingPassCount = Mathf.Max(1, definition.RequiredPassCount);
+            requiredPassCount = Mathf.Max(1, runtimeRequiredPassCount);
+            remainingPassCount = requiredPassCount;
+            scoreBonusPercent = Mathf.Max(0, runtimeScoreBonusPercent);
             lastPassDirection = 0;
             spawnedAtTime = Time.time;
             lifetimeSeconds = definition.LifetimeSeconds;
@@ -155,29 +155,7 @@ namespace PH.Core.Items
 
         private void TryAddPass()
         {
-            if (playerMotor == null)
-            {
-                playerMotor = FindFirstObjectByType<PlayerMotor>();
-            }
-
-            if (playerCharacterRuntime == null && playerMotor != null)
-            {
-                playerCharacterRuntime = playerMotor.GetComponent<PlayerCharacterRuntime>();
-            }
-
-            if (playerHealth == null && playerMotor != null)
-            {
-                playerHealth = playerMotor.GetComponent<PlayerHealth>();
-            }
-
-            if (playerBuffVisualFeedback == null && playerMotor != null)
-            {
-                playerBuffVisualFeedback = playerMotor.GetComponent<PlayerBuffVisualFeedback>();
-                if (playerBuffVisualFeedback == null)
-                {
-                    playerBuffVisualFeedback = playerMotor.gameObject.AddComponent<PlayerBuffVisualFeedback>();
-                }
-            }
+            ResolvePlayerRuntimeComponents();
 
             if (playerMotor == null)
             {
@@ -199,7 +177,10 @@ namespace PH.Core.Items
             if (remainingPassCount <= 0)
             {
                 Acquire();
+                return;
             }
+
+            ShowPassFeedback();
         }
 
         private void Acquire()
@@ -218,11 +199,157 @@ namespace PH.Core.Items
             }
 
             eventRecorder?.Record(new ItemRunEvent(definition, absoluteFloor, pageIndex, pageFloorIndex, columnIndex, Time.time));
-            ApplyHUDItemEffect();
+            ItemEffectResult effectResult = ApplyHUDItemEffect();
+            ShowPickupFeedback(effectResult);
             gameObject.SetActive(false);
         }
 
-        private void ApplyHUDItemEffect()
+        private void ShowPickupFeedback(ItemEffectResult effectResult)
+        {
+            if (definition == null || playerMotor == null)
+            {
+                return;
+            }
+
+            if (!EnsurePickupFeedback())
+            {
+                return;
+            }
+
+            playerItemPickupFeedback.Show(GetPickupFeedbackMessage(effectResult), GetPickupFeedbackColor(effectResult), 1.5f);
+        }
+
+        private void ShowPassFeedback()
+        {
+            if (playerMotor == null)
+            {
+                return;
+            }
+
+            if (!EnsurePickupFeedback())
+            {
+                return;
+            }
+
+            playerItemPickupFeedback.Show("PASS", new Color(1f, 0.92f, 0.35f, 1f));
+        }
+
+        private void ResolvePlayerRuntimeComponents()
+        {
+            if (playerMotor == null)
+            {
+                playerMotor = FindFirstObjectByType<PlayerMotor>();
+            }
+
+            if (playerMotor == null)
+            {
+                return;
+            }
+
+            if (playerCharacterRuntime == null)
+            {
+                playerCharacterRuntime = playerMotor.GetComponent<PlayerCharacterRuntime>();
+            }
+
+            if (playerHealth == null)
+            {
+                playerHealth = playerMotor.GetComponent<PlayerHealth>();
+            }
+
+            if (playerBuffVisualFeedback == null)
+            {
+                playerBuffVisualFeedback = playerMotor.GetComponent<PlayerBuffVisualFeedback>();
+                if (playerBuffVisualFeedback == null)
+                {
+                    playerBuffVisualFeedback = playerMotor.gameObject.AddComponent<PlayerBuffVisualFeedback>();
+                }
+            }
+
+            if (playerItemPickupFeedback == null)
+            {
+                EnsurePickupFeedback();
+            }
+        }
+
+        private bool EnsurePickupFeedback()
+        {
+            if (playerItemPickupFeedback != null)
+            {
+                return true;
+            }
+
+            if (playerMotor == null)
+            {
+                return false;
+            }
+
+            playerItemPickupFeedback = playerMotor.GetComponent<PlayerItemPickupFeedback>();
+            if (playerItemPickupFeedback == null)
+            {
+                playerItemPickupFeedback = playerMotor.gameObject.AddComponent<PlayerItemPickupFeedback>();
+            }
+
+            return playerItemPickupFeedback != null;
+        }
+
+        private string GetPickupFeedbackMessage(ItemEffectResult effectResult)
+        {
+            switch (effectResult.Outcome)
+            {
+                case ItemEffectOutcome.ScoreAdded:
+                    return "+SCORE";
+                case ItemEffectOutcome.TimeAdded:
+                    return "TIME UP";
+                case ItemEffectOutcome.LifeHealed:
+                    return "GET Life";
+                case ItemEffectOutcome.MaxLifeIncreased:
+                    return "MAX LIFE";
+                case ItemEffectOutcome.MoveSpeedIncreased:
+                    return "SPEED UP";
+            }
+
+            switch (definition.ItemType)
+            {
+                case ItemType.Time:
+                    return "TIME UP";
+                case ItemType.Heal:
+                    return "GET Life";
+                case ItemType.Score:
+                    return "+SCORE";
+                default:
+                    return definition.AffectsScore ? "+SCORE" : definition.DisplayName;
+            }
+        }
+
+        private Color GetPickupFeedbackColor(ItemEffectResult effectResult)
+        {
+            switch (effectResult.Outcome)
+            {
+                case ItemEffectOutcome.ScoreAdded:
+                    return Color.white;
+                case ItemEffectOutcome.TimeAdded:
+                    return new Color(0.28f, 0.67f, 1f, 1f);
+                case ItemEffectOutcome.LifeHealed:
+                case ItemEffectOutcome.MaxLifeIncreased:
+                    return new Color(1f, 0.18f, 0.16f, 1f);
+                case ItemEffectOutcome.MoveSpeedIncreased:
+                    return new Color(1f, 0.86f, 0.16f, 1f);
+            }
+
+            switch (definition.ItemType)
+            {
+                case ItemType.Time:
+                    return new Color(0.28f, 0.67f, 1f, 1f);
+                case ItemType.Heal:
+                    return new Color(1f, 0.18f, 0.16f, 1f);
+                case ItemType.Score:
+                    return Color.white;
+                default:
+                    return definition.AffectsScore ? Color.white : new Color(1f, 0.86f, 0.16f, 1f);
+            }
+        }
+
+        private ItemEffectResult ApplyHUDItemEffect()
         {
             if (topHUDController == null)
             {
@@ -231,7 +358,7 @@ namespace PH.Core.Items
 
             if (topHUDController == null || definition == null)
             {
-                return;
+                return ItemEffectResult.None;
             }
 
             if (effectResolver == null)
@@ -239,7 +366,7 @@ namespace PH.Core.Items
                 effectResolver = new ItemEffectResolver();
             }
 
-            effectResolver.Execute(definition, new ItemEffectContext(topHUDController, playerHealth, playerMotor, playerBuffVisualFeedback));
+            return effectResolver.Execute(definition, new ItemEffectContext(topHUDController, playerHealth, playerMotor, playerBuffVisualFeedback, requiredPassCount, scoreBonusPercent));
         }
 
         private void Expire()
@@ -296,12 +423,11 @@ namespace PH.Core.Items
             progressText.text = showProgress ? remainingPassCount.ToString() : string.Empty;
         }
 
-        private static Rect GetWorldRect(RectTransform target)
+        private Rect GetWorldRect(RectTransform target)
         {
-            Vector3[] corners = new Vector3[4];
-            target.GetWorldCorners(corners);
-            Vector3 bottomLeft = corners[0];
-            Vector3 topRight = corners[2];
+            target.GetWorldCorners(worldCorners);
+            Vector3 bottomLeft = worldCorners[0];
+            Vector3 topRight = worldCorners[2];
 
             return new Rect(bottomLeft.x, bottomLeft.y, topRight.x - bottomLeft.x, topRight.y - bottomLeft.y);
         }

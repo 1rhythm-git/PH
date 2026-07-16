@@ -35,5 +35,5 @@ MonoBehaviour:
   boosterGainPerColumn: 0.5
   boosterGainPerPivot: 0.75
   boosterBuffKey: Undefined
-  maxLife: 2
+  maxLife: 3
   instantItemAcquireChance: 0

@@ -1,8 +1,9 @@
 ItemId,ServerItemId,TableVersion,Enabled,DisplayName,ItemType,IconKey,MinFloor,MaxFloor,SpawnWeight,RequiredPassCount,LifetimeSeconds,PassDirection,EffectKey,EffectValue,EffectDurationSeconds,AffectsScore,AffectsProgression,ServerValidated,MaxAcquirePerRun,Rarity
 score_coin_01,srv_score_coin_01,items_v1,true,Score Coin,Score,score_default,1,0,100,1,8,Any,add_score,100,0,true,false,true,0,Common
 time_chip_01,srv_time_chip_01,items_v1,true,Time Chip,Time,time_default,3,0,35,1,8,Any,add_time,5,0,false,false,true,0,Common
-heart_pack_01,srv_heart_pack_01,items_v1,true,Heart Pack,Heal,heal_default,2,0,30,1,10,Any,heal_heart,1,0,false,false,true,0,Common
+heart_pack_01,srv_heart_pack_01,items_v1,true,Heart Pack,Heal,heal_default,2,0,30,3,10,Any,heal_heart,1,0,false,false,true,0,Common
+max_life_heart_01,srv_max_life_heart_01,items_v1,true,Winged Heart,Skill,max_life_heart,6,0,10,5,12,Any,add_max_life,1,0,false,false,true,0,Rare
 pass_orb_01,srv_pass_orb_01,items_v1,true,Pass Orb,Score,score_gem,1,0,45,3,12,Any,add_score,250,0,true,false,true,0,Uncommon
-red_sneaker_01,srv_red_sneaker_01,items_v1,true,Red Sneaker,Skill,red_sneaker,2,0,24,1,10,Any,add_move_speed_percent,20,10,false,false,true,0,Uncommon
-winged_shoe_01,srv_winged_shoe_01,items_v1,true,Winged Shoe,Skill,winged_shoe,5,0,12,2,12,Any,add_move_speed_percent,50,12,false,false,true,0,Rare
+red_sneaker_01,srv_red_sneaker_01,items_v1,true,Red Sneaker,Skill,red_sneaker,2,0,24,1,10,Any,add_move_speed_percent,20,5,false,false,true,0,Uncommon
+winged_shoe_01,srv_winged_shoe_01,items_v1,true,Winged Shoe,Skill,winged_shoe,5,0,12,1,12,Any,add_move_speed_percent,50,5,false,false,true,0,Rare
 growth_core_01,srv_growth_core_01,items_v1,false,Growth Core,Collection,collection_default,8,0,10,2,15,Any,add_growth_core,1,0,false,true,true,1,Rare

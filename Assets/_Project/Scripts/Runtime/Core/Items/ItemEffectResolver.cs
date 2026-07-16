@@ -6,15 +6,16 @@ namespace PH.Core.Items
         {
             new AddScoreItemEffect(),
             new AddTimeItemEffect(),
+            new AddMaxLifeItemEffect(),
             new HealHeartItemEffect(),
             new AddMoveSpeedItemEffect()
         };
 
-        public void Execute(ItemDefinition definition, ItemEffectContext context)
+        public ItemEffectResult Execute(ItemDefinition definition, ItemEffectContext context)
         {
             if (definition == null)
             {
-                return;
+                return ItemEffectResult.None;
             }
 
             for (int i = 0; i < effects.Length; i++)
@@ -22,12 +23,12 @@ namespace PH.Core.Items
                 IItemEffect effect = effects[i];
                 if (effect != null && effect.CanExecute(definition))
                 {
-                    effect.Execute(definition, context);
-                    return;
+                    return effect.Execute(definition, context);
                 }
             }
 
             context.TopHUDController?.SetItemStatus(definition.DisplayName);
+            return ItemEffectResult.None;
         }
     }
 }

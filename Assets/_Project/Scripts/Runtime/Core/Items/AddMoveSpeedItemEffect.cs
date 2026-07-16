@@ -5,33 +5,34 @@ namespace PH.Core.Items
 {
     public sealed class AddMoveSpeedItemEffect : IItemEffect
     {
-        private const string EffectKey = "add_move_speed_percent";
-
         public bool CanExecute(ItemDefinition definition)
         {
-            return definition != null && definition.EffectKey == EffectKey;
+            return definition != null && definition.EffectKey == ItemEffectKeys.AddMoveSpeedPercent;
         }
 
-        public void Execute(ItemDefinition definition, ItemEffectContext context)
+        public ItemEffectResult Execute(ItemDefinition definition, ItemEffectContext context)
         {
             if (definition == null)
             {
-                return;
+                return ItemEffectResult.None;
             }
 
             PlayerMotor playerMotor = context.PlayerMotor;
-            float durationSeconds = definition.EffectDurationSeconds > 0f
+            float baseDurationSeconds = definition.EffectDurationSeconds > 0f
                 ? definition.EffectDurationSeconds
                 : definition.LifetimeSeconds;
+            int passCount = Mathf.Max(1, context.RequiredPassCount);
+            float durationSeconds = baseDurationSeconds * passCount;
             if (playerMotor == null)
             {
                 context.TopHUDController?.SetItemStatus(definition.DisplayName);
-                return;
+                return ItemEffectResult.None;
             }
 
             float currentSpeed = playerMotor.AddTimedMoveSpeedPercentBonus(definition.EffectValue, durationSeconds);
             context.BuffVisualFeedback?.PlayBlink(durationSeconds);
             context.TopHUDController?.SetItemStatus($"+{definition.EffectValue}% SPEED  {durationSeconds:0.#}s  {currentSpeed:0.##}");
+            return new ItemEffectResult(ItemEffectOutcome.MoveSpeedIncreased, definition.EffectValue);
         }
     }
 }
