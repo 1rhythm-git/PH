@@ -641,6 +641,7 @@ GameObject:
   - component: {fileID: 300403}
   - component: {fileID: 300402}
   - component: {fileID: 300404}
+  - component: {fileID: 300405}
   m_Layer: 5
   m_Name: TopUI
   m_TagString: Untagged
@@ -737,6 +738,22 @@ MonoBehaviour:
   boosterGaugeFillColor: {r: 0.16, g: 0.72, b: 0.96, a: 1}
   boosterGaugeEmptyColor: {r: 1, g: 1, b: 1, a: 0.08}
   boosterReadyBlinkInterval: 0.18
+--- !u!114 &300405
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 300400}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55eea4b03f514bf3a052d209ccb59c3f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  contentRoot: {fileID: 0}
+  contentRootName: TopHUDRuntimeRoot
+  useSafeArea: 1
+  additionalTopPadding: 12
 --- !u!1 &300500
 GameObject:
   m_ObjectHideFlags: 0

@@ -67,6 +67,25 @@ namespace PH.Core.Characters
         [SerializeField, Range(0f, 1f)]
         private float instantItemAcquireChance;
 
+        [SerializeField]
+        private int[] requiredExperienceByLevel = { 100, 150, 225, 325, 450, 600, 800, 1050, 1350 };
+
+        [SerializeField]
+        private string unlockableSkillId = "skill_item_page_chance";
+
+        [SerializeField]
+        private string unlockableSkillName = "Item Scout";
+
+        [SerializeField]
+        [TextArea(2, 4)]
+        private string unlockableSkillDescription = "Increases the chance of a Time or Speed item appearing on each page.";
+
+        [SerializeField]
+        private int skillUnlockLevel = 3;
+
+        [SerializeField, Range(0f, 1f)]
+        private float skillItemPageSpawnChance = 0.15f;
+
         public string CharacterId => characterId;
         public string DisplayName => displayName;
         public Sprite PortraitSprite => portraitSprite;
@@ -90,6 +109,24 @@ namespace PH.Core.Characters
         public string BoosterBuffKey => FeverBuffKey;
         public int MaxLife => maxLife;
         public float InstantItemAcquireChance => instantItemAcquireChance;
+        public int MaxCharacterLevel => Mathf.Max(1, (requiredExperienceByLevel?.Length ?? 0) + 1);
+        public string UnlockableSkillId => unlockableSkillId;
+        public string UnlockableSkillName => unlockableSkillName;
+        public string UnlockableSkillDescription => unlockableSkillDescription;
+        public int SkillUnlockLevel => Mathf.Clamp(skillUnlockLevel, 1, MaxCharacterLevel);
+        public float SkillItemPageSpawnChance => Mathf.Clamp01(skillItemPageSpawnChance);
+
+        // (추가) 캐릭터 테이블의 현재 레벨 기준 필요 XP를 반환한다. 최대 레벨은 0을 반환한다.
+        public int GetRequiredExperienceForLevel(int currentLevel)
+        {
+            int index = Mathf.Max(1, currentLevel) - 1;
+            if (requiredExperienceByLevel == null || index < 0 || index >= requiredExperienceByLevel.Length)
+            {
+                return 0;
+            }
+
+            return Mathf.Max(1, requiredExperienceByLevel[index]);
+        }
 
 #if UNITY_EDITOR
         private void OnValidate()
@@ -104,6 +141,16 @@ namespace PH.Core.Characters
             feverGainPerPivot = Mathf.Max(0f, feverGainPerPivot);
             maxLife = Mathf.Max(1, maxLife);
             instantItemAcquireChance = Mathf.Clamp01(instantItemAcquireChance);
+            skillUnlockLevel = Mathf.Clamp(skillUnlockLevel, 1, MaxCharacterLevel);
+            skillItemPageSpawnChance = Mathf.Clamp01(skillItemPageSpawnChance);
+
+            if (requiredExperienceByLevel != null)
+            {
+                for (int i = 0; i < requiredExperienceByLevel.Length; i++)
+                {
+                    requiredExperienceByLevel[i] = Mathf.Max(1, requiredExperienceByLevel[i]);
+                }
+            }
         }
 #endif
     }

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: DefaultCharacter
   m_EditorClassIdentifier:
   characterId: default
-  displayName: Default Spy
+  displayName: AgentX
   portraitSprite: {fileID: 21300000, guid: f799cf4d327b4791931acb2a83b97531, type: 3}
   bodyColor: {r: 0.95, g: 0.78, b: 0.22, a: 1}
   outlineColor: {r: 0.05, g: 0.05, b: 0.06, a: 0.85}
@@ -32,8 +32,23 @@ MonoBehaviour:
   moveSpeedColumnsPerSecond: 2
   pivotCooldownSeconds: 0.3
   boosterGaugeMax: 100
-  boosterGainPerColumn: 0.5
-  boosterGainPerPivot: 0.75
+  boosterGainPerColumn: 0.15
+  boosterGainPerPivot: 0.225
   boosterBuffKey: Undefined
   maxLife: 3
   instantItemAcquireChance: 0
+  requiredExperienceByLevel:
+  - 100
+  - 150
+  - 225
+  - 325
+  - 450
+  - 600
+  - 800
+  - 1050
+  - 1350
+  unlockableSkillId: gadget_forecast
+  unlockableSkillName: Gadget Forecast
+  unlockableSkillDescription: Adds a 15% chance to guarantee a Time or Skill item on each page.
+  skillUnlockLevel: 3
+  skillItemPageSpawnChance: 0.15

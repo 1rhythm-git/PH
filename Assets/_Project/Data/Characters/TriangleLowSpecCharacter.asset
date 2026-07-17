@@ -32,8 +32,23 @@ MonoBehaviour:
   moveSpeedColumnsPerSecond: 4
   pivotCooldownSeconds: 0.15
   boosterGaugeMax: 100
-  boosterGainPerColumn: 1
-  boosterGainPerPivot: 1.5
+  boosterGainPerColumn: 0.3
+  boosterGainPerPivot: 0.45
   boosterBuffKey: Undefined
   maxLife: 2
   instantItemAcquireChance: 0
+  requiredExperienceByLevel:
+  - 100
+  - 150
+  - 225
+  - 325
+  - 450
+  - 600
+  - 800
+  - 1050
+  - 1350
+  unlockableSkillId: swift_supply
+  unlockableSkillName: Swift Supply
+  unlockableSkillDescription: Adds a 20% chance to guarantee a Time or Skill item on each page.
+  skillUnlockLevel: 4
+  skillItemPageSpawnChance: 0.2

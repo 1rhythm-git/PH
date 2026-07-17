@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PH.Core.Characters;
 using PH.Core.Player;
 using PH.Core.World;
 using UnityEngine;
@@ -154,6 +155,7 @@ namespace PH.Core.Items
             System.Random random = new System.Random(pageSeed);
             HashSet<int> occupied = new HashSet<int>();
             int spawnedCount = 0;
+            bool needsSkillItemForPage = RollSkillItemPageChance(random);
 
             for (int guard = 0; guard < buildingGridUI.Rows * buildingGridUI.Columns && spawnedCount < maxItemsPerPage; guard++)
             {
@@ -167,10 +169,18 @@ namespace PH.Core.Items
                 }
 
                 FloorAddress address = pageData.GetAddressByRow(row);
-                ItemDefinition definition = PickItem(address.AbsoluteFloor, random);
+                ItemDefinition definition = needsSkillItemForPage
+                    ? PickPageSkillItem(address.AbsoluteFloor, random)
+                    : null;
+                definition ??= PickItem(address.AbsoluteFloor, random);
                 if (definition == null)
                 {
                     continue;
+                }
+
+                if (needsSkillItemForPage && IsPageSkillItem(definition))
+                {
+                    needsSkillItemForPage = false;
                 }
 
                 CreateItem(definition, address, column, random);
@@ -251,6 +261,68 @@ namespace PH.Core.Items
             }
 
             return candidates[candidates.Count - 1];
+        }
+
+        private ItemDefinition PickPageSkillItem(int absoluteFloor, System.Random random)
+        {
+            List<ItemDefinition> candidates = itemTable.GetSpawnCandidates(absoluteFloor);
+            int totalWeight = 0;
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (IsPageSkillItem(candidates[i]))
+                {
+                    totalWeight += Mathf.Max(0, candidates[i].SpawnWeight);
+                }
+            }
+
+            if (totalWeight <= 0)
+            {
+                return null;
+            }
+
+            int roll = random.Next(0, totalWeight);
+            int cursor = 0;
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                ItemDefinition candidate = candidates[i];
+                if (!IsPageSkillItem(candidate))
+                {
+                    continue;
+                }
+
+                cursor += Mathf.Max(0, candidate.SpawnWeight);
+                if (roll < cursor)
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private bool RollSkillItemPageChance(System.Random random)
+        {
+            if (!string.IsNullOrWhiteSpace(forcedTestItemId))
+            {
+                return false;
+            }
+
+            CharacterDefinition definition = CharacterSelectionState.SelectedCharacter;
+            if (definition == null && playerSpawner != null && playerSpawner.SpawnedPlayer != null)
+            {
+                PlayerCharacterRuntime runtime = playerSpawner.SpawnedPlayer.GetComponent<PlayerCharacterRuntime>();
+                definition = runtime != null ? runtime.CharacterDefinition : null;
+            }
+
+            float chance = CharacterProgressionState.GetActiveSkillItemPageSpawnChance(definition);
+            return chance > 0f && random.NextDouble() <= chance;
+        }
+
+        private bool IsPageSkillItem(ItemDefinition definition)
+        {
+            return definition != null && (definition.ItemType == ItemType.Time || definition.ItemType == ItemType.Skill);
         }
 
         private void CreateItem(ItemDefinition definition, FloorAddress address, int column, System.Random random)

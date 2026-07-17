@@ -479,8 +479,8 @@ ________________________________________
 • 두 번째 캐릭터 슬롯을 닌자 콘셉트로 교체
 • 닌자 캐릭터 리소스 구조도 스파이와 동일하게 구성
 • 닌자 Walk 프레임에서 본체와 떨어진 잡티 픽셀을 제거
-• 로비 캐릭터 순서는 `Default Spy -> Ninja`로 유지
-• InGame 단독 실행 fallback 캐릭터는 `Default Spy`로 유지
+• 로비 캐릭터 순서는 `AgentX -> Ninja`로 유지
+• InGame 단독 실행 fallback 캐릭터는 `AgentX`로 유지
 • 스파이와 닌자의 스테이터스 값은 밸런스 테스트용으로 서로 교환 적용
 
 고려 사항:
@@ -671,9 +671,9 @@ ________________________________________
 • `Winged Heart` 아이템 추가
 • `add_max_life` 효과를 처리하는 `AddMaxLifeItemEffect` 추가
 • `PlayerHealth`에 런 중 Max Life 아이템 보너스 한도 추적 추가
-• 현재 생명력이 Max일 때는 런 중 1회에 한해 Max Life +1 적용
+• 현재 생명력이 Max이고 추가 슬롯이 비활성일 때 Max Life +1 적용
 • 생명력이 차감된 상태에서는 Max Life 증가 없이 생명력만 회복
-• 이미 Max Life 증가를 받은 상태에서 재획득하면 SCORE로 환산
+• 추가 슬롯 활성 중 재획득하면 SCORE로 환산하고, 슬롯 소모 후에는 Max Life +1 재획득 가능
 • 날개 달린 하트 아이콘 `max_life_heart.png` 추가
 • 획득 피드백 문구는 `MAX LIFE`, 색상은 붉은색으로 표시
 
@@ -814,19 +814,744 @@ ________________________________________
 
 ________________________________________
 
+2.30 TopUI Safe Area 대응
+
+완료 내용:
+• `TopSafeAreaController`를 추가해 `Screen.safeArea` 기준 상단 안전 여백 적용
+• TopUI 배경은 기존 영역을 유지하고 런타임 HUD 콘텐츠만 안전 영역 아래로 이동
+• Safe Area 외에 기본 상단 여백 12를 추가해 일반 화면에서도 최상단 밀착 완화
+• 화면 크기 또는 Safe Area 변경 시 런타임에 자동 재계산
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopSafeAreaController.cs`
+• `Assets/_Project/Scenes/InGame.unity`
+
+검증 상태:
+• 신규 스크립트와 InGame 씬 컴포넌트 연결 구조 확인
+• Unity가 `Assembly-CSharp.dll`을 재생성했고 `TopSafeAreaController` 포함 및 컴파일 오류 없음 확인
+• Unity Editor 및 Galaxy S26 실기 화면 검증 필요
+
+남은 이슈:
+• 실제 단말기에서 카메라 홀과 상태바 아래로 모든 HUD가 내려오는지 확인
+• 여백이 과도하거나 부족하면 `additionalTopPadding` 값을 조정
+
+관련 작업 기준:
+• Lobby UI 재구성 전 선행 수정사항
+
+________________________________________
+
+2.31 TopUI 하트 / 층 표시 정렬
+
+완료 내용:
+• 피버 게이지 바로 위 한 줄에 하트와 현재 층 표시를 배치
+• 하트는 피버 게이지 좌측 기준으로 정렬
+• 현재 층은 피버 게이지 우측 기준으로 정렬
+• Max Life 증가 시 하트 영역을 확보하기 위해 하트 영역을 층 표시보다 넓게 구성
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+
+검증 상태:
+• 런타임 HUD 생성 좌표와 정렬값 확인
+• Unity 컴파일 및 Play 모드 화면 검증 필요
+
+남은 이슈:
+• Max Life 증가 상태와 세 자리 이상 층수에서 텍스트가 겹치지 않는지 확인
+
+관련 작업 기준:
+• Lobby UI 재구성 전 선행 수정사항
+
+________________________________________
+
+2.32 이동속도 아이템 재획득 정책 수정
+
+완료 내용:
+• 이동속도 버프의 퍼센트 합산 중첩 제거
+• 동일 이동속도 아이템 재획득 시 능력치는 유지하고 지속시간만 새로 갱신
+• 하위 이동속도 아이템 획득 시 현재 상위 능력치를 유지하고 지속시간만 새로 갱신
+• 상위 이동속도 아이템 획득 시 능력치와 지속시간을 모두 상위 아이템 기준으로 갱신
+• HUD와 캐릭터 점멸 연출도 실제 활성 능력치 및 갱신된 지속시간과 동기화
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerMotor.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/AddMoveSpeedItemEffect.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerBuffVisualFeedback.cs`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+
+검증 상태:
+• 이동속도 버프 적용 흐름과 HUD 참조 API 정적 확인
+• Unity 컴파일 및 Play 모드 아이템 조합별 검증 필요
+
+남은 이슈:
+• Red Sneaker와 Winged Shoe를 서로 다른 순서로 획득해 능력치와 타이머를 확인해야 함
+
+관련 작업 기준:
+• Lobby UI 재구성 전 선행 수정사항
+
+________________________________________
+
+2.33 이동 / 대시 먼지 및 Run 애니메이션 연동
+
+완료 내용:
+• 일반 이동 시 진행 방향 반대쪽 발밑에 작은 픽셀 먼지 발생
+• 두 캐릭터에 이미 연결된 Run 스프라이트를 이동속도 버프 중 대시 애니메이션으로 적용
+• 대시 중 먼지는 일반 이동보다 발생 주기와 입자 수를 늘리고 긴 잔상 형태와 푸른 밝은 색상 적용
+• 먼지 오브젝트를 플레이어 레이어에 남겨 플레이어 이동을 따라붙지 않도록 처리
+• 최대 36개 입자를 재사용하는 풀링 구조로 런타임 생성/삭제 부하 제한
+• 이동 잠금, 정지, 버프 종료 시 일반 이동 상태와 먼지 정책으로 자동 복귀
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerMovementDustFeedback.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerSpriteAnimator.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerMotor.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerSpawner.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+
+검증 상태:
+• Run 스프라이트 데이터 연결과 런타임 플레이어 자동 부착 흐름 정적 확인
+• Unity 6000.3.17f1 Batch Mode 컴파일 성공 및 `Assembly-CSharp.dll`에 신규 타입 포함 확인
+• Play 모드 일반/대시 이동 연출 검증 필요
+
+남은 이슈:
+• 실제 단말기에서 먼지 크기, 색상, 발생 밀도와 성능 확인
+• Spy/Ninja 캐릭터별 Run 프레임 전환과 좌우 반전 확인
+
+관련 작업 기준:
+• Lobby UI 재구성 전 선행 수정사항
+
+________________________________________
+
+2.34 캐릭터 XP / 레벨 스킬 / Page Chance 기반
+
+완료 내용:
+• 캐릭터별 경험치와 레벨 진행 상태 추가
+• `CharacterDefinition`에 레벨별 필요 XP 테이블과 고유 스킬 해금 레벨, 이름, 설명, Page Chance 추가
+• 경험치 누적 시 여러 레벨을 연속 처리할 수 있는 `CharacterProgressionState.AddExperience()` API 추가
+• TopUI 캐릭터 초상화와 레벨 영역 아래 XP 게이지 추가
+• Lobby 캐릭터 설명에 해금 전 `LOCKED Lv.N`, 해금 후 `ACTIVE` 상태와 Chance 수치 표시
+• 인게임에는 고유 스킬 설명 UI를 추가하지 않고 해금된 버프만 적용
+• 해금된 Page Chance 판정 성공 시 Time 또는 Skill 아이템 1개를 해당 페이지에 보장
+• AgentX는 Lv.3에 Chance 15%, Ninja는 Lv.4에 Chance 20% 해금
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterProgressionState.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerCharacterRuntime.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemSpawner.cs`
+• `Assets/_Project/Data/Characters/DefaultCharacter.asset`
+• `Assets/_Project/Data/Characters/TriangleLowSpecCharacter.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+
+검증 상태:
+• 캐릭터별 XP, 레벨업, 스킬 해금, HUD/Lobby 갱신 흐름 정적 확인
+• Unity 6000.3.17f1 Editor 자동 컴파일 및 도메인 리로드 성공
+• Unity 6000.3.17f1 Batch Mode 컴파일 종료 코드 0 확인
+• Play 모드 레벨 경계/페이지 보장 스폰 검증 필요
+
+남은 이슈:
+• 런 종료 획득 XP 결과식과 지급 시점 확정
+• 로컬 및 BackND 캐릭터 진행 상태 저장 연동
+• 캐릭터별 필요 XP, 해금 레벨, Chance 밸런스 확정
+
+관련 작업 기준:
+• Lobby UI 재구성과 수집형 아이템 작업 전 캐릭터 성장 기반 보완
+
+________________________________________
+
+2.35 TopUI XP / 피버 게이지 배치 보완
+
+완료 내용:
+• XP 게이지 가로 크기를 기존 대비 70%로 축소
+• XP 게이지 세로 크기를 기존 대비 120%로 확대
+• 피버 게이지를 TopUI 바닥에 고정하고 전체 가로 폭으로 확장
+• 층수를 피버 게이지 좌측 위에 좌측 정렬
+• 하트를 피버 게이지 우측 위에 우측 정렬
+• 피버 게이지와 두 상태 표시를 하단 앵커 기준으로 묶어 TopUI 높이 변화 시 함께 이동하도록 보완
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• RectTransform 앵커와 오프셋 정적 확인
+• `git diff --check` 통과
+• Unity Batch Mode는 실행 중인 Editor의 프로젝트 점유로 중단되어 컴파일 재검증 필요
+• Play 모드 해상도별 배치 검증 필요
+
+남은 이슈:
+• Galaxy S26 실기기에서 Safe Area 적용 후 피버 게이지와 MiddleUI 경계 확인
+• 작은 화면에서 우측 상태 텍스트와 하트 영역 간 간격 확인
+
+관련 작업 기준:
+• Lobby UI 재구성 전 TopUI 최종 배치 보완
+
+________________________________________
+
+2.36 TopUI 하트 / 층수 우측 정렬 순서 변경
+
+완료 내용:
+• 하트와 층수를 모두 피버 게이지 우측 위에 배치
+• 두 항목 모두 우측 정렬 적용
+• 화면 가장 오른쪽에 층수, 그 왼쪽에 하트가 표시되도록 순서 변경
+• 피버 게이지 기준 하단 앵커와 세로 위치는 기존 보완값 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• RectTransform 가로 구간과 정렬값 정적 확인
+• Unity 컴파일 및 Play 모드 배치 검증 필요
+
+남은 이슈:
+• 높은 층수 표기에서 하트와의 간격 확인
+
+관련 작업 기준:
+• 사용자 단말 확인 후 요청된 TopUI 정렬 보완
+
+________________________________________
+
+2.37 Lobby 단일 캐릭터 초상화 선택 레이아웃
+
+완료 내용:
+• BEST RECORD 패널 세로 높이를 기존 0.34에서 0.17로 절반 축소
+• 기록 정보를 제목, 최고 층, 최고 점수의 가로 한 줄 구성으로 변경
+• CHARACTER 패널 세로 높이를 기존 0.27에서 0.44로 확장
+• 캐릭터 에셋에 연결된 제작 전면 이미지를 중앙 단일 초상화로 출력
+• 캐릭터 이름은 초상화 아래, 캐릭터 레벨은 패널 우상단에 표시
+• 기존 레벨 스킬 잠금/활성 설명은 캐릭터 패널 하단에 유지
+• 초상화 좌우에 이미지 기반 화살표 버튼을 배치하고 캐릭터 순환 선택 연결
+• null 캐릭터 슬롯은 건너뛰고 선택 가능한 캐릭터가 하나면 화살표 버튼 비활성화
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 캐릭터 에셋의 전면 초상화 Sprite 연결 확인
+• 레이아웃 앵커, 순환 선택, 레벨/스킬/초상화 갱신 흐름 정적 확인
+• Unity 6000.3.17f1 Editor 컴파일 및 도메인 리로드 성공
+• Play 모드 좌우 선택 검증 필요
+
+남은 이슈:
+• 실제 화면에서 캐릭터별 전면 이미지 크기 차이 확인
+• 긴 캐릭터 이름과 고레벨 숫자 표시 여유 확인
+• 추후 정식 UI 아트 적용 시 런타임 화살표 Sprite를 아트 에셋으로 교체 가능
+
+관련 작업 기준:
+• 사용자 요청 순서의 Lobby UI 재구성 단계
+
+________________________________________
+
+2.38 날개하트 추가 MaxLife 소모 정책 수정
+
+완료 내용:
+• 날개하트로 증가한 MaxLife를 아이템 보너스 슬롯으로 추적하는 기존 구조 유지
+• 피해 발생 시 날개하트 추가 생명력 슬롯을 우선 소모
+• 추가 슬롯 소모와 동시에 `maxLifeBonusFromItems`와 `maxLife`를 원래 캐릭터 수치로 복귀
+• 추가 슬롯 활성 중에는 MaxLife가 캐릭터 기본 수치 +1을 넘지 않도록 제한
+• 추가 슬롯 소모 후에는 날개하트를 다시 획득해 MaxLife +1 적용 가능
+• HUD 동기화 전에 MaxLife를 복구해 빈 추가 하트 슬롯이 남지 않도록 수정
+• 2 이상의 피해가 들어오면 추가 슬롯 제거 후 남은 피해는 기존 생명력에 그대로 반영
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerHealth.cs`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 기본 MaxLife 3, 추가 MaxLife 1, 피해 1 기준 `4/4 → 3/3` 흐름 정적 확인
+• 추가 MaxLife 상태에서 피해 2 기준 `4/4 → 2/3` 흐름 정적 확인
+• Unity 6000.3.17f1 Batch Mode 컴파일 종료 코드 0 확인
+• Play 모드 날개하트 재현 검증 필요
+
+남은 이슈:
+• MaxLife 보너스 한도를 2 이상으로 확장할 경우 슬롯별 연출 정책 검토
+
+관련 작업 기준:
+• Winged Heart 런타임 생명력 슬롯 회귀 수정
+
+________________________________________
+
+2.39 날개하트 추가 슬롯 재획득 정책 적용
+
+완료 내용:
+• 런 중 MaxLife 지급 이력 제한 제거
+• 현재 활성 추가 슬롯 수만 기준으로 MaxLife 증가 제한
+• 추가 슬롯 활성 중 재획득 시 MaxLife 중첩 없이 SCORE 전환 유지
+• 추가 슬롯이 피해로 소모되면 캐릭터 기본 MaxLife로 복귀
+• 기본 MaxLife 복귀 후 Max 상태에서 날개하트를 재획득하면 다시 MaxLife +1 적용
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerHealth.cs`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• `3/3 → 획득 → 4/4 → 피해 → 3/3 → 재획득 → 4/4` 흐름 정적 확인
+• Unity 6000.3.17f1 Batch Mode 컴파일 종료 코드 0 확인
+• Play 모드 반복 재획득 검증 필요
+
+남은 이슈:
+• 추가 슬롯 활성 중 SCORE 전환량의 밸런스 확인
+
+관련 작업 기준:
+• 사용자 확정 Winged Heart 반복 재획득 정책
+
+________________________________________
+
+2.40 전 캐릭터 피버 게이지 증가량 30% 조정
+
+완료 내용:
+• 모든 현재 캐릭터의 이동 및 피벗 피버 게이지 증가량을 기존 값의 30%로 조정
+• AgentX 이동 증가량 `0.5 → 0.15`, 피벗 증가량 `0.75 → 0.225`
+• Ninja 이동 증가량 `1.0 → 0.3`, 피벗 증가량 `1.5 → 0.45`
+• 캐릭터 간 상대적인 피버 증가량 차이는 기존 비율 유지
+• 공통 코드 배율 없이 `CharacterDefinition` 에셋 값으로 관리하는 기존 데이터 구조 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Data/Characters/DefaultCharacter.asset`
+• `Assets/_Project/Data/Characters/TriangleLowSpecCharacter.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 등록된 캐릭터 에셋 2개의 피버 증가량 계산값 확인
+• Unity 에셋 Import 및 Play 모드 게이지 누적 속도 검증 필요
+
+남은 이슈:
+• 실제 플레이 시간 기준 피버 100% 도달 속도 확인
+
+관련 작업 기준:
+• 사용자 요청 전 캐릭터 피버 증가량 0.3배 밸런스 조정
+
+________________________________________
+
+2.41 기본 캐릭터 표시 명칭 AgentX 변경
+
+완료 내용:
+• 기본 스파이 캐릭터의 `displayName`을 `Default Spy`에서 `AgentX`로 변경
+• Lobby 캐릭터 이름과 표시 명칭을 사용하는 UI에 AgentX 자동 반영
+• `characterId: default`, `DefaultCharacter.asset`, GUID는 유지해 기존 선택 및 참조 호환성 보존
+• 마스터 프로젝트 문서와 작업 로그의 사용자 노출 명칭 갱신
+
+변경된 주요 파일:
+• `Assets/_Project/Data/Characters/DefaultCharacter.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 표시 명칭과 내부 식별자 분리 상태 확인
+• Unity 에셋 Import 및 Lobby 표시 확인 필요
+
+남은 이슈:
+• 없음
+
+관련 작업 기준:
+• 사용자 요청 기본 캐릭터 명칭 변경
+
+________________________________________
+
+2.42 Alice / Landy 캐릭터 추가
+
+완료 내용:
+• Alice 전면 초상화와 Idle/Walk/Run 각 2프레임 픽셀 아트 생성
+• Alice를 금발 양갈래 메이드, 빨간 토끼귀 머리띠 콘셉트로 구성
+• Alice 기동/피버/Chance 스테이터스를 AgentX의 1.5배로 설정하고 MaxLife 3 적용
+• Landy 전면 초상화와 Idle/Walk/Run 각 2프레임 픽셀 아트 생성
+• Landy를 힙합 모자, 선글라스, 금목걸이를 착용한 고릴라 콘셉트로 구성
+• Landy 기동/피버/Chance 스테이터스를 AgentX의 1.2배로 설정하고 MaxLife 4 적용
+• 방향전환 성능 배율은 쿨타임 역수로 적용해 Alice 0.2초, Landy 0.25초 설정
+• Lobby 캐릭터 순서를 `AgentX → Alice → Landy → Ninja`로 변경
+• 신규 PNG를 Sprite/Point/Mipmap Off/Alpha Transparency 설정으로 통일
+
+현재 주요 스테이터스:
+• Alice: 이동 3.0, 피벗 0.2초, 이동 피버 0.225, 피벗 피버 0.3375, Chance 22.5%, MaxLife 3
+• Landy: 이동 2.4, 피벗 0.25초, 이동 피버 0.18, 피벗 피버 0.27, Chance 18%, MaxLife 4
+
+변경된 주요 파일:
+• `Assets/_Project/Art/Characters/alice_front.png`
+• `Assets/_Project/Art/Characters/landy_front.png`
+• `Assets/_Project/Art/Characters/Alice_Default/**`
+• `Assets/_Project/Art/Characters/Landy_Default/**`
+• `Assets/_Project/Data/Characters/AliceCharacter.asset`
+• `Assets/_Project/Data/Characters/LandyCharacter.asset`
+• `Assets/_Project/Scenes/Lobby.unity`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 생성 전면 이미지와 대표 Run 프레임 투명 알파 시각 확인
+• 캐릭터별 스프라이트 GUID 및 데이터 참조 정적 확인
+• Unity 6000.3.17f1 배치 모드 에셋 Import 및 컴파일 정상 종료
+• Alice/Landy CharacterDefinition NativeFormatImporter 등록 확인
+• Play 모드 4종 순환 선택 및 인게임 애니메이션 검증 필요
+
+남은 이슈:
+• Alice의 두 번째 Walk 프레임은 시트의 중립 이동 포즈를 재사용하므로 향후 전용 프레임 교체 가능
+• 실제 플레이에서 Alice/Landy 캐릭터 크기와 피벗·대시 애니메이션 확인
+• 신규 캐릭터 스킬 이름과 해금 레벨의 최종 기획 확정
+
+관련 작업 기준:
+• 사용자 요청 캐릭터 2종 추가 및 Lobby 순서 지정
+
+________________________________________
+
+2.43 Alice / Landy 로비 선택 순서 교환
+
+완료 내용:
+• Lobby 캐릭터 순서를 `AgentX → Landy → Alice → Ninja`로 변경
+• 캐릭터 데이터, 능력치 및 이미지 에셋은 기존 설정 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scenes/Lobby.unity`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• LobbyController `availableCharacters` GUID 배열 순서 정적 확인
+
+관련 작업 기준:
+• 사용자 요청 Alice와 Landy의 로비 선택 순서 교환
+
+________________________________________
+
+2.44 Alice / Landy 2등신 픽셀아트 재구성
+
+완료 내용:
+• Alice와 Landy 로비 초상화를 AgentX/Ninja 기준의 작은 2등신 픽셀아트 비율로 교체
+• 초상화 캔버스 내 캐릭터 점유율을 약 72% 이하로 조정해 과도한 확대 표시 완화
+• 두 캐릭터의 Idle/Walk/Run 각 2프레임을 오른쪽 3/4 측면 포즈로 전면 교체
+• 애니메이션 개별 프레임을 기존 캐릭터와 유사한 398×435 규격으로 통일
+• 기존 PNG 파일명과 Unity GUID를 유지해 CharacterDefinition 참조 변경 없이 적용
+
+변경된 주요 파일:
+• `Assets/_Project/Art/Characters/alice_front*.png`
+• `Assets/_Project/Art/Characters/landy_front*.png`
+• `Assets/_Project/Art/Characters/alice_spritesheet*.png`
+• `Assets/_Project/Art/Characters/landy_spritesheet*.png`
+• `Assets/_Project/Art/Characters/Alice_Default/*.png`
+• `Assets/_Project/Art/Characters/Landy_Default/*.png`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Alice/Landy 초상화의 2등신 비율과 축소된 캔버스 점유율 시각 확인
+• 대표 Run 프레임의 오른쪽 3/4 측면 진행 포즈 시각 확인
+• 모든 개별 애니메이션 프레임 RGBA 398×435 규격 확인
+• 대표 초상화/Run 프레임 4개 모서리 Alpha 0 확인
+
+남은 확인:
+• 실행 중인 Unity Editor에서 자동 임포트 완료 후 Lobby 및 InGame Play 모드 표시 확인
+
+관련 작업 기준:
+• 사용자 요청 기존 Spy/Ninja와 같은 2등신 픽셀아트 스타일 및 비정면 이동 애니메이션 적용
+
+________________________________________
+
+2.45 AgentX / Ninja 초상화 기본 규격 통일
+
+완료 내용:
+• AgentX와 Ninja 전면 초상화를 Alice/Landy와 동일한 1024×1536 RGBA 캔버스로 재정규화
+• 원본 픽셀아트 디자인과 비율을 유지하면서 Nearest Neighbor 방식으로 크기 조정
+• 캐릭터 높이를 캔버스 약 66%로 맞추고 수직 중앙보다 약간 위에 배치
+• 재생성 원본인 `spy_front_chromakey.png`, `ninja_front_chromakey.png`도 같은 캔버스 규격으로 갱신
+• 향후 캐릭터 초상화 기본 규격을 마스터 문서에 명시
+
+초상화 기본 규격:
+• 1024×1536 RGBA PNG, 투명 배경
+• 2등신 전신 픽셀아트, 원본 종횡비 유지
+• 캐릭터 높이 약 60~72%, 수직 중앙보다 약간 위 배치
+• Point 필터, Mipmap Off, Alpha Is Transparency
+
+변경된 주요 파일:
+• `Assets/_Project/Art/Characters/spy_front.png`
+• `Assets/_Project/Art/Characters/spy_front_chromakey.png`
+• `Assets/_Project/Art/Characters/ninja_front.png`
+• `Assets/_Project/Art/Characters/ninja_front_chromakey.png`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• AgentX/Ninja 초상화 1024×1536 RGBA 확인
+• 두 초상화의 4개 모서리 Alpha 0 확인
+• 기존 Sprite GUID 및 CharacterDefinition 참조 유지
+• AgentX/Ninja 표시 크기와 여백 시각 확인
+
+남은 확인:
+• 실행 중인 Unity Editor 자동 임포트 후 Lobby에서 네 캐릭터 표시 크기 비교
+
+관련 작업 기준:
+• 사용자 요청 AgentX/Ninja 초상화 크기 통일 및 향후 기본 규격 확정
+
+________________________________________
+
+2.46 concept 참고 Landy 체형 샘플 제작
+
+완료 내용:
+• `/concept` 참고 이미지의 각진 실루엣과 단순한 면 분할을 Landy 픽셀아트에 반영
+• 기존 힙합 모자, 선글라스, 금목걸이, 검정 스트리트웨어 정체성 유지
+• 상체와 어깨를 넓히고 팔·전완·주먹을 크게 확장해 고릴라 체형 강화
+• 양팔을 무릎 아래까지 늘리고 주먹이 지면 가까이 내려오는 실루엣 적용
+• 로비 초상화 기본 규격인 1024×1536 RGBA 투명 PNG로 샘플 저장
+• 현재 Lobby/InGame Landy 에셋은 교체하지 않고 승인용 concept 샘플로 분리
+
+생성 파일:
+• `concept/Landy/landy_sample_v1.png`
+• `concept/Landy/landy_sample_v1_chromakey.png`
+
+검증 상태:
+• 1024×1536 RGBA 및 4개 모서리 Alpha 0 확인
+• 얼굴, 선글라스, 주둥이, 금목걸이 보존 확인
+• 긴 팔과 지면 가까운 대형 주먹 실루엣 시각 확인
+
+남은 확인:
+• 사용자 컨셉 승인 후 로비 초상화와 Idle/Walk/Run 6프레임 실사용 에셋 제작 여부 결정
+
+관련 작업 기준:
+• 사용자 요청 concept 참고 Landy 샘플 및 고릴라형 긴 팔 체형 적용
+
+________________________________________
+
+2.47 Landy 긴팔 고릴라 디자인 실사용 적용
+
+완료 내용:
+• 승인용 concept Landy 샘플을 실제 로비 전면 초상화에 적용
+• 긴 팔, 굵은 전완, 대형 주먹, 짧은 하체를 유지한 Idle/Walk/Run 각 2프레임 제작
+• Idle 프레임은 양 주먹이 지면 가까이 내려오는 너클 자세로 구성
+• Walk 프레임은 주먹과 짧은 다리가 번갈아 전진하는 측면 너클 보행으로 구성
+• Run 프레임은 상체를 진행 방향으로 숙이고 긴 팔을 크게 교차하는 동작으로 구성
+• 기존 PNG 파일명과 Sprite GUID를 유지해 CharacterDefinition 참조 및 능력치 변경 없이 적용
+
+캐릭터 애니메이션 지침 추가:
+• 디자인 기반 6프레임은 `Idle 2 / Walk 2 / Run 2` 구성을 사용
+• 6프레임은 정면이 아닌 화면 오른쪽을 향한 측면 기반으로 제작
+• 얼굴, 몸통, 골반, 발이 동일한 측면 방향을 유지
+• 화면 왼쪽 이동은 런타임 Sprite 좌우 반전으로 처리
+• 해당 규칙을 `AGENTS.md`와 `Docs/00_MASTER_PROJECT_BRIEF.md`에 기록
+
+변경된 주요 파일:
+• `Assets/_Project/Art/Characters/landy_front*.png`
+• `Assets/_Project/Art/Characters/landy_spritesheet*.png`
+• `Assets/_Project/Art/Characters/Landy_Default/*.png`
+• `AGENTS.md`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 로비 초상화 1024×1536 RGBA 및 4개 모서리 Alpha 0 확인
+• 6개 인게임 프레임 398×435 RGBA 및 4개 모서리 Alpha 0 확인
+• Idle/Walk/Run 전체 오른쪽 측면 실루엣 시각 확인
+• 기존 Sprite GUID 및 LandyCharacter 참조 유지 확인
+
+남은 확인:
+• Unity Play 모드에서 Lobby 초상화 표시 크기 확인
+• InGame에서 좌우 반전, Idle/Walk/Run 전환 및 셀 경계 내 크기 확인
+
+관련 작업 기준:
+• 사용자 요청 Landy concept 디자인 후속 적용 및 6프레임 측면 기반 제작 지침 고정
+
+________________________________________
+
+2.48 Landy 이동 전방 점멸 잡티 제거
+
+문제 상태:
+• Landy 이동 애니메이션 재생 중 진행 방향 앞쪽에 작은 색상 픽셀이 프레임마다 점멸
+
+확인 원인:
+• 크로마키 배경 제거 후 선글라스와 캐릭터 외곽에 저명도 녹색 Hue 픽셀이 잔존
+• `landy_run_02` 전방에 2×2 녹색 잔여 픽셀 좌표 확인
+• 투명화 과정에서 Alpha 0 픽셀 RGB가 흰색으로 저장돼 가장자리 샘플링 시 흰 점이 생길 가능성 확인
+
+수정 내용:
+• Landy 투명 시트 및 Idle/Walk/Run 6프레임의 녹색 Hue 잔여 픽셀 제거
+• Alpha 0 픽셀 RGB를 `(0,0,0,0)`으로 정규화해 투명 가장자리 흰색 번짐 방지
+• 금목걸이와 선글라스 금색 장식은 Hue 범위에서 제외해 원본 디자인 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Art/Characters/landy_spritesheet.png`
+• `Assets/_Project/Art/Characters/Landy_Default/*.png`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Idle/Run 대표 프레임 진행 방향 앞쪽 녹색 점 제거 시각 확인
+• 투명 경계의 흰 점 제거 시각 확인
+• 6프레임 규격과 기존 Sprite GUID 유지 확인
+
+남은 확인:
+• Unity Play 모드에서 이동 방향 좌우 반전 및 전체 프레임 점멸 재현 여부 확인
+
+관련 작업 기준:
+• 사용자 제보 Landy 인게임 이동 중 진행 방향 앞쪽 잡티 점멸
+
+________________________________________
+
+2.49 Landy 진행 방향 신발 조각 제거
+
+문제 상태:
+• `landy_walk_01`에서 본체와 분리된 신발 컴포넌트가 프레임 우측에 남아 진행 방향 앞쪽에 잘린 신발처럼 표시됨
+
+원인:
+• 6프레임 시트 분할 시 인접 프레임의 신발 픽셀이 현재 셀에 포함됨
+• `PlayerSpriteAnimator`의 좌우 반전과 Sprite Pivot은 신발을 재배치하는 원인이 아니며, PNG 프레임 크롭 결과가 직접 원인으로 확인됨
+
+수정 내용:
+• Landy 6개 개별 프레임에서 가장 큰 본체 연결 컴포넌트만 유지
+• 본체와 분리된 신발 및 외부 픽셀 컴포넌트 제거
+• 기존 프레임 규격, Sprite GUID, 좌우 반전 로직은 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Art/Characters/Landy_Default/*.png`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Walk/Idle/Run 대표 프레임에서 진행 방향 앞쪽 분리 신발 제거 확인
+• `landy_walk_01` 분리 신발 컴포넌트 제거 확인
+• 이동 애니메이션 코드와 Sprite Pivot 변경 없이 해결
+
+남은 확인:
+• Unity Play 모드에서 좌우 이동과 프레임 교체 시 신발 위치 최종 확인
+
+관련 작업 기준:
+• 사용자 제보 진행 방향 앞쪽 신발 잘림 및 뒤쪽 신발 조각 전방 표시
+
+________________________________________
+
+2.50 Landy 인게임 사이즈 왜곡 후속 작업 예약
+
+상태:
+• 미완료
+• 재시작 최우선
+
+현재 문제:
+• Landy 인게임 애니메이션에서 프레임별 캐릭터 크기와 비율 왜곡이 크게 발생
+• 동일한 398×435 캔버스를 사용하지만 프레임별 본체 불투명 영역, 정규화 배율, 중심점이 달라 시각 크기가 흔들릴 가능성이 있음
+• 긴 팔과 대형 주먹 체형 때문에 일반 캐릭터 기준의 최대 폭/높이 정규화가 Landy 실루엣을 과도하게 축소하거나 확대할 가능성이 있음
+
+다음 작업 시작 시 우선 확인:
+• Landy Idle/Walk/Run 6프레임 불투명 영역의 가로·세로 크기 및 중심 좌표 비교
+• 발바닥 기준선과 머리 높이를 공통 기준으로 재정렬
+• 프레임별 개별 최대 맞춤이 아닌 Landy 공통 배율 적용
+• `SpriteVisual` RectTransform, `spriteVisualScale`, `Image.preserveAspect`, 중앙 Pivot 상호작용 확인
+• 좌우 반전 시 위치 이동과 셀 경계 클리핑 재현 확인
+
+완료 조건:
+• Idle/Walk/Run 전환 중 Landy의 머리 높이와 몸통 크기가 일정하게 유지
+• 긴 팔과 주먹이 셀 경계를 벗어나 잘리지 않음
+• 좌우 반전 시 캐릭터 중심과 발바닥 기준선이 이동하지 않음
+• AgentX/Alice/Ninja의 기존 표시 크기에는 영향 없음
+
+브리핑 규칙:
+• Codex 종료 후 재시작 시 이 항목을 다음 작업 브리핑의 첫 번째 항목으로 보고
+• 이 문제가 완료되기 전에는 Lobby UI 재구성 및 수집형 아이템 작업보다 우선 처리
+
+관련 작업 기준:
+• 사용자 요청 Landy 인게임 사이즈 왜곡을 다음 작업 최우선으로 기록
+
+________________________________________
+
+2.51 이동속도 아이템 점멸 연출 제거
+
+완료 내용:
+• 이동속도 아이템 획득 시 호출되던 캐릭터 점멸 연출을 제거
+• 이동속도 버프 적용, 지속시간 갱신, HUD 상태 표시는 유지
+• 이동속도 버프 중 Run 애니메이션 및 대시 먼지 연출은 기존 흐름 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Items/AddMoveSpeedItemEffect.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• `AddMoveSpeedItemEffect.Execute()`에서 `PlayerBuffVisualFeedback.PlayBlink()` 호출 제거 확인
+• 이동속도 버프 적용 및 HUD 표시 코드 유지 확인
+• Unity 컴파일 및 Play 모드 아이템 획득 검증 필요
+
+남은 확인:
+• Red Sneaker와 Winged Shoe 획득 시 캐릭터 점멸 없이 Run 애니메이션만 적용되는지 확인
+• 피격 무적 점멸 등 다른 점멸 연출에는 영향이 없는지 확인
+
+관련 작업 기준:
+• 사용자 요청: 이동속도 아이템 획득 시 캐릭터 점멸효과 제거
+
+________________________________________
+
+2.52 Walk / Run 교차 프레임 제작 지침 등록
+
+완료 내용:
+• 신규 캐릭터 및 기존 캐릭터 수정 시 Walk/Run 2프레임의 좌우 손발 교차를 필수 제작 기준으로 등록
+• 같은 손과 같은 발이 2프레임 모두 유지되어 캐릭터가 끌려가는 것처럼 보이는 동작을 금지 기준으로 명시
+• Walk는 앞발 접지와 뒷발 회수, Run은 더 큰 보폭과 팔 스윙 및 공중감을 구분하도록 지침 추가
+
+변경된 주요 파일:
+• `AGENTS.md`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 캐릭터 아트 제작 지침과 마스터 브리프의 캐릭터 애니메이션 기본 규격에 동일 기준 반영 확인
+• 실제 스프라이트 제작/수정은 이번 작업 범위에서 제외
+
+남은 확인:
+• 향후 AgentX/Ninja/Alice/Landy Walk/Run 수정 시 좌우 손발 교차가 프레임별로 확실히 읽히는지 확인
+• `concept/Walk_Guide`의 Walk/Run 기준 이미지를 다음 캐릭터 제작 또는 수정 시 기준 자료로 함께 참조
+
+관련 작업 기준:
+• 사용자 요청: Walk/Run이 같은 손발 위치를 유지해 끌고 가는 느낌이 나므로 향후 캐릭터 생성 규칙에 좌우 손발 교차 프레임 지침 반영
+
+________________________________________
+
+2.53 TopUI / BottomUI HUD 배치 및 Android 하트 표시 수정
+
+완료 내용:
+• 피버 게이지를 TopUI 런타임 루트가 아니라 `BottomUI` 하위 런타임 오브젝트로 생성
+• 피버 게이지를 `BottomUI` 최상단에 붙도록 앵커와 오프셋 조정
+• 하트와 층수는 기존 x축 배치를 유지하고 y축만 TopUI 바닥에 밀착
+• Android APK에서 `♥` 텍스트 글리프가 표시되지 않을 수 있는 문제를 피하기 위해 하트 표시를 텍스트에서 `Resources/Items/Icons/heart` 이미지 배열로 변경
+• 피격 후 빈 하트 상태도 같은 아이콘의 낮은 Alpha 표시로 처리
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• `BottomUI` 씬 오브젝트 탐색 후 피버 게이지 생성, 미탐색 시 기존 TopHUD 루트 fallback 유지
+• 하트/층수 x축 앵커 유지 확인
+• `Resources/Items/Icons/heart` Sprite 리소스 경로 확인
+• `git diff --check` 통과
+• Unity 컴파일 및 Android APK 실기 검증 필요
+
+남은 확인:
+• Android APK 실행 직후 가득 찬 하트가 보이는지 확인
+• 피격 후 빈 하트가 낮은 Alpha로 보이고 남은 하트가 계속 보이는지 확인
+• 피버 게이지가 BottomUI 최상단에서 MiddleUI와 겹치지 않는지 확인
+
+관련 작업 기준:
+• 사용자 요청: 피버 게이지 BottomUI 최상단 부착, 하트/층수 TopUI 바닥 밀착, APK에서 초기 하트 미표시 버그 수정
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
-1. PART 14 수집형 아이템 기반 설계
-2. PlayerRespawnController 정식 분리
-3. 피버타임 발동/효과 정책 정의
-4. 점수 시스템 정식화
-5. Lobby 캐릭터 보유/장착 저장값 연결
-6. TopUI 디자인 교체 전 구조 정리
-7. Google AdMob 보상형 광고 부활 흐름 설계
+1. Landy 인게임 사이즈 왜곡 수정 (`2.50`, 재시작 최우선)
+2. 추가 수정사항 반영
+3. Lobby UI 재구성
+4. PART 14 수집형 아이템 기반 설계
+5. PlayerRespawnController 정식 분리
+6. 피버타임 발동/효과 정책 정의
+7. 점수 시스템 정식화
+8. Lobby 캐릭터 보유/장착 저장값 연결
+9. TopUI 디자인 교체 전 구조 정리
+10. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• 순차 계획 기준 다음 미진행 영역은 PART 14 수집형 아이템이다.
+• 가장 먼저 Landy 6프레임의 공통 배율, 중심점, 발바닥 기준선을 재정규화해 인게임 사이즈 왜곡을 수정한다.
+• 사용자 요청 순서에 따라 추가 수정사항 반영 후 Lobby UI를 재구성한다.
+• Lobby UI 재구성 완료 후 PART 14 수집형 아이템을 진행한다.
 • 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.
 • 피버타임은 발동 조건과 캐릭터별 효과 정책을 확정한 뒤 구현한다.
 • 광고 부활은 리스폰 정책이 확정된 뒤 결과창 확장 작업으로 연결한다.

@@ -1,5 +1,5 @@
 using System;
-using System.Text;
+using System.Collections.Generic;
 using PH.Core.Characters;
 using PH.Core.Game;
 using PH.Core.Player;
@@ -14,6 +14,9 @@ namespace PH.Core.UI
     public sealed class TopHUDController : MonoBehaviour
     {
         private const string RuntimeRootName = "TopHUDRuntimeRoot";
+        private const string BottomUIName = "BottomUI";
+        private const string FeverGaugeName = "FeverGauge";
+        private const string HeartIconResourcePath = "Items/Icons/heart";
 
         [SerializeField]
         private InfiniteFloorManager floorManager;
@@ -80,21 +83,32 @@ namespace PH.Core.UI
         [FormerlySerializedAs("boosterReadyBlinkInterval")]
         private float feverReadyBlinkInterval = 0.18f;
 
+        [SerializeField]
+        private Color experienceGaugeBackgroundColor = new Color(0f, 0f, 0f, 0.68f);
+
+        [SerializeField]
+        private Color experienceGaugeFillColor = new Color(0.42f, 0.9f, 0.42f, 1f);
+
         private RectTransform runtimeRoot;
         private Image portraitImage;
         private Text nicknameText;
         private Text levelText;
-        private Text heartsText;
         private Text timerText;
         private Text floorText;
         private Text scoreText;
         private Text itemText;
         private Text feverText;
         private Text speedBuffText;
+        private Text experienceText;
         private RectTransform feverGaugeFillRect;
+        private RectTransform experienceGaugeFillRect;
+        private RectTransform heartsIconRoot;
         private Image feverGaugeFillImage;
         private Font hudFont;
+        private Sprite heartIconSprite;
+        private readonly List<Image> heartImages = new List<Image>();
         private PlayerCharacterRuntime characterRuntime;
+        private CharacterDefinition activeCharacterDefinition;
         private PlayerMotor playerMotor;
         private float remainingSeconds;
         private float currentFeverGaugeNormalized;
@@ -119,6 +133,8 @@ namespace PH.Core.UI
 
         private void OnEnable()
         {
+            CharacterProgressionState.ProgressChanged += HandleCharacterProgressChanged;
+
             if (floorManager != null)
             {
                 floorManager.CurrentFloorChanged += HandleCurrentFloorChanged;
@@ -152,6 +168,8 @@ namespace PH.Core.UI
 
         private void OnDisable()
         {
+            CharacterProgressionState.ProgressChanged -= HandleCharacterProgressChanged;
+
             if (floorManager != null)
             {
                 floorManager.CurrentFloorChanged -= HandleCurrentFloorChanged;
@@ -262,11 +280,22 @@ namespace PH.Core.UI
                 return;
             }
 
+            activeCharacterDefinition = definition;
+            CharacterProgressionSnapshot progression = CharacterProgressionState.GetSnapshot(definition);
+            playerLevel = progression.Level;
             characterPortrait = definition.PortraitSprite;
             maxHearts = Mathf.Max(1, definition.MaxLife);
             currentHearts = maxHearts;
+            RefreshIdentity();
             RefreshPortrait();
             RefreshHearts();
+            RefreshCharacterExperience();
+        }
+
+        [ContextMenu("Debug/Add 100 Character XP")]
+        private void DebugAddCharacterExperience()
+        {
+            CharacterProgressionState.AddExperience(activeCharacterDefinition, 100);
         }
 
         [ContextMenu("Debug/Add 100 Score")]
@@ -328,6 +357,7 @@ namespace PH.Core.UI
             }
 
             ClearRuntimeRootChildren();
+            DestroyExistingBottomFeverGauge();
 
             runtimeRoot.anchorMin = Vector2.zero;
             runtimeRoot.anchorMax = Vector2.one;
@@ -340,16 +370,19 @@ namespace PH.Core.UI
 
             nicknameText = CreateText("NicknameText", new Vector2(0f, 1f), new Vector2(0.4f, 1f), new Vector2(124f, -58f), new Vector2(-8f, -12f), TextAnchor.UpperLeft, 43, primaryTextColor);
             levelText = CreateText("LevelText", new Vector2(0f, 1f), new Vector2(0.4f, 1f), new Vector2(124f, -104f), new Vector2(-8f, -58f), TextAnchor.UpperLeft, 36, secondaryTextColor);
+            CreateCharacterExperienceGauge();
 
-            heartsText = CreateText("HeartsText", new Vector2(0.36f, 1f), new Vector2(0.68f, 1f), new Vector2(0f, -82f), new Vector2(0f, -4f), TextAnchor.MiddleCenter, 46, heartColor);
-            floorText = CreateText("FloorText", new Vector2(0.4f, 1f), new Vector2(0.64f, 1f), new Vector2(0f, -128f), new Vector2(0f, -82f), TextAnchor.UpperCenter, 38, primaryTextColor);
+            // (변경) 하트와 층수는 기존 x축 배치를 유지하고 TopUI 바닥에 붙인다.
+            heartsIconRoot = CreateHeartIconRoot("HeartsIconRoot", new Vector2(0.5f, 0f), new Vector2(0.82f, 0f), new Vector2(6f, 0f), new Vector2(-6f, 46f));
+            floorText = CreateText("FloorText", new Vector2(0.82f, 0f), new Vector2(1f, 0f), new Vector2(6f, 0f), new Vector2(-18f, 46f), TextAnchor.MiddleRight, 38, primaryTextColor);
 
             timerText = CreateText("TimerText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -58f), new Vector2(-18f, -12f), TextAnchor.UpperRight, 43, primaryTextColor);
             scoreText = CreateText("ScoreText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -104f), new Vector2(-18f, -60f), TextAnchor.UpperRight, 36, secondaryTextColor);
             itemText = CreateText("ItemStatusText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -138f), new Vector2(-18f, -106f), TextAnchor.UpperRight, 29, secondaryTextColor);
             speedBuffText = CreateText("SpeedBuffText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -172f), new Vector2(-18f, -140f), TextAnchor.UpperRight, 27, feverReadyColor);
             CreateFeverGauge();
-            heartsText.transform.SetAsLastSibling();
+            heartsIconRoot.transform.SetAsLastSibling();
+            floorText.transform.SetAsLastSibling();
         }
 
         private RectTransform FindExistingRuntimeRoot()
@@ -360,6 +393,8 @@ namespace PH.Core.UI
 
         private void ClearRuntimeRootChildren()
         {
+            heartImages.Clear();
+
             for (int i = runtimeRoot.childCount - 1; i >= 0; i--)
             {
                 Transform child = runtimeRoot.GetChild(i);
@@ -371,6 +406,30 @@ namespace PH.Core.UI
                 {
                     DestroyImmediate(child.gameObject);
                 }
+            }
+        }
+
+        private void DestroyExistingBottomFeverGauge()
+        {
+            RectTransform bottomRoot = FindBottomUIRoot();
+            if (bottomRoot == null)
+            {
+                return;
+            }
+
+            Transform existing = bottomRoot.Find(FeverGaugeName);
+            if (existing == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(existing.gameObject);
+            }
+            else
+            {
+                DestroyImmediate(existing.gameObject);
             }
         }
 
@@ -396,9 +455,14 @@ namespace PH.Core.UI
 
         private Text CreateText(string objectName, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax, TextAnchor alignment, int fontSize, Color color)
         {
+            return CreateText(runtimeRoot, objectName, anchorMin, anchorMax, offsetMin, offsetMax, alignment, fontSize, color);
+        }
+
+        private Text CreateText(RectTransform parent, string objectName, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax, TextAnchor alignment, int fontSize, Color color)
+        {
             GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(Text));
             textObject.layer = gameObject.layer;
-            textObject.transform.SetParent(runtimeRoot, false);
+            textObject.transform.SetParent(parent, false);
 
             RectTransform rectTransform = textObject.GetComponent<RectTransform>();
             rectTransform.anchorMin = anchorMin;
@@ -421,15 +485,17 @@ namespace PH.Core.UI
 
         private void CreateFeverGauge()
         {
-            GameObject gaugeObject = new GameObject("FeverGauge", typeof(RectTransform), typeof(Image), typeof(Outline));
+            RectTransform gaugeParent = FindBottomUIRoot() ?? runtimeRoot;
+
+            GameObject gaugeObject = new GameObject(FeverGaugeName, typeof(RectTransform), typeof(Image), typeof(Outline));
             gaugeObject.layer = gameObject.layer;
-            gaugeObject.transform.SetParent(runtimeRoot, false);
+            gaugeObject.transform.SetParent(gaugeParent, false);
 
             RectTransform gaugeRect = gaugeObject.GetComponent<RectTransform>();
-            gaugeRect.anchorMin = new Vector2(0.36f, 1f);
-            gaugeRect.anchorMax = new Vector2(0.68f, 1f);
-            gaugeRect.offsetMin = new Vector2(0f, -168f);
-            gaugeRect.offsetMax = new Vector2(0f, -132f);
+            gaugeRect.anchorMin = new Vector2(0f, 1f);
+            gaugeRect.anchorMax = new Vector2(1f, 1f);
+            gaugeRect.offsetMin = new Vector2(0f, -36f);
+            gaugeRect.offsetMax = Vector2.zero;
             gaugeRect.pivot = new Vector2(0.5f, 0.5f);
 
             Image gaugeBackground = gaugeObject.GetComponent<Image>();
@@ -473,8 +539,87 @@ namespace PH.Core.UI
             feverGaugeFillImage.type = Image.Type.Simple;
             feverGaugeFillImage.raycastTarget = false;
 
-            feverText = CreateText("FeverText", new Vector2(0.36f, 1f), new Vector2(0.68f, 1f), new Vector2(0f, -168f), new Vector2(0f, -132f), TextAnchor.MiddleCenter, 24, Color.white);
+            feverText = CreateText(gaugeRect, "FeverText", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter, 24, Color.white);
             feverText.transform.SetAsLastSibling();
+        }
+
+        private RectTransform CreateHeartIconRoot(string objectName, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
+        {
+            GameObject rootObject = new GameObject(objectName, typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            rootObject.layer = gameObject.layer;
+            rootObject.transform.SetParent(runtimeRoot, false);
+
+            RectTransform rectTransform = rootObject.GetComponent<RectTransform>();
+            rectTransform.anchorMin = anchorMin;
+            rectTransform.anchorMax = anchorMax;
+            rectTransform.offsetMin = offsetMin;
+            rectTransform.offsetMax = offsetMax;
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+
+            HorizontalLayoutGroup layoutGroup = rootObject.GetComponent<HorizontalLayoutGroup>();
+            layoutGroup.childAlignment = TextAnchor.MiddleRight;
+            layoutGroup.childControlWidth = false;
+            layoutGroup.childControlHeight = false;
+            layoutGroup.childForceExpandWidth = false;
+            layoutGroup.childForceExpandHeight = false;
+            layoutGroup.spacing = 6f;
+            layoutGroup.padding = new RectOffset(0, 0, 0, 0);
+
+            return rectTransform;
+        }
+
+        private RectTransform FindBottomUIRoot()
+        {
+            Transform parent = transform.parent;
+            RectTransform bottomRoot = parent != null ? parent.Find(BottomUIName) as RectTransform : null;
+            if (bottomRoot != null)
+            {
+                return bottomRoot;
+            }
+
+            Canvas canvas = GetComponentInParent<Canvas>();
+            return canvas != null ? canvas.transform.Find(BottomUIName) as RectTransform : null;
+        }
+
+        private void CreateCharacterExperienceGauge()
+        {
+            GameObject gaugeObject = new GameObject("CharacterExperienceGauge", typeof(RectTransform), typeof(Image), typeof(Outline));
+            gaugeObject.layer = gameObject.layer;
+            gaugeObject.transform.SetParent(runtimeRoot, false);
+
+            RectTransform gaugeRect = gaugeObject.GetComponent<RectTransform>();
+            gaugeRect.anchorMin = new Vector2(0f, 1f);
+            gaugeRect.anchorMax = new Vector2(0.252f, 1f);
+            gaugeRect.offsetMin = new Vector2(18f, -132.2f);
+            gaugeRect.offsetMax = new Vector2(0f, -105.8f);
+            gaugeRect.pivot = new Vector2(0.5f, 0.5f);
+
+            Image gaugeBackground = gaugeObject.GetComponent<Image>();
+            gaugeBackground.color = experienceGaugeBackgroundColor;
+            gaugeBackground.raycastTarget = false;
+
+            Outline outline = gaugeObject.GetComponent<Outline>();
+            outline.effectColor = new Color(1f, 1f, 1f, 0.2f);
+            outline.effectDistance = new Vector2(1f, -1f);
+            outline.useGraphicAlpha = true;
+
+            GameObject fillObject = new GameObject("CharacterExperienceFill", typeof(RectTransform), typeof(Image));
+            fillObject.layer = gameObject.layer;
+            fillObject.transform.SetParent(gaugeRect, false);
+
+            experienceGaugeFillRect = fillObject.GetComponent<RectTransform>();
+            experienceGaugeFillRect.anchorMin = Vector2.zero;
+            experienceGaugeFillRect.anchorMax = new Vector2(0f, 1f);
+            experienceGaugeFillRect.offsetMin = new Vector2(3f, 3f);
+            experienceGaugeFillRect.offsetMax = new Vector2(3f, -3f);
+            experienceGaugeFillRect.pivot = new Vector2(0f, 0.5f);
+
+            Image fillImage = fillObject.GetComponent<Image>();
+            fillImage.color = experienceGaugeFillColor;
+            fillImage.raycastTarget = false;
+
+            experienceText = CreateText("CharacterExperienceText", new Vector2(0f, 1f), new Vector2(0.252f, 1f), new Vector2(18f, -132.2f), new Vector2(0f, -105.8f), TextAnchor.MiddleCenter, 15, Color.white);
+            experienceText.transform.SetAsLastSibling();
         }
 
         private void AddOutline(GameObject target, Color color, Vector2 distance)
@@ -494,12 +639,18 @@ namespace PH.Core.UI
             RefreshFloor(floorManager != null ? floorManager.CurrentAbsoluteFloor : 1);
             RefreshScore();
             RefreshItemStatus();
+            RefreshCharacterExperience();
             RefreshFeverGauge(characterRuntime != null ? characterRuntime.FeverGaugeNormalized : 0f);
             RefreshSpeedBuffStatus();
         }
 
         private void RefreshIdentity()
         {
+            if (activeCharacterDefinition != null)
+            {
+                playerLevel = CharacterProgressionState.GetSnapshot(activeCharacterDefinition).Level;
+            }
+
             playerLevel = Mathf.Max(1, playerLevel);
 
             if (nicknameText != null)
@@ -530,22 +681,62 @@ namespace PH.Core.UI
             maxHearts = Mathf.Max(1, maxHearts);
             currentHearts = Mathf.Clamp(currentHearts, 0, maxHearts);
 
-            if (heartsText == null)
+            if (heartsIconRoot == null)
             {
                 return;
             }
 
-            StringBuilder builder = new StringBuilder();
+            EnsureHeartIcons(maxHearts);
+
             for (int i = 0; i < maxHearts; i++)
             {
-                builder.Append(i < currentHearts ? '♥' : '♡');
-                if (i < maxHearts - 1)
-                {
-                    builder.Append(' ');
-                }
+                Image heartImage = heartImages[i];
+                bool isFilled = i < currentHearts;
+                heartImage.enabled = true;
+                heartImage.color = isFilled
+                    ? heartColor
+                    : new Color(heartColor.r, heartColor.g, heartColor.b, 0.24f);
+            }
+        }
+
+        private void EnsureHeartIcons(int requiredCount)
+        {
+            if (heartIconSprite == null)
+            {
+                heartIconSprite = Resources.Load<Sprite>(HeartIconResourcePath);
             }
 
-            heartsText.text = builder.ToString();
+            for (int i = heartImages.Count; i < requiredCount; i++)
+            {
+                GameObject heartObject = new GameObject($"HeartIcon_{i + 1}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+                heartObject.layer = gameObject.layer;
+                heartObject.transform.SetParent(heartsIconRoot, false);
+
+                RectTransform rectTransform = heartObject.GetComponent<RectTransform>();
+                rectTransform.sizeDelta = new Vector2(34f, 34f);
+                rectTransform.pivot = new Vector2(0.5f, 0.5f);
+
+                LayoutElement layoutElement = heartObject.GetComponent<LayoutElement>();
+                layoutElement.preferredWidth = 34f;
+                layoutElement.preferredHeight = 34f;
+                layoutElement.flexibleWidth = 0f;
+                layoutElement.flexibleHeight = 0f;
+
+                Image image = heartObject.GetComponent<Image>();
+                image.sprite = heartIconSprite;
+                image.preserveAspect = true;
+                image.raycastTarget = false;
+                heartImages.Add(image);
+            }
+
+            for (int i = 0; i < heartImages.Count; i++)
+            {
+                bool isActive = i < requiredCount;
+                if (heartImages[i] != null)
+                {
+                    heartImages[i].gameObject.SetActive(isActive);
+                }
+            }
         }
 
         private void RefreshTimer()
@@ -583,6 +774,38 @@ namespace PH.Core.UI
             {
                 itemText.text = itemStatusText;
             }
+        }
+
+        private void RefreshCharacterExperience()
+        {
+            CharacterProgressionSnapshot progression = CharacterProgressionState.GetSnapshot(activeCharacterDefinition);
+            float normalizedExperience = activeCharacterDefinition != null ? progression.NormalizedExperience : 0f;
+
+            if (experienceGaugeFillRect != null)
+            {
+                experienceGaugeFillRect.anchorMax = new Vector2(normalizedExperience, 1f);
+                experienceGaugeFillRect.offsetMax = new Vector2(normalizedExperience <= 0f ? 3f : -3f, -3f);
+            }
+
+            if (experienceText != null)
+            {
+                experienceText.text = activeCharacterDefinition == null
+                    ? "XP 0 / -"
+                    : progression.IsMaxLevel
+                        ? "XP MAX"
+                        : $"XP {progression.CurrentExperience} / {progression.RequiredExperience}";
+            }
+        }
+
+        private void HandleCharacterProgressChanged(string characterId)
+        {
+            if (activeCharacterDefinition == null || !string.Equals(activeCharacterDefinition.CharacterId, characterId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            RefreshIdentity();
+            RefreshCharacterExperience();
         }
 
         private void RefreshSpeedBuffStatus()

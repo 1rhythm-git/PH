@@ -135,6 +135,12 @@ namespace PH.Core.Player
                 spawnedPlayer.AddComponent<PlayerItemPickupFeedback>();
             }
 
+            // (추가) 런타임 생성 플레이어에 일반 이동 및 대시 먼지 연출을 자동 연결한다.
+            if (spawnedPlayer.GetComponent<PlayerMovementDustFeedback>() == null)
+            {
+                spawnedPlayer.AddComponent<PlayerMovementDustFeedback>();
+            }
+
             TopHUDController topHUDController = FindFirstObjectByType<TopHUDController>();
             GameStateController gameStateController = FindFirstObjectByType<GameStateController>();
             ElevatorController elevatorController = FindFirstObjectByType<ElevatorController>();

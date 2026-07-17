@@ -30,8 +30,9 @@ namespace PH.Core.Items
             }
 
             float currentSpeed = playerMotor.AddTimedMoveSpeedPercentBonus(definition.EffectValue, durationSeconds);
-            context.BuffVisualFeedback?.PlayBlink(durationSeconds);
-            context.TopHUDController?.SetItemStatus($"+{definition.EffectValue}% SPEED  {durationSeconds:0.#}s  {currentSpeed:0.##}");
+            float activeBonusPercent = playerMotor.MoveSpeedBonusPercent;
+            // (변경) 하위 아이템으로 지속시간만 갱신한 경우에도 실제 유지 중인 능력치를 표시한다.
+            context.TopHUDController?.SetItemStatus($"+{activeBonusPercent:0}% SPEED  {durationSeconds:0.#}s  {currentSpeed:0.##}");
             return new ItemEffectResult(ItemEffectOutcome.MoveSpeedIncreased, definition.EffectValue);
         }
     }

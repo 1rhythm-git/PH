@@ -16,6 +16,9 @@ namespace PH.Core.Characters
         [SerializeField]
         private PlayerController playerController;
 
+        [SerializeField]
+        private PlayerMotor playerMotor;
+
         private float elapsedSeconds;
         private int lastFacingDirection = 1;
 
@@ -79,6 +82,12 @@ namespace PH.Core.Characters
         {
             bool isMoving = playerController != null && playerController.IsMoving;
 
+            // (추가) 이동속도 아이템이 활성화된 동안 기존 Run 스프라이트를 대시 애니메이션으로 사용한다.
+            if (isMoving && playerMotor != null && playerMotor.HasActiveMoveSpeedBuff && HasFrames(characterDefinition.RunSprites))
+            {
+                return characterDefinition.RunSprites;
+            }
+
             if (isMoving && HasFrames(characterDefinition.WalkSprites))
             {
                 return characterDefinition.WalkSprites;
@@ -137,7 +146,12 @@ namespace PH.Core.Characters
 
             if (playerController == null)
             {
-                playerController = GetComponent<PlayerController>();
+                playerController = GetComponentInParent<PlayerController>();
+            }
+
+            if (playerMotor == null)
+            {
+                playerMotor = GetComponentInParent<PlayerMotor>();
             }
         }
     }

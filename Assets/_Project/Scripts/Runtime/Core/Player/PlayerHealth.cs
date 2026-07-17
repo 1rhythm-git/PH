@@ -120,6 +120,7 @@ namespace PH.Core.Player
             }
 
             currentLife = Mathf.Max(0, currentLife - damage);
+            ConsumeItemMaxLifeBonus(damage);
             SyncHUD();
 
             if (currentLife <= 0)
@@ -175,6 +176,20 @@ namespace PH.Core.Player
             }
 
             return PlayerMaxLifeItemResult.ScoreBonus;
+        }
+
+        private void ConsumeItemMaxLifeBonus(int damage)
+        {
+            if (damage <= 0 || maxLifeBonusFromItems <= 0)
+            {
+                return;
+            }
+
+            // (추가) 날개하트로 얻은 추가 슬롯은 피해를 대신 받은 뒤 즉시 제거한다.
+            int consumedBonus = Mathf.Min(damage, maxLifeBonusFromItems);
+            maxLifeBonusFromItems -= consumedBonus;
+            maxLife = Mathf.Max(1, maxLife - consumedBonus);
+            currentLife = Mathf.Min(currentLife, maxLife);
         }
 
         public void Revive(int reviveLife)

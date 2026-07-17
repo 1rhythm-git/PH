@@ -23,6 +23,9 @@ namespace PH.Core.Characters
         public float PivotCooldownSeconds => characterDefinition != null ? characterDefinition.PivotCooldownSeconds : 0f;
         public int MaxLife => characterDefinition != null ? characterDefinition.MaxLife : 3;
         public float InstantItemAcquireChance => characterDefinition != null ? characterDefinition.InstantItemAcquireChance : 0f;
+        public CharacterProgressionSnapshot Progression => CharacterProgressionState.GetSnapshot(characterDefinition);
+        public bool IsLevelSkillUnlocked => CharacterProgressionState.IsSkillUnlocked(characterDefinition);
+        public float SkillItemPageSpawnChance => CharacterProgressionState.GetActiveSkillItemPageSpawnChance(characterDefinition);
         public float FeverGauge => feverGauge;
         public float FeverGaugeMax => characterDefinition != null ? characterDefinition.FeverGaugeMax : 100f;
         public float FeverGaugeNormalized => FeverGaugeMax <= 0f ? 0f : Mathf.Clamp01(feverGauge / FeverGaugeMax);
