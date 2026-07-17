@@ -245,10 +245,12 @@ namespace PH.Core.Player
 
             RectTransform visualRect = visualObject.GetComponent<RectTransform>();
             Vector2 visualScale = activeCharacterDefinition != null ? activeCharacterDefinition.SpriteVisualScale : Vector2.one;
+            Vector2 visualSize = new Vector2(playerSize.x * Mathf.Max(0.01f, visualScale.x), playerSize.y * Mathf.Max(0.01f, visualScale.y));
             visualRect.anchorMin = new Vector2(0.5f, 0.5f);
             visualRect.anchorMax = new Vector2(0.5f, 0.5f);
-            visualRect.sizeDelta = new Vector2(playerSize.x * Mathf.Max(0.01f, visualScale.x), playerSize.y * Mathf.Max(0.01f, visualScale.y));
-            visualRect.anchoredPosition = Vector2.zero;
+            visualRect.sizeDelta = visualSize;
+            // (변경) 스프라이트 하단이 플레이어 충돌박스 하단과 일치하도록 위로 보정한다.
+            visualRect.anchoredPosition = new Vector2(0f, (visualSize.y - playerSize.y) * 0.5f);
             visualRect.pivot = new Vector2(0.5f, 0.5f);
 
             Image spriteImage = visualObject.GetComponent<Image>();
