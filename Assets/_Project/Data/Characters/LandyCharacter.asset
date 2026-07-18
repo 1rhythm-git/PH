@@ -27,8 +27,15 @@ MonoBehaviour:
   runSprites:
   - {fileID: 21300000, guid: a0a44cd6130fea44d99f3ed9043bc411, type: 3}
   - {fileID: 21300000, guid: f87e5abe682bdd44facdf6076c215134, type: 3}
+  idleFrameScales:
+  - 0.833
+  - 1
+  walkFrameScales: []
+  runFrameScales:
+  - 1
+  - 1
   animationFramesPerSecond: 6
-  spriteVisualScale: {x: 1.6, y: 1.6}
+  spriteVisualScale: {x: 1.92, y: 1.92}
   moveSpeedColumnsPerSecond: 2.4
   pivotCooldownSeconds: 0.25
   boosterGaugeMax: 100

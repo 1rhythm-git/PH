@@ -21,6 +21,7 @@ namespace PH.Core.Characters
 
         private float elapsedSeconds;
         private int lastFacingDirection = 1;
+        private Vector2 baseAnchoredPosition;
 
         private void Awake()
         {
@@ -34,7 +35,7 @@ namespace PH.Core.Characters
                 return;
             }
 
-            Sprite[] frames = ResolveFrames();
+            Sprite[] frames = ResolveFrames(out AnimationState animationState);
             if (frames == null || frames.Length == 0)
             {
                 targetImage.enabled = false;
@@ -47,7 +48,7 @@ namespace PH.Core.Characters
             float framesPerSecond = Mathf.Max(1f, characterDefinition.AnimationFramesPerSecond);
             int frameIndex = Mathf.FloorToInt(elapsedSeconds * framesPerSecond) % frames.Length;
             targetImage.sprite = frames[frameIndex];
-            ApplyFacing();
+            ApplyFrameTransform(animationState, frameIndex);
         }
 
         public void Configure(CharacterDefinition definition, PlayerController controller)
@@ -56,6 +57,7 @@ namespace PH.Core.Characters
             playerController = controller;
             elapsedSeconds = 0f;
             EnsureReferences();
+            baseAnchoredPosition = targetImage != null ? targetImage.rectTransform.anchoredPosition : Vector2.zero;
             ApplyInitialFrame();
         }
 
@@ -66,7 +68,7 @@ namespace PH.Core.Characters
                 return;
             }
 
-            Sprite[] frames = ResolveFrames();
+            Sprite[] frames = ResolveFrames(out AnimationState animationState);
             if (frames == null || frames.Length == 0)
             {
                 targetImage.enabled = false;
@@ -75,33 +77,37 @@ namespace PH.Core.Characters
 
             targetImage.enabled = true;
             targetImage.sprite = frames[0];
-            ApplyFacing();
+            ApplyFrameTransform(animationState, 0);
         }
 
-        private Sprite[] ResolveFrames()
+        private Sprite[] ResolveFrames(out AnimationState animationState)
         {
             bool isMoving = playerController != null && playerController.IsMoving;
 
             // (추가) 이동속도 아이템이 활성화된 동안 기존 Run 스프라이트를 대시 애니메이션으로 사용한다.
             if (isMoving && playerMotor != null && playerMotor.HasActiveMoveSpeedBuff && HasFrames(characterDefinition.RunSprites))
             {
+                animationState = AnimationState.Run;
                 return characterDefinition.RunSprites;
             }
 
             if (isMoving && HasFrames(characterDefinition.WalkSprites))
             {
+                animationState = AnimationState.Walk;
                 return characterDefinition.WalkSprites;
             }
 
             if (HasFrames(characterDefinition.IdleSprites))
             {
+                animationState = AnimationState.Idle;
                 return characterDefinition.IdleSprites;
             }
 
+            animationState = AnimationState.Idle;
             return null;
         }
 
-        private void ApplyFacing()
+        private void ApplyFrameTransform(AnimationState animationState, int frameIndex)
         {
             if (targetImage == null)
             {
@@ -113,10 +119,26 @@ namespace PH.Core.Characters
                 lastFacingDirection = playerController.FacingDirection < 0 ? -1 : 1;
             }
 
+            float frameScale = ResolveFrameScale(animationState, frameIndex);
             RectTransform imageRect = targetImage.rectTransform;
-            Vector3 scale = imageRect.localScale;
-            scale.x = Mathf.Abs(scale.x) * lastFacingDirection;
-            imageRect.localScale = scale;
+            imageRect.localScale = new Vector3(frameScale * lastFacingDirection, frameScale, 1f);
+
+            // 프레임 배율이 달라도 스프라이트 하단은 기존 바닥 기준선에 고정한다.
+            float bottomAlignmentOffset = imageRect.rect.height * (frameScale - 1f) * 0.5f;
+            imageRect.anchoredPosition = baseAnchoredPosition + new Vector2(0f, bottomAlignmentOffset);
+        }
+
+        private float ResolveFrameScale(AnimationState animationState, int frameIndex)
+        {
+            switch (animationState)
+            {
+                case AnimationState.Walk:
+                    return characterDefinition.GetWalkFrameScale(frameIndex);
+                case AnimationState.Run:
+                    return characterDefinition.GetRunFrameScale(frameIndex);
+                default:
+                    return characterDefinition.GetIdleFrameScale(frameIndex);
+            }
         }
 
         private bool HasFrames(Sprite[] frames)
@@ -142,6 +164,7 @@ namespace PH.Core.Characters
             if (targetImage == null)
             {
                 targetImage = GetComponent<Image>();
+                baseAnchoredPosition = targetImage.rectTransform.anchoredPosition;
             }
 
             if (playerController == null)
@@ -153,6 +176,13 @@ namespace PH.Core.Characters
             {
                 playerMotor = GetComponentInParent<PlayerMotor>();
             }
+        }
+
+        private enum AnimationState
+        {
+            Idle,
+            Walk,
+            Run
         }
     }
 }

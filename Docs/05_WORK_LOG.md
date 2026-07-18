@@ -1424,15 +1424,14 @@ ________________________________________
 2.50 Landy 인게임 사이즈 왜곡 후속 작업 예약
 
 상태:
-• 미완료
-• 재시작 최우선
+• 구현 및 사용자 확인 완료 (`2.57`, `2.58`)
 
 현재 문제:
 • Landy 인게임 애니메이션에서 프레임별 캐릭터 크기와 비율 왜곡이 크게 발생
 • 동일한 398×435 캔버스를 사용하지만 프레임별 본체 불투명 영역, 정규화 배율, 중심점이 달라 시각 크기가 흔들릴 가능성이 있음
 • 긴 팔과 대형 주먹 체형 때문에 일반 캐릭터 기준의 최대 폭/높이 정규화가 Landy 실루엣을 과도하게 축소하거나 확대할 가능성이 있음
 
-다음 작업 시작 시 우선 확인:
+Play Mode에서 우선 확인:
 • Landy Idle/Walk/Run 6프레임 불투명 영역의 가로·세로 크기 및 중심 좌표 비교
 • 발바닥 기준선과 머리 높이를 공통 기준으로 재정렬
 • 프레임별 개별 최대 맞춤이 아닌 Landy 공통 배율 적용
@@ -1446,8 +1445,7 @@ ________________________________________
 • AgentX/Alice/Ninja의 기존 표시 크기에는 영향 없음
 
 브리핑 규칙:
-• Codex 종료 후 재시작 시 이 항목을 다음 작업 브리핑의 첫 번째 항목으로 보고
-• 이 문제가 완료되기 전에는 Lobby UI 재구성 및 수집형 아이템 작업보다 우선 처리
+• 사용자 확인 완료로 재시작 우선 항목에서 제외
 
 관련 작업 기준:
 • 사용자 요청 Landy 인게임 사이즈 왜곡을 다음 작업 최우선으로 기록
@@ -1607,10 +1605,150 @@ ________________________________________
 
 ________________________________________
 
+2.57 Landy Idle / Run 프레임 체격 정규화
+
+완료 내용:
+• 원본 Landy PNG를 교체하지 않고 캐릭터 데이터에서 애니메이션 프레임별 선택적 표시 배율을 지정할 수 있도록 확장
+• Landy Idle 2프레임과 Run 2프레임의 머리 및 몸통 체격이 같은 기준으로 보이도록 개별 보정값 적용
+• 프레임 배율 변경 시 `SpriteVisual` 하단이 기존 바닥 기준선에서 움직이지 않도록 Y 위치 동시 보정
+• 다른 캐릭터와 Landy Walk는 보정값을 지정하지 않아 기존 표시 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerSpriteAnimator.cs`
+• `Assets/_Project/Data/Characters/LandyCharacter.asset`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Landy 원본 6프레임이 모두 398×435 RGBA이며 바닥 투명 여백이 18px로 동일한 것 확인
+• Idle 불투명 높이 390px/325px, Run 불투명 높이 290px/337px 차이를 확인하고 체격 기준 보정값 적용
+• 보정값 미지정 시 1배를 반환하므로 다른 캐릭터의 기존 표시 크기 유지
+• Unity 컴파일 및 Play Mode 전환 검증 필요
+
+남은 확인:
+• Landy Idle 2프레임 반복 중 머리와 몸통 크기가 일정하게 보이는지 확인
+• 이동속도 버프 Run 전환 및 Run 2프레임 반복 중 체격과 발바닥 기준선이 흔들리지 않는지 확인
+• Run 프레임의 긴 팔과 주먹이 셀 경계에서 잘리지 않는지 확인
+
+관련 작업 기준:
+• 사용자 요청: Landy Idle과 Run에서 캐릭터 크기는 동일하게 유지하고 동작만 다르게 구분
+
+________________________________________
+
+2.58 Landy 애니메이션 표시 크기 1.2배 확대
+
+완료 내용:
+• Landy의 `spriteVisualScale`을 1.6에서 1.92로 변경해 Idle/Walk/Run 표시 크기를 현재 대비 1.2배 확대
+• Idle/Run 프레임별 체격 정규화 배율은 유지
+• 플레이어 히트박스를 결정하는 `PlayerSpawner.playerSize`와 충돌 판정 로직은 변경하지 않음
+
+변경된 주요 파일:
+• `Assets/_Project/Data/Characters/LandyCharacter.asset`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 배율 계산 확인: `1.6 × 1.2 = 1.92`
+• 히트박스 `playerSize = 61×72` 및 관련 코드 미변경 확인
+• 사용자 Play Mode 확인 완료
+
+남은 확인:
+• Landy Idle/Walk/Run이 모두 기존 대비 1.2배 크게 표시되는지 확인
+• 확대된 팔과 주먹이 셀 또는 상위 UI 마스크에 잘리지 않는지 확인
+• 표시 이미지만 커지고 피격 및 아이템 획득 판정 범위는 그대로인지 확인
+
+관련 작업 기준:
+• 사용자 요청: Landy 애니메이션 이미지만 1.2배 확대하고 히트박스는 유지
+
+________________________________________
+
+2.59 전체 캐릭터 Walk / Run 2프레임 교차 동작 수정
+
+완료 내용:
+• `concept/Walk_Guide`의 교차 동작 규칙을 기준으로 AgentX, Alice, Landy, Ninja의 Walk/Run 각 2프레임을 전면 교체
+• Walk는 한쪽 발 접지와 반대쪽 발 회수, 반대 팔 카운터 스윙이 읽히는 지상 동작으로 구성
+• Run은 더 큰 보폭, 전방으로 기운 상체, 강한 팔 스윙, 두 발이 떨어지는 공중 동작으로 Walk와 구분
+• 프레임 01/02에서 근거리·원거리 팔다리 명암과 겹침 순서를 반대로 보정해 같은 손발이 계속 앞에 남는 느낌 완화
+• 모든 실사용 Walk/Run 프레임을 398×435 RGBA, 하단 투명 여백 18px로 통일
+• 기존 PNG 파일명과 `.meta`를 유지해 CharacterDefinition Sprite GUID 참조 보존
+• 새 Landy Run 2프레임의 본체 높이가 동일해 기존 개별 Run 보정 배율을 `1/1`로 정리
+
+변경된 주요 파일:
+• `Assets/_Project/Art/Characters/Spy_Default/spy_walk_*.png`
+• `Assets/_Project/Art/Characters/Spy_Default/spy_run_*.png`
+• `Assets/_Project/Art/Characters/Alice_Default/alice_walk_*.png`
+• `Assets/_Project/Art/Characters/Alice_Default/alice_run_*.png`
+• `Assets/_Project/Art/Characters/Landy_Default/landy_walk_*.png`
+• `Assets/_Project/Art/Characters/Landy_Default/landy_run_*.png`
+• `Assets/_Project/Art/Characters/Ninja_Default/ninja_walk_*.png`
+• `Assets/_Project/Art/Characters/Ninja_Default/ninja_run_*.png`
+• `Assets/_Project/Data/Characters/LandyCharacter.asset`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 4개 캐릭터 Walk/Run 총 16프레임의 398×435 RGBA 규격 확인
+• 16프레임의 4개 모서리 Alpha 0 및 하단 투명 여백 18px 확인
+• Walk/Run 프레임별 오른쪽 진행 방향, 체격, 머리 높이, 바닥 기준선 시각 확인
+• 기존 `.meta` 및 CharacterDefinition Sprite GUID 참조 유지 확인
+• Unity 6000.3.17f1 배치 검증은 동일 프로젝트를 연 Editor가 있어 `Multiple Unity instances cannot open the same project.`로 중단
+• 열린 Unity Editor의 에셋 임포트, 컴파일 및 Play Mode 애니메이션 검증 필요
+
+남은 확인:
+• Play Mode에서 Walk 01/02의 손발 교차가 끌림 없이 읽히는지 확인
+• 이동속도 버프 중 Run 01/02의 큰 보폭과 공중감이 Walk와 명확히 구분되는지 확인
+• 좌우 반전 시 캐릭터 중심과 바닥 기준선이 이동하지 않는지 확인
+• Landy 1.2배 표시에서 긴 팔과 주먹이 셀 또는 UI 마스크에 잘리지 않는지 확인
+
+관련 작업 기준:
+• 사용자 요청: concept의 2프레임 애니메이션 규칙을 활용해 모든 캐릭터 Walk/Run 동작 수정
+
+________________________________________
+
+2.60 전체 캐릭터 Walk / Run 02 발 교차 포즈 재작업
+
+문제 상태:
+• `2.59` 결과에서 01/02의 다리 실루엣과 넓은 보폭이 거의 같아 발이 실제로 교차하는 동작으로 읽히지 않음
+• 근거리·원거리 명암 차이만으로는 같은 발이 계속 앞에 남는 느낌을 해결하지 못함
+
+수정 내용:
+• 모든 캐릭터의 Walk 02를 넓은 접지 자세가 아닌 중앙 패싱 포즈로 전면 교체
+• Walk 02는 한 발을 몸 아래 지지하고 반대 무릎과 신발이 지지 다리 앞을 가로질러 두 다리가 중앙에서 겹치도록 구성
+• 모든 캐릭터의 Run 02를 무릎과 신발이 몸 아래에서 교차하는 공중 시저 포즈로 전면 교체
+• Run 01의 좌우로 크게 뻗은 보폭과 Run 02의 중앙 교차 실루엣이 프레임 전환 시 확실히 구분되도록 조정
+• 02 프레임의 불투명 높이를 각 01 프레임과 동일하게 맞춰 머리 높이와 체격 유지
+• 기존 파일명, 398×435 RGBA, 하단 투명 여백 18px, `.meta` GUID 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Art/Characters/Spy_Default/spy_walk_02.png`
+• `Assets/_Project/Art/Characters/Spy_Default/spy_run_02.png`
+• `Assets/_Project/Art/Characters/Alice_Default/alice_walk_02.png`
+• `Assets/_Project/Art/Characters/Alice_Default/alice_run_02.png`
+• `Assets/_Project/Art/Characters/Landy_Default/landy_walk_02.png`
+• `Assets/_Project/Art/Characters/Landy_Default/landy_run_02.png`
+• `Assets/_Project/Art/Characters/Ninja_Default/ninja_walk_02.png`
+• `Assets/_Project/Art/Characters/Ninja_Default/ninja_run_02.png`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 4개 캐릭터 Walk/Run 01/02의 넓은 보폭과 중앙 교차 포즈 차이를 시각 확인
+• 동작별 01/02 불투명 높이 동일 확인: AgentX Walk 384/384, Run 362/362, Alice 390/390, Landy Walk 299/299, Run 299/298, Ninja 310/310
+• 8개 02 프레임 398×435 RGBA, 네 모서리 Alpha 0, 하단 투명 여백 18px 확인
+• Landy Run 02는 좌우 최소 4px 파일 여백 내에 전체 실루엣 포함
+• 기존 `.meta` 및 CharacterDefinition Sprite GUID 유지 확인
+• 열린 Unity Editor에서 에셋 임포트와 Play Mode 애니메이션 검증 필요
+
+남은 확인:
+• 사용자 Play Mode 확인 완료: Walk 01/02 발 교차, Run 01/02 발 교차, Landy Walk/Run 1.2배 표시 정상
+• 추후 캐릭터별 신규 프레임 추가 시 동일한 발 교차 및 하단 기준선 규칙으로 회귀 확인
+
+관련 작업 기준:
+• 사용자 피드백: 기존 생성 이미지는 01/02 발이 교차하지 않고 거의 같은 포즈였으므로 발 위치가 확실히 교차하도록 재작업
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
-1. Landy 인게임 사이즈 왜곡 수정 (`2.50`, 재시작 최우선)
+1. 전체 캐릭터 Walk/Run Play Mode 검증 (`2.59`)
 2. 추가 수정사항 반영
 3. Lobby UI 재구성
 4. PART 14 수집형 아이템 기반 설계
@@ -1622,7 +1760,7 @@ ________________________________________
 10. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• 가장 먼저 Landy 6프레임의 공통 배율, 중심점, 발바닥 기준선을 재정규화해 인게임 사이즈 왜곡을 수정한다.
+• 가장 먼저 4개 캐릭터의 Walk/Run 교차 동작과 좌우 반전을 Play Mode에서 확인한다.
 • 사용자 요청 순서에 따라 추가 수정사항 반영 후 Lobby UI를 재구성한다.
 • Lobby UI 재구성 완료 후 PART 14 수집형 아이템을 진행한다.
 • 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.

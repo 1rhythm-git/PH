@@ -34,6 +34,15 @@ namespace PH.Core.Characters
         private Sprite[] runSprites;
 
         [SerializeField]
+        private float[] idleFrameScales;
+
+        [SerializeField]
+        private float[] walkFrameScales;
+
+        [SerializeField]
+        private float[] runFrameScales;
+
+        [SerializeField]
         private float animationFramesPerSecond = 6f;
 
         [SerializeField]
@@ -116,6 +125,21 @@ namespace PH.Core.Characters
         public int SkillUnlockLevel => Mathf.Clamp(skillUnlockLevel, 1, MaxCharacterLevel);
         public float SkillItemPageSpawnChance => Mathf.Clamp01(skillItemPageSpawnChance);
 
+        public float GetIdleFrameScale(int frameIndex)
+        {
+            return GetFrameScale(idleFrameScales, frameIndex);
+        }
+
+        public float GetWalkFrameScale(int frameIndex)
+        {
+            return GetFrameScale(walkFrameScales, frameIndex);
+        }
+
+        public float GetRunFrameScale(int frameIndex)
+        {
+            return GetFrameScale(runFrameScales, frameIndex);
+        }
+
         // (추가) 캐릭터 테이블의 현재 레벨 기준 필요 XP를 반환한다. 최대 레벨은 0을 반환한다.
         public int GetRequiredExperienceForLevel(int currentLevel)
         {
@@ -128,6 +152,16 @@ namespace PH.Core.Characters
             return Mathf.Max(1, requiredExperienceByLevel[index]);
         }
 
+        private float GetFrameScale(float[] frameScales, int frameIndex)
+        {
+            if (frameScales == null || frameIndex < 0 || frameIndex >= frameScales.Length)
+            {
+                return 1f;
+            }
+
+            return Mathf.Max(0.01f, frameScales[frameIndex]);
+        }
+
 #if UNITY_EDITOR
         private void OnValidate()
         {
@@ -135,6 +169,9 @@ namespace PH.Core.Characters
             animationFramesPerSecond = Mathf.Max(1f, animationFramesPerSecond);
             spriteVisualScale.x = Mathf.Max(0.01f, spriteVisualScale.x);
             spriteVisualScale.y = Mathf.Max(0.01f, spriteVisualScale.y);
+            ClampFrameScales(idleFrameScales);
+            ClampFrameScales(walkFrameScales);
+            ClampFrameScales(runFrameScales);
             pivotCooldownSeconds = Mathf.Max(0f, pivotCooldownSeconds);
             feverGaugeMax = Mathf.Max(1f, feverGaugeMax);
             feverGainPerColumn = Mathf.Max(0f, feverGainPerColumn);
@@ -150,6 +187,19 @@ namespace PH.Core.Characters
                 {
                     requiredExperienceByLevel[i] = Mathf.Max(1, requiredExperienceByLevel[i]);
                 }
+            }
+        }
+
+        private void ClampFrameScales(float[] frameScales)
+        {
+            if (frameScales == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < frameScales.Length; i++)
+            {
+                frameScales[i] = Mathf.Max(0.01f, frameScales[i]);
             }
         }
 #endif
