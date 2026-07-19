@@ -26,6 +26,19 @@ namespace PH.Core.Items
         }
 
         public ItemEffectContext(TopHUDController topHUDController, PlayerHealth playerHealth, PlayerMotor playerMotor, PlayerBuffVisualFeedback buffVisualFeedback, int requiredPassCount, int scoreBonusPercent)
+            : this(topHUDController, playerHealth, playerMotor, buffVisualFeedback, requiredPassCount, scoreBonusPercent, null, string.Empty)
+        {
+        }
+
+        public ItemEffectContext(
+            TopHUDController topHUDController,
+            PlayerHealth playerHealth,
+            PlayerMotor playerMotor,
+            PlayerBuffVisualFeedback buffVisualFeedback,
+            int requiredPassCount,
+            int scoreBonusPercent,
+            RunItemEventRecorder runItemEventRecorder,
+            string eventId)
         {
             TopHUDController = topHUDController;
             PlayerHealth = playerHealth;
@@ -33,6 +46,8 @@ namespace PH.Core.Items
             BuffVisualFeedback = buffVisualFeedback;
             RequiredPassCount = requiredPassCount;
             ScoreBonusPercent = scoreBonusPercent;
+            RunItemEventRecorder = runItemEventRecorder;
+            EventId = eventId ?? string.Empty;
         }
 
         public TopHUDController TopHUDController { get; }
@@ -41,5 +56,7 @@ namespace PH.Core.Items
         public PlayerBuffVisualFeedback BuffVisualFeedback { get; }
         public int RequiredPassCount { get; }
         public int ScoreBonusPercent { get; }
+        public RunItemEventRecorder RunItemEventRecorder { get; }
+        public string EventId { get; }
     }
 }

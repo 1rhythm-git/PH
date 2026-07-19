@@ -1745,26 +1745,123 @@ ________________________________________
 
 ________________________________________
 
+2.61 Lobby UI 재구성
+
+문제 상태:
+• 기존 Lobby는 제목, 기록, 캐릭터 선택, START, 하단 메뉴를 `LobbyController`가 런타임에 생성했으며 캐릭터 성장 정보 변경 때 화면 전체를 다시 생성함
+• 캐릭터 초상화와 스킬 정보 영역이 작고, 경험치 진행 상태와 현재 캐릭터 순번이 표시되지 않음
+• 비활성 RANKING / SHOP / OPTIONS 버튼과 광고/BackND 안내가 같은 화면 영역에 섞여 실제 사용 가능한 동작이 불분명함
+• 1080×2400 기준 앵커는 있었지만 기기 Safe Area 변화에 대응하는 Lobby 전용 배치가 없음
+
+수정 내용:
+• Lobby를 상단 프로필, 최고 기록 스트립, 중앙 캐릭터 스테이지, 경험치/스킬 정보, START, 독립 광고 영역으로 재구성
+• 중앙 초상화 영역을 확대하고 좌우 아이콘 버튼, 캐릭터 순번, 이름, 레벨을 한 화면에서 확인하도록 배치
+• `CharacterProgressionSnapshot`을 이용한 XP 게이지와 현재/필요 경험치 표시 추가
+• 캐릭터 선택과 성장 정보 변경 시 관련 텍스트, 초상화, 게이지만 갱신하고 Lobby 전체를 다시 생성하지 않도록 변경
+• `Screen.safeArea`를 기준으로 기존 `HeaderUI`, `ContentUI`, `FooterUI` 세 영역의 앵커를 런타임에 보정
+• 아직 기능이 없는 RANKING / SHOP / OPTIONS 버튼은 노출하지 않고, 광고 영역은 Footer에 별도로 유지
+• 기존 `availableCharacters` 순서, 좌우 순환, `CharacterSelectionState`, `StartGame()` 및 InGame 씬 전환 경로 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 대상 파일 `git diff --check` 통과
+• 기존 직렬화 필드명과 public `StartGame()` 유지 확인
+• 성장 이벤트가 `BuildLobby()` 대신 `RefreshSelectedCharacterInfo()`를 호출하는 구조 확인
+• 기존 미커밋 `Assets/_Project/Scenes/InGame.unity`, `Assets/_Project/Art/Characters/ninja_spritesheet.png.meta` 변경과 분리 유지
+
+남은 확인:
+• Unity 컴파일 완료 및 Console 오류 없음 확인
+• Lobby Play Mode에서 4개 캐릭터 좌우 순환, 초상화 비율, 순번, 레벨, XP, 스킬 정보 확인
+• Debug XP 지급 시 UI 오브젝트 재생성 없이 게이지와 레벨만 갱신되는지 확인
+• Android Safe Area 및 9:20 화면에서 Header, START, 광고 영역이 잘리지 않는지 확인
+• START 선택 후 선택 캐릭터가 InGame에 동일하게 적용되는지 회귀 확인
+
+관련 작업 기준:
+• 사용자 요청: 이전 작업 커밋 후 주의사항을 반영해 Lobby UI 재구성 진행
+• 이전 캐릭터 애니메이션 작업 커밋: `490d666`
+
+________________________________________
+
+2.62 PART 14 수집형 아이템 기반 구현
+
+완료 내용:
+• 수집형 아이템을 `Artifact`와 `CharacterCoin`으로 구분하고 영구 보유량, 누적 획득량, 캐릭터 강화 단계를 저장하는 데이터 모델 추가
+• `ICollectionInventoryService` 뒤에 `LocalCollectionInventoryService`를 두고 획득 및 강화 시 `PlayerPrefs` JSON을 즉시 저장하도록 구성
+• 수집 획득 `EventId`를 로컬 미전송 이벤트에 함께 저장하고 같은 이벤트 재처리 시 중복 지급 방지
+• `AddCollectionItemEffect`를 기존 `ItemEffectResolver`에 연결하고 효과 결과가 확정된 뒤 `ItemRunEvent`를 기록하도록 순서 변경
+• 기존 데이터 전용 `MaxAcquirePerRun`을 런 이벤트 기록과 스폰 필터에 실제 연결
+• `MaxOwnedAmount`를 추가하고 Artifact는 1개로 강제하며, 보유 한도 도달 수집품은 스폰 후보에서 제외
+• 일반 아이템 가중치와 분리된 수집형 절대 출현 확률 및 층 상승 보정, 캐릭터 Chance 배율 적용
+• `CollectionCost[]` 기반으로 단일 또는 복수 종류 코인을 한 번에 검증·차감하는 강화 API 추가
+• 데이터 기반 `CharacterUpgradeDefinition`을 추가하고 다음 InGame 진입 시 이동속도, Max Life, 즉시 획득 Chance, 수집품 Chance 강화 적용
+• 기존 비활성 `growth_core_01`을 Artifact 스키마 예제로 갱신하되 실제 출현은 비활성 상태 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Items/CollectionData.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ICollectionInventoryService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/LocalCollectionInventoryService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemCollectionManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/AddCollectionItemEffect.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemInstance.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemRunEvent.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterUpgradeDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerCharacterRuntime.cs`
+• `Assets/_Project/Data/Tables/Items.csv`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Roslyn 응답 파일 기반 전체 `Assembly-CSharp` 컴파일 통과
+• `Items.csv` 28개 컬럼과 전체 데이터 행 컬럼 수 일치 확인
+• 이번 작업 대상 파일 `git diff --check` 통과
+• 열린 Unity Editor 때문에 별도 batchmode 프로젝트 검증은 `Multiple Unity instances cannot open the same project.`로 중단
+
+남은 확인:
+• 실제 Artifact 및 CharacterCoin 콘텐츠 ID, 아이콘, 층 범위, 기본 확률, 층별 증가량 등록 필요
+• 캐릭터별 `CharacterUpgradeDefinition` 에셋과 단계별 단일/복수 코인 비용 및 강화 수치 설정 필요
+• Play Mode에서 획득 즉시 저장, 재실행 복원, Artifact 재등장 방지, 코인 누적 및 한도 확인 필요
+• 현재 미전송 이벤트는 서버 연동 전까지 유지되며, BackND 구현 시 승인 완료 이벤트 제거 API 추가 필요
+• 수집 확률은 아이템 배치 슬롯마다 판정하므로 레벨 디자인 단계에서 페이지 기준 체감 확률을 함께 조정해야 함
+
+보류 및 재개 기준:
+• 수집형 아이템 작업은 현재 기반 구현 상태에서 일시 종료
+• 결과 계산 및 정상 종료 보상 정책을 먼저 확정하고 구현
+• 캐릭터 강화 시스템의 능력치 종류, 단계별 비용, 복수 코인 조합, 최대 단계 정책을 먼저 확정하고 구현
+• 위 두 작업이 완료된 뒤 실제 Artifact / CharacterCoin 콘텐츠 등록과 Play Mode 검증부터 재개
+
+관련 작업 기준:
+• 사용자 정책: Artifact는 획득 후 재등장 금지, CharacterCoin은 중복 소지 및 캐릭터 강화 재료로 사용
+• 사용자 정책: 획득 즉시 저장하고 서버 응답은 충돌 판정을 대기시키지 않음
+• 사용자 정책: 층 범위 내 낮은 기본 확률에 층 상승분과 플레이어 Chance 스탯을 반영
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
-1. 전체 캐릭터 Walk/Run Play Mode 검증 (`2.59`)
-2. 추가 수정사항 반영
-3. Lobby UI 재구성
-4. PART 14 수집형 아이템 기반 설계
-5. PlayerRespawnController 정식 분리
-6. 피버타임 발동/효과 정책 정의
-7. 점수 시스템 정식화
-8. Lobby 캐릭터 보유/장착 저장값 연결
-9. TopUI 디자인 교체 전 구조 정리
-10. Google AdMob 보상형 광고 부활 흐름 설계
+1. 결과 계산 및 정상 종료 보상 정책 정식화
+2. 캐릭터 강화 시스템 기획 및 구현
+3. PART 14 실제 Artifact / CharacterCoin 콘텐츠와 강화 에셋 구성 및 Play Mode 검증 (`2.62`, 선행 작업 완료 후 재개)
+4. PlayerRespawnController 정식 분리
+5. 피버타임 발동/효과 정책 정의
+6. Lobby 캐릭터 보유/장착 저장값 연결
+7. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
+8. TopUI 디자인 교체 전 구조 정리
+9. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• 가장 먼저 4개 캐릭터의 Walk/Run 교차 동작과 좌우 반전을 Play Mode에서 확인한다.
-• 사용자 요청 순서에 따라 추가 수정사항 반영 후 Lobby UI를 재구성한다.
-• Lobby UI 재구성 완료 후 PART 14 수집형 아이템을 진행한다.
+• 가장 먼저 런 결과 계산과 정상 종료 시 반영할 점수 및 보상 범위를 정식화한다.
+• 다음으로 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
+• 위 두 작업이 완료된 뒤 실제 Artifact와 CharacterCoin 콘텐츠 및 강화 에셋을 구성하고 PART 14 Play Mode 검증을 재개한다.
 • 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.
 • 피버타임은 발동 조건과 캐릭터별 효과 정책을 확정한 뒤 구현한다.
+• Normal / Hard 선택은 실제 모드별 리스폰 정책을 정의한 뒤 Lobby에 활성 기능으로 연결한다.
 • 광고 부활은 리스폰 정책이 확정된 뒤 결과창 확장 작업으로 연결한다.
 
 ________________________________________

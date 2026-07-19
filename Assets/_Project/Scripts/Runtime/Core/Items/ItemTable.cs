@@ -101,7 +101,14 @@ namespace PH.Core.Items
                     GetBool(row, header, "AffectsProgression", false),
                     GetBool(row, header, "ServerValidated", false),
                     GetInt(row, header, "MaxAcquirePerRun", 0),
-                    GetString(row, header, "Rarity"));
+                    GetString(row, header, "Rarity"),
+                    GetEnum(row, header, "CollectionItemType", CollectionItemType.None),
+                    GetString(row, header, "CollectionId"),
+                    GetString(row, header, "CollectionTargetId"),
+                    GetInt(row, header, "AcquireAmount", 1),
+                    GetInt(row, header, "MaxOwnedAmount", 0),
+                    GetFloat(row, header, "CollectionBaseSpawnChance", 0f),
+                    GetFloat(row, header, "CollectionSpawnChancePerFloor", 0f));
 
                 items.Add(definition);
                 itemById[definition.ItemId] = definition;

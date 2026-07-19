@@ -36,6 +36,18 @@ namespace PH.Core.Items
         [SerializeField]
         private int acquiredAtMilliseconds;
 
+        [SerializeField]
+        private ItemEffectOutcome effectOutcome;
+
+        [SerializeField]
+        private int appliedValue;
+
+        [SerializeField]
+        private CollectionChangeStatus collectionStatus;
+
+        [SerializeField]
+        private bool applied;
+
         public string EventId => eventId;
         public string ItemId => itemId;
         public string ServerItemId => serverItemId;
@@ -46,10 +58,19 @@ namespace PH.Core.Items
         public int ColumnIndex => columnIndex;
         public int EffectValue => effectValue;
         public int AcquiredAtMilliseconds => acquiredAtMilliseconds;
+        public ItemEffectOutcome EffectOutcome => effectOutcome;
+        public int AppliedValue => appliedValue;
+        public CollectionChangeStatus CollectionStatus => collectionStatus;
+        public bool Applied => applied;
 
         public ItemRunEvent(ItemDefinition definition, int absoluteFloor, int pageIndex, int pageFloorIndex, int columnIndex, float runTimeSeconds)
+            : this(Guid.NewGuid().ToString("N"), definition, absoluteFloor, pageIndex, pageFloorIndex, columnIndex, runTimeSeconds, ItemEffectResult.None)
         {
-            eventId = Guid.NewGuid().ToString("N");
+        }
+
+        public ItemRunEvent(string acquisitionEventId, ItemDefinition definition, int absoluteFloor, int pageIndex, int pageFloorIndex, int columnIndex, float runTimeSeconds, ItemEffectResult effectResult)
+        {
+            eventId = string.IsNullOrWhiteSpace(acquisitionEventId) ? Guid.NewGuid().ToString("N") : acquisitionEventId;
             itemId = definition.ItemId;
             serverItemId = definition.ServerItemId;
             tableVersion = definition.TableVersion;
@@ -59,6 +80,10 @@ namespace PH.Core.Items
             this.columnIndex = columnIndex;
             effectValue = definition.EffectValue;
             acquiredAtMilliseconds = Mathf.Max(0, Mathf.RoundToInt(runTimeSeconds * 1000f));
+            effectOutcome = effectResult.Outcome;
+            appliedValue = effectResult.Value;
+            collectionStatus = effectResult.CollectionStatus;
+            applied = definition.ItemType != ItemType.Collection || effectResult.Outcome == ItemEffectOutcome.CollectionAdded;
         }
     }
 }

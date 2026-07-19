@@ -8,7 +8,8 @@ namespace PH.Core.Items
             new AddTimeItemEffect(),
             new AddMaxLifeItemEffect(),
             new HealHeartItemEffect(),
-            new AddMoveSpeedItemEffect()
+            new AddMoveSpeedItemEffect(),
+            new AddCollectionItemEffect()
         };
 
         public ItemEffectResult Execute(ItemDefinition definition, ItemEffectContext context)

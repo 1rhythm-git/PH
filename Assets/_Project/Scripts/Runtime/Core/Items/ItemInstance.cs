@@ -1,3 +1,4 @@
+using System;
 using PH.Core.Audio;
 using PH.Core.Characters;
 using PH.Core.Player;
@@ -198,8 +199,9 @@ namespace PH.Core.Items
                 itemImage.color = acquiredColor;
             }
 
-            eventRecorder?.Record(new ItemRunEvent(definition, absoluteFloor, pageIndex, pageFloorIndex, columnIndex, Time.time));
-            ItemEffectResult effectResult = ApplyHUDItemEffect();
+            string eventId = Guid.NewGuid().ToString("N");
+            ItemEffectResult effectResult = ApplyHUDItemEffect(eventId);
+            eventRecorder?.Record(new ItemRunEvent(eventId, definition, absoluteFloor, pageIndex, pageFloorIndex, columnIndex, Time.time, effectResult));
             ShowPickupFeedback(effectResult);
             gameObject.SetActive(false);
         }
@@ -306,6 +308,16 @@ namespace PH.Core.Items
                     return "MAX LIFE";
                 case ItemEffectOutcome.MoveSpeedIncreased:
                     return "SPEED UP";
+                case ItemEffectOutcome.CollectionAdded:
+                    return $"GET {definition.DisplayName}";
+                case ItemEffectOutcome.CollectionAlreadyOwned:
+                    return "ALREADY OWNED";
+                case ItemEffectOutcome.CollectionOwnedLimitReached:
+                    return "OWNED LIMIT";
+                case ItemEffectOutcome.CollectionRunLimitReached:
+                    return "RUN LIMIT";
+                case ItemEffectOutcome.CollectionDuplicateEvent:
+                    return "ALREADY PROCESSED";
             }
 
             switch (definition.ItemType)
@@ -334,6 +346,13 @@ namespace PH.Core.Items
                     return new Color(1f, 0.18f, 0.16f, 1f);
                 case ItemEffectOutcome.MoveSpeedIncreased:
                     return new Color(1f, 0.86f, 0.16f, 1f);
+                case ItemEffectOutcome.CollectionAdded:
+                    return new Color(0.35f, 1f, 0.72f, 1f);
+                case ItemEffectOutcome.CollectionAlreadyOwned:
+                case ItemEffectOutcome.CollectionOwnedLimitReached:
+                case ItemEffectOutcome.CollectionRunLimitReached:
+                case ItemEffectOutcome.CollectionDuplicateEvent:
+                    return new Color(0.72f, 0.72f, 0.72f, 1f);
             }
 
             switch (definition.ItemType)
@@ -349,14 +368,14 @@ namespace PH.Core.Items
             }
         }
 
-        private ItemEffectResult ApplyHUDItemEffect()
+        private ItemEffectResult ApplyHUDItemEffect(string eventId)
         {
             if (topHUDController == null)
             {
                 topHUDController = FindFirstObjectByType<TopHUDController>();
             }
 
-            if (topHUDController == null || definition == null)
+            if (definition == null)
             {
                 return ItemEffectResult.None;
             }
@@ -366,7 +385,17 @@ namespace PH.Core.Items
                 effectResolver = new ItemEffectResolver();
             }
 
-            return effectResolver.Execute(definition, new ItemEffectContext(topHUDController, playerHealth, playerMotor, playerBuffVisualFeedback, requiredPassCount, scoreBonusPercent));
+            return effectResolver.Execute(
+                definition,
+                new ItemEffectContext(
+                    topHUDController,
+                    playerHealth,
+                    playerMotor,
+                    playerBuffVisualFeedback,
+                    requiredPassCount,
+                    scoreBonusPercent,
+                    eventRecorder,
+                    eventId));
         }
 
         private void Expire()

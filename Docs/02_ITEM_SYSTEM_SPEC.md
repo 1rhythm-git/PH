@@ -103,12 +103,21 @@ GameState
 
 Collection
 장기 저장되는 수집 데이터에 반영한다.
-필수 데이터 예시:
-•	Collection ID
-•	Amount
-•	Achievement Progress
-•	Passive Upgrade Category
-•	Unlock Target
+수집형은 다음 두 종류로 구분한다.
+•	Artifact: `MaxOwnedAmount=1`인 고유 수집품이며, 획득 후 스폰 후보에서 제외한다.
+•	CharacterCoin: 중복 보유할 수 있으며 로비의 캐릭터 능력치 강화 비용으로 사용한다.
+
+수집형 필수 데이터:
+•	CollectionItemType
+•	CollectionId
+•	CollectionTargetId
+•	AcquireAmount
+•	MaxOwnedAmount
+•	CollectionBaseSpawnChance
+•	CollectionSpawnChancePerFloor
+
+`MaxAcquirePerRun`은 현재 런의 획득 횟수 제한이고, `MaxOwnedAmount`는 모든 런을 합친 영구 보유량 제한이다.
+캐릭터 강화 비용은 `CollectionCost[]`로 관리해 한 종류 또는 여러 종류의 캐릭터 코인을 조합할 수 있다.
 ________________________________________
 7. 효과 구조
 아이템 데이터와 아이템 효과 실행을 분리한다.
@@ -241,6 +250,10 @@ ________________________________________
 •	`randomizeSeedOnStart`가 꺼져 있으면 `randomSeed` 기반으로 재현 가능한 배치를 만든다.
 •	캐릭터 레벨 스킬 해금 후 Page Chance 판정에 성공하면 해당 페이지의 아이템 중 1개를 Time 또는 Skill 타입으로 보장한다.
 •	Page Chance는 기존 아이템 가중치 추첨을 제거하지 않으며, 보장 대상 외 아이템은 기존 규칙으로 선택한다.
+•	Collection 아이템은 일반 아이템의 상대 가중치와 분리된 절대 확률을 사용한다.
+•	최종 확률은 `(CollectionBaseSpawnChance + CollectionSpawnChancePerFloor × (현재 층 - MinFloor)) × (1 + PlayerChanceBonusPercent / 100)`으로 계산한다.
+•	Artifact는 이미 보유했거나 `MaxOwnedAmount`에 도달하면 스폰 후보에서 제외한다.
+•	Collection 아이템은 한 페이지에 동일한 `CollectionId`가 중복 생성되지 않는다.
 ________________________________________
 11. 저장 규칙
 Score 아이템:
@@ -253,8 +266,13 @@ Skill 아이템:
 Collection 아이템:
 •	획득 즉시 로컬 저장
 •	서버 연결 시 동기화 대상
-•	고유 아이템은 중복 여부 확인
-•	재료형 아이템은 수량 누적
+•	Artifact는 중복 여부를 확인하고 획득 후 재등장하지 않음
+•	CharacterCoin은 `MaxOwnedAmount`까지 수량 누적
+•	획득 `EventId`를 서버 멱등 키로 사용하고 미전송 이벤트를 로컬에 보관
+•	서버 응답은 충돌 및 획득 판정을 대기시키지 않음
+•	비정상 종료 시 Collection은 유지하고 완료되지 않은 런의 점수 보상은 정산하지 않음
+•	캐릭터 강화는 로비에서 코인 차감과 강화 단계 증가를 하나의 저장 작업으로 처리
+•	강화 능력치는 다음 InGame 진입 시 `PlayerCharacterRuntime` 초기값에 반영
 ________________________________________
 12. 예외 상황
 다음 상황을 방어한다.

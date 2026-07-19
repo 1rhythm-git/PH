@@ -7,5 +7,6 @@ namespace PH.Core.Items
         public const string HealHeart = "heal_heart";
         public const string AddMaxLife = "add_max_life";
         public const string AddMoveSpeedPercent = "add_move_speed_percent";
+        public const string AddCollection = "add_collection";
     }
 }

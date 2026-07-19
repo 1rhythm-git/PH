@@ -76,6 +76,12 @@ namespace PH.Core.Characters
         [SerializeField, Range(0f, 1f)]
         private float instantItemAcquireChance;
 
+        [SerializeField, Min(0f)]
+        private float collectionItemChanceBonusPercent;
+
+        [SerializeField]
+        private CharacterUpgradeDefinition[] collectionUpgrades;
+
         [SerializeField]
         private int[] requiredExperienceByLevel = { 100, 150, 225, 325, 450, 600, 800, 1050, 1350 };
 
@@ -118,6 +124,8 @@ namespace PH.Core.Characters
         public string BoosterBuffKey => FeverBuffKey;
         public int MaxLife => maxLife;
         public float InstantItemAcquireChance => instantItemAcquireChance;
+        public float CollectionItemChanceBonusPercent => Mathf.Max(0f, collectionItemChanceBonusPercent);
+        public CharacterUpgradeDefinition[] CollectionUpgrades => collectionUpgrades;
         public int MaxCharacterLevel => Mathf.Max(1, (requiredExperienceByLevel?.Length ?? 0) + 1);
         public string UnlockableSkillId => unlockableSkillId;
         public string UnlockableSkillName => unlockableSkillName;
@@ -178,6 +186,7 @@ namespace PH.Core.Characters
             feverGainPerPivot = Mathf.Max(0f, feverGainPerPivot);
             maxLife = Mathf.Max(1, maxLife);
             instantItemAcquireChance = Mathf.Clamp01(instantItemAcquireChance);
+            collectionItemChanceBonusPercent = Mathf.Max(0f, collectionItemChanceBonusPercent);
             skillUnlockLevel = Mathf.Clamp(skillUnlockLevel, 1, MaxCharacterLevel);
             skillItemPageSpawnChance = Mathf.Clamp01(skillItemPageSpawnChance);
 

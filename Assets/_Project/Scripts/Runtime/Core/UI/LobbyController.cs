@@ -11,6 +11,13 @@ namespace PH.Core.UI
     {
         private const string RuntimeRootName = "LobbyRuntimeRoot";
 
+        private static readonly Vector2 HeaderBandMin = new Vector2(0f, 0.88f);
+        private static readonly Vector2 HeaderBandMax = Vector2.one;
+        private static readonly Vector2 ContentBandMin = new Vector2(0f, 0.12f);
+        private static readonly Vector2 ContentBandMax = new Vector2(1f, 0.88f);
+        private static readonly Vector2 FooterBandMin = Vector2.zero;
+        private static readonly Vector2 FooterBandMax = new Vector2(1f, 0.12f);
+
         [SerializeField]
         private RectTransform headerRoot;
 
@@ -50,25 +57,31 @@ namespace PH.Core.UI
         [SerializeField]
         private Color disabledButtonColor = new Color(0.18f, 0.2f, 0.24f, 0.92f);
 
+        [SerializeField]
+        private Color experienceColor = new Color(0.2f, 0.78f, 0.72f, 1f);
+
         private Font lobbyFont;
-
         private CharacterDefinition selectedCharacter;
-
-        private Text selectedCharacterText;
-
+        private Text profileText;
+        private Text bestFloorText;
+        private Text bestScoreText;
+        private Text selectedCharacterLevelText;
+        private Text selectedCharacterPositionText;
         private Text selectedCharacterNameText;
-
         private Text selectedCharacterSkillText;
-
+        private Text selectedCharacterExperienceText;
         private Image selectedCharacterPortraitImage;
+        private Image selectedCharacterExperienceFill;
+        private Rect lastSafeArea;
+        private Vector2Int lastScreenSize;
 
         private static Sprite leftArrowSprite;
-
         private static Sprite rightArrowSprite;
 
         private void Awake()
         {
             EnsureReferences();
+            ApplySafeAreaLayout();
             EnsureSelectedCharacter();
             BuildLobby();
         }
@@ -83,10 +96,19 @@ namespace PH.Core.UI
             CharacterProgressionState.ProgressChanged -= HandleCharacterProgressChanged;
         }
 
+        private void Update()
+        {
+            if (lastSafeArea != Screen.safeArea || lastScreenSize.x != Screen.width || lastScreenSize.y != Screen.height)
+            {
+                ApplySafeAreaLayout();
+            }
+        }
+
         [ContextMenu("Debug/Rebuild Lobby")]
         private void DebugRebuildLobby()
         {
             EnsureReferences();
+            ApplySafeAreaLayout();
             BuildLobby();
         }
 
@@ -122,6 +144,7 @@ namespace PH.Core.UI
             BuildHeader();
             BuildContent();
             BuildFooter();
+            RefreshLobbyData();
         }
 
         private void BuildHeader()
@@ -132,11 +155,10 @@ namespace PH.Core.UI
                 return;
             }
 
-            Text titleText = CreateText(root, "TitleText", "PHANTOM HEIST", new Vector2(0.06f, 0.34f), new Vector2(0.94f, 0.96f), TextAnchor.LowerLeft, 64, primaryTextColor);
+            Text titleText = CreateText(root, "TitleText", "PHANTOM HEIST", new Vector2(0.055f, 0.43f), new Vector2(0.945f, 0.92f), TextAnchor.MiddleLeft, 58, primaryTextColor);
             titleText.fontStyle = FontStyle.Bold;
-
-            CreateText(root, "ProfileText", $"Lv. {Mathf.Max(1, playerLevel)}  {playerNickname}", new Vector2(0.06f, 0.08f), new Vector2(0.62f, 0.34f), TextAnchor.MiddleLeft, 32, secondaryTextColor);
-            CreateText(root, "LoginStateText", "Guest", new Vector2(0.62f, 0.08f), new Vector2(0.94f, 0.34f), TextAnchor.MiddleRight, 30, secondaryTextColor);
+            profileText = CreateText(root, "ProfileText", string.Empty, new Vector2(0.06f, 0.08f), new Vector2(0.7f, 0.43f), TextAnchor.MiddleLeft, 29, secondaryTextColor);
+            CreateText(root, "LoginStateText", "GUEST", new Vector2(0.7f, 0.08f), new Vector2(0.94f, 0.43f), TextAnchor.MiddleRight, 26, secondaryTextColor);
         }
 
         private void BuildContent()
@@ -147,111 +169,151 @@ namespace PH.Core.UI
                 return;
             }
 
-            RectTransform recordPanel = CreatePanel(root, "RecordPanel", new Vector2(0.08f, 0.75f), new Vector2(0.92f, 0.92f), panelColor);
-            Text recordTitle = CreateText(recordPanel, "RecordTitleText", "BEST RECORD", new Vector2(0.06f, 0.16f), new Vector2(0.4f, 0.84f), TextAnchor.MiddleLeft, 30, primaryTextColor);
-            recordTitle.fontStyle = FontStyle.Bold;
-            CreateText(recordPanel, "BestFloorText", $"Floor  {Mathf.Max(0, bestHighestFloor)}F", new Vector2(0.4f, 0.16f), new Vector2(0.66f, 0.84f), TextAnchor.MiddleRight, 28, primaryTextColor);
-            CreateText(recordPanel, "BestScoreText", $"Score  {Mathf.Max(0, bestScore)}", new Vector2(0.66f, 0.16f), new Vector2(0.94f, 0.84f), TextAnchor.MiddleRight, 28, primaryTextColor);
-
-            RectTransform characterPanel = CreatePanel(root, "CharacterPanel", new Vector2(0.08f, 0.29f), new Vector2(0.92f, 0.73f), panelColor);
-            Text characterTitle = CreateText(characterPanel, "CharacterTitleText", "CHARACTER", new Vector2(0.06f, 0.84f), new Vector2(0.46f, 0.96f), TextAnchor.MiddleLeft, 30, primaryTextColor);
-            characterTitle.fontStyle = FontStyle.Bold;
-            selectedCharacterText = CreateText(characterPanel, "SelectedCharacterLevelText", GetSelectedCharacterLevelLabel(), new Vector2(0.58f, 0.84f), new Vector2(0.94f, 0.96f), TextAnchor.MiddleRight, 26, secondaryTextColor);
-            BuildCharacterPortrait(characterPanel);
-            BuildCharacterNavigationButtons(characterPanel);
-            selectedCharacterNameText = CreateText(characterPanel, "SelectedCharacterNameText", GetSelectedCharacterName(), new Vector2(0.24f, 0.19f), new Vector2(0.76f, 0.29f), TextAnchor.MiddleCenter, 27, primaryTextColor);
-            selectedCharacterNameText.fontStyle = FontStyle.Bold;
-            selectedCharacterSkillText = CreateText(characterPanel, "SelectedCharacterSkillText", GetSelectedCharacterSkillLabel(), new Vector2(0.06f, 0.02f), new Vector2(0.94f, 0.18f), TextAnchor.MiddleLeft, 18, secondaryTextColor);
-
-            CreateButton(root, "StartButton", "START", new Vector2(0.12f, 0.19f), new Vector2(0.88f, 0.27f), startButtonColor, Color.black, StartGame, true);
-
-            RectTransform menuPanel = CreatePanel(root, "MenuPanel", new Vector2(0.08f, 0.04f), new Vector2(0.92f, 0.18f), panelColor);
-            CreateButton(menuPanel, "RankingButton", "RANKING", new Vector2(0.04f, 0.16f), new Vector2(0.27f, 0.84f), disabledButtonColor, secondaryTextColor, null, false);
-            CreateButton(menuPanel, "ShopButton", "SHOP", new Vector2(0.29f, 0.16f), new Vector2(0.52f, 0.84f), disabledButtonColor, secondaryTextColor, null, false);
-            CreateButton(menuPanel, "OptionsButton", "OPTIONS", new Vector2(0.54f, 0.16f), new Vector2(0.77f, 0.84f), disabledButtonColor, secondaryTextColor, null, false);
-            CreateButton(menuPanel, "AdSlotButton", "AD", new Vector2(0.79f, 0.16f), new Vector2(0.96f, 0.84f), disabledButtonColor, secondaryTextColor, null, false);
+            BuildRecordStrip(root);
+            BuildCharacterStage(root);
+            CreateButton(root, "StartButton", "START", new Vector2(0.1f, 0.025f), new Vector2(0.9f, 0.125f), startButtonColor, Color.black, StartGame, true);
         }
 
-        private void BuildCharacterPortrait(RectTransform parent)
+        private void BuildRecordStrip(RectTransform parent)
         {
-            selectedCharacterPortraitImage = CreateImage(parent, "SelectedCharacterPortrait", new Vector2(0.28f, 0.29f), new Vector2(0.72f, 0.83f), Color.white);
+            RectTransform panel = CreatePanel(parent, "RecordStrip", new Vector2(0.055f, 0.855f), new Vector2(0.945f, 0.985f), panelColor, true);
+            Text title = CreateText(panel, "RecordTitleText", "BEST", new Vector2(0.045f, 0.18f), new Vector2(0.25f, 0.82f), TextAnchor.MiddleLeft, 27, secondaryTextColor);
+            title.fontStyle = FontStyle.Bold;
+            bestFloorText = CreateText(panel, "BestFloorText", string.Empty, new Vector2(0.25f, 0.16f), new Vector2(0.6f, 0.84f), TextAnchor.MiddleCenter, 31, primaryTextColor);
+            bestScoreText = CreateText(panel, "BestScoreText", string.Empty, new Vector2(0.6f, 0.16f), new Vector2(0.955f, 0.84f), TextAnchor.MiddleRight, 31, primaryTextColor);
+            CreateDivider(panel, "RecordDivider", new Vector2(0.595f, 0.23f), new Vector2(0.598f, 0.77f));
+        }
+
+        private void BuildCharacterStage(RectTransform parent)
+        {
+            RectTransform stage = CreatePanel(parent, "CharacterStage", new Vector2(0.055f, 0.15f), new Vector2(0.945f, 0.83f), panelColor, false);
+
+            Text sectionTitle = CreateText(stage, "CharacterTitleText", "CHARACTER", new Vector2(0.055f, 0.9f), new Vector2(0.42f, 0.98f), TextAnchor.MiddleLeft, 27, secondaryTextColor);
+            sectionTitle.fontStyle = FontStyle.Bold;
+            selectedCharacterPositionText = CreateText(stage, "CharacterPositionText", string.Empty, new Vector2(0.58f, 0.9f), new Vector2(0.945f, 0.98f), TextAnchor.MiddleRight, 25, secondaryTextColor);
+
+            selectedCharacterPortraitImage = CreateImage(stage, "SelectedCharacterPortrait", new Vector2(0.2f, 0.37f), new Vector2(0.8f, 0.9f), Color.white);
             selectedCharacterPortraitImage.preserveAspect = true;
+
+            bool canNavigate = GetAvailableCharacterCount() > 1;
+            CreateIconButton(stage, "PreviousCharacterButton", GetArrowSprite(false), new Vector2(0.045f, 0.53f), new Vector2(0.18f, 0.68f), SelectPreviousCharacter, canNavigate, "Previous Character");
+            CreateIconButton(stage, "NextCharacterButton", GetArrowSprite(true), new Vector2(0.82f, 0.53f), new Vector2(0.955f, 0.68f), SelectNextCharacter, canNavigate, "Next Character");
+
+            selectedCharacterNameText = CreateText(stage, "SelectedCharacterNameText", string.Empty, new Vector2(0.08f, 0.295f), new Vector2(0.7f, 0.37f), TextAnchor.MiddleLeft, 34, primaryTextColor);
+            selectedCharacterNameText.fontStyle = FontStyle.Bold;
+            selectedCharacterLevelText = CreateText(stage, "SelectedCharacterLevelText", string.Empty, new Vector2(0.7f, 0.295f), new Vector2(0.92f, 0.37f), TextAnchor.MiddleRight, 27, primaryTextColor);
+
+            BuildExperienceGauge(stage);
+            CreateDivider(stage, "InfoDivider", new Vector2(0.055f, 0.18f), new Vector2(0.945f, 0.184f));
+            selectedCharacterSkillText = CreateText(stage, "SelectedCharacterSkillText", string.Empty, new Vector2(0.055f, 0.015f), new Vector2(0.945f, 0.17f), TextAnchor.MiddleLeft, 21, secondaryTextColor);
+        }
+
+        private void BuildExperienceGauge(RectTransform parent)
+        {
+            RectTransform background = CreatePanel(parent, "ExperienceGauge", new Vector2(0.055f, 0.235f), new Vector2(0.945f, 0.275f), new Color(0f, 0f, 0f, 0.5f), false);
+            selectedCharacterExperienceFill = CreateImage(background, "Fill", new Vector2(0.008f, 0.16f), new Vector2(0.992f, 0.84f), experienceColor);
+            selectedCharacterExperienceFill.type = Image.Type.Filled;
+            selectedCharacterExperienceFill.fillMethod = Image.FillMethod.Horizontal;
+            selectedCharacterExperienceFill.fillOrigin = 0;
+            selectedCharacterExperienceText = CreateText(background, "ExperienceText", string.Empty, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 18, primaryTextColor);
+            selectedCharacterExperienceText.fontStyle = FontStyle.Bold;
+        }
+
+        private void BuildFooter()
+        {
+            RectTransform root = CreateRuntimeRoot(footerRoot);
+            if (root == null)
+            {
+                return;
+            }
+
+            RectTransform adArea = CreatePanel(root, "BannerAdArea", new Vector2(0.055f, 0.14f), new Vector2(0.945f, 0.86f), disabledButtonColor, false);
+            CreateText(adArea, "AdLabel", "AD", Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 24, secondaryTextColor);
+        }
+
+        private void RefreshLobbyData()
+        {
+            if (profileText != null)
+            {
+                profileText.text = $"Lv. {Mathf.Max(1, playerLevel)}  {playerNickname}";
+            }
+
+            if (bestFloorText != null)
+            {
+                bestFloorText.text = $"{Mathf.Max(0, bestHighestFloor)}F";
+            }
+
+            if (bestScoreText != null)
+            {
+                bestScoreText.text = Mathf.Max(0, bestScore).ToString("N0");
+            }
+
+            RefreshSelectedCharacterInfo();
+        }
+
+        private void RefreshSelectedCharacterInfo()
+        {
+            CharacterProgressionSnapshot progression = CharacterProgressionState.GetSnapshot(selectedCharacter);
+
+            if (selectedCharacterLevelText != null)
+            {
+                selectedCharacterLevelText.text = selectedCharacter != null ? $"Lv. {progression.Level}" : "Lv. -";
+            }
+
+            if (selectedCharacterNameText != null)
+            {
+                selectedCharacterNameText.text = selectedCharacter != null ? selectedCharacter.DisplayName : "No Character";
+            }
+
+            if (selectedCharacterPositionText != null)
+            {
+                selectedCharacterPositionText.text = GetSelectedCharacterPositionLabel();
+            }
+
+            if (selectedCharacterSkillText != null)
+            {
+                selectedCharacterSkillText.text = GetSelectedCharacterSkillLabel();
+            }
+
+            if (selectedCharacterExperienceText != null)
+            {
+                selectedCharacterExperienceText.text = progression.IsMaxLevel
+                    ? "MAX LEVEL"
+                    : $"XP  {progression.CurrentExperience:N0} / {progression.RequiredExperience:N0}";
+            }
+
+            if (selectedCharacterExperienceFill != null)
+            {
+                selectedCharacterExperienceFill.fillAmount = progression.NormalizedExperience;
+            }
+
             RefreshSelectedCharacterPortrait();
         }
 
-        private void BuildCharacterNavigationButtons(RectTransform parent)
+        private string GetSelectedCharacterPositionLabel()
         {
-            bool canNavigate = GetAvailableCharacterCount() > 1;
-            CreateIconButton(parent, "PreviousCharacterButton", GetArrowSprite(false), new Vector2(0.07f, 0.42f), new Vector2(0.22f, 0.65f), SelectPreviousCharacter, canNavigate, "Previous Character");
-            CreateIconButton(parent, "NextCharacterButton", GetArrowSprite(true), new Vector2(0.78f, 0.42f), new Vector2(0.93f, 0.65f), SelectNextCharacter, canNavigate, "Next Character");
-        }
-
-        private void SelectCharacter(CharacterDefinition characterDefinition)
-        {
-            if (characterDefinition == null)
+            int total = GetAvailableCharacterCount();
+            if (selectedCharacter == null || total <= 0)
             {
-                return;
+                return "0 / 0";
             }
 
-            selectedCharacter = characterDefinition;
-            CharacterSelectionState.Select(selectedCharacter);
-
-            RefreshSelectedCharacterInfo();
-
-            Debug.Log($"Lobby character selected: {selectedCharacter.DisplayName} ({selectedCharacter.CharacterId})", this);
-        }
-
-        private void EnsureSelectedCharacter()
-        {
-            if (selectedCharacter != null)
-            {
-                CharacterSelectionState.Select(selectedCharacter);
-                return;
-            }
-
-            CharacterDefinition fallbackCharacter = GetFirstAvailableCharacter();
-            selectedCharacter = CharacterSelectionState.Resolve(fallbackCharacter);
-
-            if (selectedCharacter == null)
-            {
-                return;
-            }
-
-            CharacterSelectionState.Select(selectedCharacter);
-        }
-
-        private CharacterDefinition GetFirstAvailableCharacter()
-        {
-            if (availableCharacters == null)
-            {
-                return null;
-            }
-
+            int visibleIndex = 0;
             for (int i = 0; i < availableCharacters.Length; i++)
             {
-                if (availableCharacters[i] != null)
+                if (availableCharacters[i] == null)
                 {
-                    return availableCharacters[i];
+                    continue;
+                }
+
+                visibleIndex++;
+                if (availableCharacters[i] == selectedCharacter)
+                {
+                    return $"{visibleIndex} / {total}";
                 }
             }
 
-            return null;
-        }
-
-        private string GetSelectedCharacterLevelLabel()
-        {
-            if (selectedCharacter == null)
-            {
-                return "Lv. -";
-            }
-
-            CharacterProgressionSnapshot progression = CharacterProgressionState.GetSnapshot(selectedCharacter);
-            return $"Lv. {progression.Level}";
-        }
-
-        private string GetSelectedCharacterName()
-        {
-            return selectedCharacter != null ? selectedCharacter.DisplayName : "No Character";
+            return $"1 / {total}";
         }
 
         private string GetSelectedCharacterSkillLabel()
@@ -268,6 +330,18 @@ namespace PH.Core.UI
                 ? "No skill description"
                 : selectedCharacter.UnlockableSkillDescription;
             return $"{status}  {selectedCharacter.UnlockableSkillName}\n{description}  Chance +{chancePercent}%";
+        }
+
+        private void RefreshSelectedCharacterPortrait()
+        {
+            if (selectedCharacterPortraitImage == null)
+            {
+                return;
+            }
+
+            Sprite portrait = selectedCharacter != null ? selectedCharacter.PortraitSprite : null;
+            selectedCharacterPortraitImage.sprite = portrait;
+            selectedCharacterPortraitImage.enabled = portrait != null;
         }
 
         private void SelectPreviousCharacter()
@@ -307,6 +381,52 @@ namespace PH.Core.UI
             }
         }
 
+        private void SelectCharacter(CharacterDefinition characterDefinition)
+        {
+            if (characterDefinition == null)
+            {
+                return;
+            }
+
+            selectedCharacter = characterDefinition;
+            CharacterSelectionState.Select(selectedCharacter);
+            RefreshSelectedCharacterInfo();
+            Debug.Log($"Lobby character selected: {selectedCharacter.DisplayName} ({selectedCharacter.CharacterId})", this);
+        }
+
+        private void EnsureSelectedCharacter()
+        {
+            if (selectedCharacter != null)
+            {
+                CharacterSelectionState.Select(selectedCharacter);
+                return;
+            }
+
+            selectedCharacter = CharacterSelectionState.Resolve(GetFirstAvailableCharacter());
+            if (selectedCharacter != null)
+            {
+                CharacterSelectionState.Select(selectedCharacter);
+            }
+        }
+
+        private CharacterDefinition GetFirstAvailableCharacter()
+        {
+            if (availableCharacters == null)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < availableCharacters.Length; i++)
+            {
+                if (availableCharacters[i] != null)
+                {
+                    return availableCharacters[i];
+                }
+            }
+
+            return null;
+        }
+
         private int GetAvailableCharacterCount()
         {
             if (availableCharacters == null)
@@ -326,57 +446,45 @@ namespace PH.Core.UI
             return count;
         }
 
-        private void RefreshSelectedCharacterInfo()
-        {
-            if (selectedCharacterText != null)
-            {
-                selectedCharacterText.text = GetSelectedCharacterLevelLabel();
-            }
-
-            if (selectedCharacterNameText != null)
-            {
-                selectedCharacterNameText.text = GetSelectedCharacterName();
-            }
-
-            if (selectedCharacterSkillText != null)
-            {
-                selectedCharacterSkillText.text = GetSelectedCharacterSkillLabel();
-            }
-
-            RefreshSelectedCharacterPortrait();
-        }
-
-        private void RefreshSelectedCharacterPortrait()
-        {
-            if (selectedCharacterPortraitImage == null)
-            {
-                return;
-            }
-
-            Sprite portrait = selectedCharacter != null ? selectedCharacter.PortraitSprite : null;
-            selectedCharacterPortraitImage.sprite = portrait;
-            selectedCharacterPortraitImage.enabled = portrait != null;
-        }
-
         private void HandleCharacterProgressChanged(string characterId)
         {
-            if (selectedCharacter == null || selectedCharacter.CharacterId != characterId)
+            if (selectedCharacter != null && selectedCharacter.CharacterId == characterId)
             {
-                return;
+                RefreshSelectedCharacterInfo();
             }
-
-            BuildLobby();
         }
 
-        private void BuildFooter()
+        private void ApplySafeAreaLayout()
         {
-            RectTransform root = CreateRuntimeRoot(footerRoot);
-            if (root == null)
+            if (Screen.width <= 0 || Screen.height <= 0)
             {
                 return;
             }
 
-            CreateText(root, "FooterText", "Banner Ad Area / BackND Status", new Vector2(0.06f, 0.18f), new Vector2(0.94f, 0.82f), TextAnchor.MiddleCenter, 28, secondaryTextColor);
+            Rect safeArea = Screen.safeArea;
+            Vector2 safeMin = new Vector2(safeArea.xMin / Screen.width, safeArea.yMin / Screen.height);
+            Vector2 safeMax = new Vector2(safeArea.xMax / Screen.width, safeArea.yMax / Screen.height);
+
+            ApplyBand(headerRoot, safeMin, safeMax, HeaderBandMin, HeaderBandMax);
+            ApplyBand(contentRoot, safeMin, safeMax, ContentBandMin, ContentBandMax);
+            ApplyBand(footerRoot, safeMin, safeMax, FooterBandMin, FooterBandMax);
+
+            lastSafeArea = safeArea;
+            lastScreenSize = new Vector2Int(Screen.width, Screen.height);
+        }
+
+        private static void ApplyBand(RectTransform target, Vector2 safeMin, Vector2 safeMax, Vector2 bandMin, Vector2 bandMax)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            Vector2 safeSize = safeMax - safeMin;
+            target.anchorMin = safeMin + Vector2.Scale(safeSize, bandMin);
+            target.anchorMax = safeMin + Vector2.Scale(safeSize, bandMax);
+            target.offsetMin = Vector2.zero;
+            target.offsetMax = Vector2.zero;
         }
 
         private RectTransform CreateRuntimeRoot(RectTransform parent)
@@ -388,7 +496,6 @@ namespace PH.Core.UI
 
             Transform existing = parent.Find(RuntimeRootName);
             RectTransform root = existing as RectTransform;
-
             if (root == null)
             {
                 GameObject rootObject = new GameObject(RuntimeRootName, typeof(RectTransform));
@@ -405,27 +512,26 @@ namespace PH.Core.UI
             return root;
         }
 
-        private RectTransform CreatePanel(RectTransform parent, string objectName, Vector2 anchorMin, Vector2 anchorMax, Color color)
+        private RectTransform CreatePanel(RectTransform parent, string objectName, Vector2 anchorMin, Vector2 anchorMax, Color color, bool useOutline)
         {
-            GameObject panelObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Outline));
+            GameObject panelObject = useOutline
+                ? new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Outline))
+                : new GameObject(objectName, typeof(RectTransform), typeof(Image));
             panelObject.layer = parent.gameObject.layer;
             panelObject.transform.SetParent(parent, false);
 
-            RectTransform rectTransform = panelObject.GetComponent<RectTransform>();
-            rectTransform.anchorMin = anchorMin;
-            rectTransform.anchorMax = anchorMax;
-            rectTransform.offsetMin = Vector2.zero;
-            rectTransform.offsetMax = Vector2.zero;
-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
-
+            RectTransform rectTransform = ConfigureRect(panelObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
             Image image = panelObject.GetComponent<Image>();
             image.color = color;
             image.raycastTarget = false;
 
-            Outline outline = panelObject.GetComponent<Outline>();
-            outline.effectColor = new Color(1f, 1f, 1f, 0.22f);
-            outline.effectDistance = new Vector2(2f, -2f);
-            outline.useGraphicAlpha = true;
+            if (useOutline)
+            {
+                Outline outline = panelObject.GetComponent<Outline>();
+                outline.effectColor = new Color(1f, 1f, 1f, 0.18f);
+                outline.effectDistance = new Vector2(2f, -2f);
+                outline.useGraphicAlpha = true;
+            }
 
             return rectTransform;
         }
@@ -435,13 +541,7 @@ namespace PH.Core.UI
             GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(Text));
             textObject.layer = parent.gameObject.layer;
             textObject.transform.SetParent(parent, false);
-
-            RectTransform rectTransform = textObject.GetComponent<RectTransform>();
-            rectTransform.anchorMin = anchorMin;
-            rectTransform.anchorMax = anchorMax;
-            rectTransform.offsetMin = Vector2.zero;
-            rectTransform.offsetMax = Vector2.zero;
-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            ConfigureRect(textObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
 
             Text text = textObject.GetComponent<Text>();
             text.text = message;
@@ -450,9 +550,11 @@ namespace PH.Core.UI
             text.font = lobbyFont;
             text.fontSize = Mathf.Max(1, fontSize);
             text.raycastTarget = false;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
-
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = Mathf.Max(12, fontSize / 2);
+            text.resizeTextMaxSize = Mathf.Max(1, fontSize);
             return text;
         }
 
@@ -461,13 +563,7 @@ namespace PH.Core.UI
             GameObject imageObject = new GameObject(objectName, typeof(RectTransform), typeof(Image));
             imageObject.layer = parent.gameObject.layer;
             imageObject.transform.SetParent(parent, false);
-
-            RectTransform rectTransform = imageObject.GetComponent<RectTransform>();
-            rectTransform.anchorMin = anchorMin;
-            rectTransform.anchorMax = anchorMax;
-            rectTransform.offsetMin = Vector2.zero;
-            rectTransform.offsetMax = Vector2.zero;
-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            ConfigureRect(imageObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
 
             Image image = imageObject.GetComponent<Image>();
             image.color = color;
@@ -475,38 +571,70 @@ namespace PH.Core.UI
             return image;
         }
 
+        private void CreateDivider(RectTransform parent, string objectName, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            CreateImage(parent, objectName, anchorMin, anchorMax, new Color(1f, 1f, 1f, 0.14f));
+        }
+
         private Button CreateIconButton(RectTransform parent, string objectName, Sprite icon, Vector2 anchorMin, Vector2 anchorMax, UnityEngine.Events.UnityAction onClick, bool interactable, string accessibleName)
         {
             GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
             buttonObject.layer = parent.gameObject.layer;
             buttonObject.transform.SetParent(parent, false);
-
-            RectTransform rectTransform = buttonObject.GetComponent<RectTransform>();
-            rectTransform.anchorMin = anchorMin;
-            rectTransform.anchorMax = anchorMax;
-            rectTransform.offsetMin = Vector2.zero;
-            rectTransform.offsetMax = Vector2.zero;
-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            ConfigureRect(buttonObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
 
             Image image = buttonObject.GetComponent<Image>();
             image.sprite = icon;
             image.preserveAspect = true;
             image.color = interactable ? primaryTextColor : secondaryTextColor * 0.45f;
-            image.raycastTarget = true;
 
             Button button = buttonObject.GetComponent<Button>();
             button.transition = Selectable.Transition.ColorTint;
             button.targetGraphic = image;
             button.interactable = interactable;
-
             if (onClick != null)
             {
                 button.onClick.AddListener(onClick);
             }
 
-            // (추가) 별도 접근성 패키지 도입 전까지 오브젝트 이름에 버튼 목적을 유지한다.
+            // 별도 접근성 패키지 도입 전까지 오브젝트 이름에 버튼 목적을 유지한다.
             buttonObject.name = string.IsNullOrWhiteSpace(accessibleName) ? objectName : $"{objectName}_{accessibleName}";
             return button;
+        }
+
+        private Button CreateButton(RectTransform parent, string objectName, string label, Vector2 anchorMin, Vector2 anchorMax, Color backgroundColor, Color textColor, UnityEngine.Events.UnityAction onClick, bool interactable)
+        {
+            GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
+            buttonObject.layer = parent.gameObject.layer;
+            buttonObject.transform.SetParent(parent, false);
+            RectTransform rectTransform = ConfigureRect(buttonObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
+
+            Image image = buttonObject.GetComponent<Image>();
+            image.color = backgroundColor;
+
+            Button button = buttonObject.GetComponent<Button>();
+            button.transition = Selectable.Transition.ColorTint;
+            button.targetGraphic = image;
+            button.interactable = interactable;
+            if (onClick != null)
+            {
+                button.onClick.AddListener(onClick);
+            }
+
+            Text buttonText = CreateText(rectTransform, $"{objectName}Text", label, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 38, textColor);
+            buttonText.fontStyle = FontStyle.Bold;
+            buttonText.verticalOverflow = VerticalWrapMode.Overflow;
+            return button;
+        }
+
+        private static RectTransform ConfigureRect(RectTransform rectTransform, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            rectTransform.anchorMin = anchorMin;
+            rectTransform.anchorMax = anchorMax;
+            rectTransform.offsetMin = Vector2.zero;
+            rectTransform.offsetMax = Vector2.zero;
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            return rectTransform;
         }
 
         private static Sprite GetArrowSprite(bool pointsRight)
@@ -528,7 +656,6 @@ namespace PH.Core.UI
 
             Color32[] pixels = new Color32[textureSize * textureSize];
             Color32 arrowColor = new Color32(255, 255, 255, 255);
-
             for (int y = 5; y <= 27; y++)
             {
                 int headStart = 5 + Mathf.Abs(y - 16);
@@ -569,39 +696,6 @@ namespace PH.Core.UI
         {
             int targetX = mirrorHorizontally ? textureSize - 1 - x : x;
             pixels[y * textureSize + targetX] = color;
-        }
-
-        private Button CreateButton(RectTransform parent, string objectName, string label, Vector2 anchorMin, Vector2 anchorMax, Color backgroundColor, Color textColor, UnityEngine.Events.UnityAction onClick, bool interactable)
-        {
-            GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
-            buttonObject.layer = parent.gameObject.layer;
-            buttonObject.transform.SetParent(parent, false);
-
-            RectTransform rectTransform = buttonObject.GetComponent<RectTransform>();
-            rectTransform.anchorMin = anchorMin;
-            rectTransform.anchorMax = anchorMax;
-            rectTransform.offsetMin = Vector2.zero;
-            rectTransform.offsetMax = Vector2.zero;
-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
-
-            Image image = buttonObject.GetComponent<Image>();
-            image.color = backgroundColor;
-            image.raycastTarget = true;
-
-            Button button = buttonObject.GetComponent<Button>();
-            button.transition = Selectable.Transition.ColorTint;
-            button.interactable = interactable;
-
-            if (onClick != null)
-            {
-                button.onClick.AddListener(onClick);
-            }
-
-            Text buttonText = CreateText(rectTransform, $"{objectName}Text", label, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 34, textColor);
-            buttonText.fontStyle = FontStyle.Bold;
-            buttonText.verticalOverflow = VerticalWrapMode.Overflow;
-
-            return button;
         }
 
         private void ClearRuntimeRoot(RectTransform parent)
