@@ -2024,6 +2024,56 @@ ________________________________________
 
 ________________________________________
 
+2.68 Android 햅틱 피드백 추가
+
+작업 기준:
+• 사용자 요청: Android 햅틱 기능 추가
+• 사용자 요청: 햅틱 적용은 피격과 캐릭터 피벗에만 적용
+• 사용자 요청: 피벗은 미세한 짧은 진동, 피격은 조금 더 길고 깊은 진동
+
+완료 내용:
+• `PH.Core.Feedback.HapticFeedback` 공용 정적 API 추가
+• Android 실기기에서 `android.os.VibrationEffect.createOneShot`을 사용해 패턴별 지속시간과 세기를 호출하도록 구현
+• Android API 26 미만은 `Vibrator.vibrate(long)`로 폴백
+• Android 호출 실패 시 `Handheld.Vibrate()` 폴백 처리
+• Android library manifest로 `android.permission.VIBRATE` 권한 추가
+• Unity 6.3 / Android Gradle Plugin 8+ 빌드 실패 방지를 위해 권한 library 모듈에 `namespace`가 포함된 `build.gradle` 추가
+• Unity가 `.androidlib`의 Gradle 파일을 재생성하는 상황을 보정하기 위해 `IPostGenerateGradleAndroidProject` 후처리 추가
+• 비Android 또는 Unity Editor에서는 햅틱 호출이 안전하게 무시되도록 조건부 컴파일 처리
+• 캐릭터 피벗 성공 시 `Pivot` 패턴 연결
+• 플레이어 피격 시 `Damage` 패턴 연결
+• 버튼, 아이템 획득, 게임오버에는 햅틱을 연결하지 않음
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Feedback/HapticFeedback.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Feedback.meta`
+• `Assets/_Project/Scripts/Runtime/Core/Feedback/HapticFeedback.cs.meta`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerHealth.cs`
+• `Assets/Plugins/Android/PHHapticPermission.androidlib/AndroidManifest.xml`
+• `Assets/Plugins/Android/PHHapticPermission.androidlib/build.gradle`
+• `Assets/_Project/Scripts/Editor/HapticPermissionGradlePostprocessor.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• `rg` 기준 햅틱 호출 위치가 `PlayerController` 피벗, `PlayerHealth` 피격 두 곳만 남은 것 확인
+• Android 전용 코드는 `UNITY_ANDROID && !UNITY_EDITOR` 조건으로 격리
+• Android 권한은 기존 메인 Manifest를 덮어쓰지 않는 library manifest로 추가
+• 1차 Android 빌드 실패 원인이 `PHHapticPermission.androidlib`의 Gradle `namespace` 누락임을 `Editor.log`에서 확인하고 `build.gradle`로 보정
+• 반복 빌드 로그에서 Unity 생성물 `Library/Bee/.../PHHapticPermission.androidlib/build.gradle`에 소스 `build.gradle`이 반영되지 않는 것을 확인하고 후처리 보정 추가
+
+남은 확인:
+• Android 빌드 재시도 후 Gradle `namespace` 오류가 해소되는지 확인 필요
+• Android 실기기 빌드에서 피벗 시 짧고 약한 진동 확인 필요
+• Android 실기기 빌드에서 피격 시 피벗보다 길고 강한 진동 확인 필요
+• 기기/OS 시스템 햅틱 설정 영향 여부 확인 필요
+
+관련 작업 기준:
+• 햅틱 적용 범위는 피격과 캐릭터 피벗으로 제한
+• 추후 설정 UI가 생기면 `HapticFeedback.IsEnabled`를 사용자 옵션과 연결
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:

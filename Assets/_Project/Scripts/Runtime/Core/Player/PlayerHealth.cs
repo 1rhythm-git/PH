@@ -1,4 +1,5 @@
 using PH.Core.Game;
+using PH.Core.Feedback;
 using PH.Core.UI;
 using PH.Core.World;
 using UnityEngine;
@@ -122,6 +123,7 @@ namespace PH.Core.Player
             currentLife = Mathf.Max(0, currentLife - damage);
             ConsumeItemMaxLifeBonus(damage);
             SyncHUD();
+            HapticFeedback.Play(HapticFeedbackPattern.Damage);
 
             if (currentLife <= 0)
             {
