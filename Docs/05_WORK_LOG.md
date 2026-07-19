@@ -1842,6 +1842,188 @@ ________________________________________
 
 ________________________________________
 
+2.63 유저 프로필 / 재화 / 특성 기반 추가
+
+작업 기준:
+• 사용자 요청: 유저 정보에 ID, 닉네임, 재화(게임머니, 루비), 수집형 아이템 관련 특성을 추가
+• 사용자 요청: 기존 ID와 닉네임 개념은 유지
+• 사용자 요청: 특성은 캐릭터에 종속되지 않아야 함
+
+완료 내용:
+• `PH.Core.Profile` 네임스페이스에 유저 프로필 저장 모델과 서비스 인터페이스 추가
+• `LocalUserProfileService`를 `PlayerPrefs` JSON 저장소 `PH.UserProfile.v1` 뒤에 구성
+• 게스트 유저 ID를 자동 생성하고 닉네임, `GameMoney`, `Ruby`를 유저 단위로 보관
+• `UserTraitData`와 `UserTraitEffectType`을 추가해 수집형 아이템 관련 특성을 캐릭터가 아닌 유저 프로필에 저장
+• `UserProfileManager` 정적 진입점을 추가해 추후 BackND 프로필 서비스로 교체 가능한 구조 마련
+• Lobby 헤더에 유저 프로필 닉네임과 재화 표시 연결
+• TopHUD 닉네임을 유저 프로필 닉네임 우선으로 표시
+• 수집형 아이템 스폰 확률 계산에 캐릭터 보너스와 별도로 유저 특성 보너스 합산
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Profile/UserProfileData.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/IUserProfileService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/LocalUserProfileService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/UserProfileManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemSpawner.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batch Mode 실행 종료 코드 0 확인
+• `Editor.log` 기준 `error CS`, `warning CS` 없음 확인
+• 이번 작업 대상 파일 `git diff --check` 통과
+
+남은 확인:
+• Play Mode에서 최초 실행 시 `guest-` ID 생성, 닉네임 표시, 재화 0 표시 확인 필요
+• 게임머니/루비 지급 및 차감 시점은 런 결과 보상 정책 확정 후 연결 필요
+• 특성 획득/강화 UI와 특성 테이블 또는 서버 카탈로그 구조는 별도 설계 필요
+• `ArtifactChanceBonusPercent`, `CharacterCoinChanceBonusPercent` 세분 효과는 데이터 설계 후 스폰 계산에 분기 적용 가능
+
+관련 작업 기준:
+• 유저 특성은 `UserProfile` 저장소에 존재하며 `CharacterDefinition` 또는 캐릭터 강화 데이터에 종속되지 않음
+• 현재 로컬 저장 구현은 BackND 연동 전 임시 구현이며, `IUserProfileService` 교체로 서버 프로필과 연결
+
+________________________________________
+
+2.64 유저 레벨 제거 및 캐릭터 레벨 표시 정책 정리
+
+작업 기준:
+• 사용자 요청: 레벨은 캐릭터에만 존재하고 유저에게는 레벨을 부여하지 않음
+• 사용자 요청: 인게임에 표시되는 레벨과 경험치는 캐릭터의 레벨/경험치
+• 사용자 요청: 로비의 유저 레벨 표시 삭제
+
+완료 내용:
+• Lobby 헤더의 유저 프로필 표시에서 `Lv.` 텍스트 제거
+• `LobbyController`의 유저 레벨용 `playerLevel` 직렬화 필드 제거
+• TopHUD의 레벨 필드를 `characterLevel`로 변경해 인게임 레벨 의미를 캐릭터 기준으로 명확화
+• 기존 씬 직렬화 호환을 위해 TopHUD `characterLevel`에 `FormerlySerializedAs("playerLevel")` 적용
+• 인게임 HUD 레벨 갱신은 계속 `CharacterProgressionState.GetSnapshot(activeCharacterDefinition).Level` 기준으로 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 대상 파일 `git diff --check` 통과
+• `playerLevel` 런타임 참조가 제거되고 TopHUD 직렬화 호환 어트리뷰트만 남은 것 확인
+• Unity Batch Mode 컴파일 검증은 열린 Unity Editor 때문에 `Multiple Unity instances cannot open the same project.`로 중단
+
+남은 확인:
+• Unity Editor가 열린 현재 세션에서 스크립트 리컴파일 오류가 없는지 Console 확인 필요
+• Play Mode에서 Lobby 헤더가 닉네임과 재화만 표시하는지 확인 필요
+• InGame HUD에서 선택 캐릭터 레벨과 XP 게이지가 정상 갱신되는지 확인 필요
+
+관련 작업 기준:
+• 앞으로 유저 프로필에는 레벨/경험치를 추가하지 않음
+• 레벨/경험치가 필요하면 `CharacterProgressionState`와 캐릭터 단위 UI에서만 다룸
+
+________________________________________
+
+2.65 인게임 캐릭터 얼굴 초상화 크롭 적용
+
+작업 기준:
+• 사용자 요청: 각 캐릭터의 기존 초상화에서 얼굴 부분만 추출해 인게임 초상화에 출력
+• 로비 캐릭터 전신 초상화 표시는 유지
+• 인게임 TopHUD 초상화만 얼굴 중심 영역으로 표시
+
+완료 내용:
+• `CharacterDefinition`에 `ingamePortraitFaceRect` 정규화 Rect 추가
+• 각 캐릭터 에셋에 기본 얼굴 크롭 영역 `x=0.24, y=0.52, width=0.52, height=0.34` 저장
+• `TopHUDController`가 캐릭터 적용 시 `PortraitSprite`의 얼굴 영역만 잘라 런타임 Sprite를 생성하도록 변경
+• 생성된 얼굴 Sprite는 `HideAndDontSave`로 관리하고 TopHUD 파괴 또는 캐릭터 교체 시 정리
+• 로비는 계속 `CharacterDefinition.PortraitSprite` 원본을 사용하므로 전신 초상화가 유지됨
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Assets/_Project/Data/Characters/AliceCharacter.asset`
+• `Assets/_Project/Data/Characters/DefaultCharacter.asset`
+• `Assets/_Project/Data/Characters/LandyCharacter.asset`
+• `Assets/_Project/Data/Characters/TriangleLowSpecCharacter.asset`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 대상 파일 `git diff --check` 통과
+• Unity `Editor.log` 기준 `Assembly-CSharp.dll` Csc 실행 및 `Tundra build success` 확인
+• Unity `Editor.log` 기준 `Mono: successfully reloaded assembly` 확인
+
+남은 확인:
+• Play Mode에서 각 캐릭터 선택 후 InGame 진입 시 TopHUD 초상화가 얼굴 중심으로 보이는지 확인 필요
+• 캐릭터별 얼굴 위치가 어긋나면 해당 `CharacterDefinition`의 `Ingame Portrait Face Rect` 값을 Inspector에서 미세 조정 필요
+
+관련 작업 기준:
+• 얼굴 크롭 Rect는 원본 초상화 Sprite 기준 정규화 좌표이며, 별도 얼굴 PNG를 만들지 않음
+• 로비와 인게임 초상화 용도를 분리해 로비 전신 출력은 유지
+
+________________________________________
+
+2.66 인게임 머리 전체 초상화 영역 확대
+
+작업 기준:
+• 사용자 요청: 각 캐릭터 얼굴이 너무 잘려 보이므로 머리 전체가 영역 내 들어오도록 조정
+• 코드 로직은 유지하고 캐릭터별 `ingamePortraitFaceRect` 값만 조정
+
+완료 내용:
+• 4개 캐릭터 에셋의 인게임 초상화 크롭 Rect를 `x=0.24, y=0.52, width=0.52, height=0.34`에서 `x=0.18, y=0.46, width=0.64, height=0.44`로 확대
+• 기존보다 좌우와 상하를 넓혀 얼굴뿐 아니라 머리/모자 윤곽까지 TopHUD 영역에 들어오도록 조정
+• `TopHUDController` 런타임 크롭 로직은 변경하지 않음
+
+변경된 주요 파일:
+• `Assets/_Project/Data/Characters/AliceCharacter.asset`
+• `Assets/_Project/Data/Characters/DefaultCharacter.asset`
+• `Assets/_Project/Data/Characters/LandyCharacter.asset`
+• `Assets/_Project/Data/Characters/TriangleLowSpecCharacter.asset`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 대상 파일 `git diff --check` 통과
+• Unity `Editor.log` 기준 4개 캐릭터 에셋 재import 확인
+
+남은 확인:
+• Play Mode에서 각 캐릭터 InGame TopHUD 초상화가 머리 전체를 포함하는지 확인 필요
+• 특정 캐릭터의 모자/머리 장식이 여전히 잘리면 해당 에셋의 `Ingame Portrait Face Rect`를 캐릭터별로 추가 보정 필요
+
+관련 작업 기준:
+• 얼굴 클로즈업보다 머리 전체 가독성을 우선함
+• 로비 전신 초상화 출력은 계속 변경하지 않음
+
+________________________________________
+
+2.67 인게임 머리 초상화 크롭 영역 추가 확대
+
+작업 기준:
+• 사용자 요청: 초상화 표시 영역은 그대로 유지하고, 머리 전체가 잘리지 않도록 크롭 영역을 더 넓힘
+• 약간의 여백이 포함되어도 머리 전체 가독성을 우선
+• 코드 로직은 유지하고 캐릭터별 `ingamePortraitFaceRect` 값만 조정
+
+완료 내용:
+• 4개 캐릭터 에셋의 인게임 초상화 크롭 Rect를 `x=0.18, y=0.46, width=0.64, height=0.44`에서 `x=0.10, y=0.39, width=0.80, height=0.56`으로 추가 확대
+• TopHUD 초상화 UI 영역 크기와 배치는 변경하지 않음
+• `TopHUDController` 런타임 크롭 로직은 변경하지 않음
+
+변경된 주요 파일:
+• `Assets/_Project/Data/Characters/AliceCharacter.asset`
+• `Assets/_Project/Data/Characters/DefaultCharacter.asset`
+• `Assets/_Project/Data/Characters/LandyCharacter.asset`
+• `Assets/_Project/Data/Characters/TriangleLowSpecCharacter.asset`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 대상 파일 `git diff --check` 통과
+• Unity `Editor.log` 기준 4개 캐릭터 에셋 재import 확인
+
+남은 확인:
+• Play Mode에서 각 캐릭터 InGame TopHUD 초상화가 머리 전체와 약간의 여백을 포함하는지 확인 필요
+• 여백이 과하면 `Ingame Portrait Face Rect`의 `width/height`를 캐릭터별로 소폭 줄여 조정
+
+관련 작업 기준:
+• 초상화 표시 박스는 유지하고 원본에서 잘라오는 영역만 조정
+• 로비 전신 초상화 출력은 계속 변경하지 않음
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
@@ -1853,10 +2035,12 @@ ________________________________________
 6. Lobby 캐릭터 보유/장착 저장값 연결
 7. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
 8. TopUI 디자인 교체 전 구조 정리
-9. Google AdMob 보상형 광고 부활 흐름 설계
+9. 유저 프로필 재화 보상 지급/차감 정책 및 서버 동기화 설계
+10. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
 • 가장 먼저 런 결과 계산과 정상 종료 시 반영할 점수 및 보상 범위를 정식화한다.
+• 런 결과 보상 정책 확정 시 게임머니/루비 지급 규칙과 `UserProfileManager` 연결 지점을 함께 정한다.
 • 다음으로 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
 • 위 두 작업이 완료된 뒤 실제 Artifact와 CharacterCoin 콘텐츠 및 강화 에셋을 구성하고 PART 14 Play Mode 검증을 재개한다.
 • 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.

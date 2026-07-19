@@ -1,4 +1,5 @@
 using PH.Core.Characters;
+using PH.Core.Profile;
 using PH.Core.SceneFlow;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -34,9 +35,6 @@ namespace PH.Core.UI
         private string playerNickname = "Player";
 
         [SerializeField]
-        private int playerLevel = 1;
-
-        [SerializeField]
         private int bestHighestFloor;
 
         [SerializeField]
@@ -63,6 +61,7 @@ namespace PH.Core.UI
         private Font lobbyFont;
         private CharacterDefinition selectedCharacter;
         private Text profileText;
+        private Text currencyText;
         private Text bestFloorText;
         private Text bestScoreText;
         private Text selectedCharacterLevelText;
@@ -89,11 +88,13 @@ namespace PH.Core.UI
         private void OnEnable()
         {
             CharacterProgressionState.ProgressChanged += HandleCharacterProgressChanged;
+            UserProfileManager.ProfileChanged += HandleUserProfileChanged;
         }
 
         private void OnDisable()
         {
             CharacterProgressionState.ProgressChanged -= HandleCharacterProgressChanged;
+            UserProfileManager.ProfileChanged -= HandleUserProfileChanged;
         }
 
         private void Update()
@@ -158,6 +159,7 @@ namespace PH.Core.UI
             Text titleText = CreateText(root, "TitleText", "PHANTOM HEIST", new Vector2(0.055f, 0.43f), new Vector2(0.945f, 0.92f), TextAnchor.MiddleLeft, 58, primaryTextColor);
             titleText.fontStyle = FontStyle.Bold;
             profileText = CreateText(root, "ProfileText", string.Empty, new Vector2(0.06f, 0.08f), new Vector2(0.7f, 0.43f), TextAnchor.MiddleLeft, 29, secondaryTextColor);
+            currencyText = CreateText(root, "CurrencyText", string.Empty, new Vector2(0.43f, 0.08f), new Vector2(0.7f, 0.43f), TextAnchor.MiddleRight, 23, secondaryTextColor);
             CreateText(root, "LoginStateText", "GUEST", new Vector2(0.7f, 0.08f), new Vector2(0.94f, 0.43f), TextAnchor.MiddleRight, 26, secondaryTextColor);
         }
 
@@ -233,9 +235,16 @@ namespace PH.Core.UI
 
         private void RefreshLobbyData()
         {
+            ApplyUserProfileData();
+
             if (profileText != null)
             {
-                profileText.text = $"Lv. {Mathf.Max(1, playerLevel)}  {playerNickname}";
+                profileText.text = playerNickname;
+            }
+
+            if (currencyText != null)
+            {
+                currencyText.text = $"G {UserProfileManager.GameMoney:N0}  R {UserProfileManager.Ruby:N0}";
             }
 
             if (bestFloorText != null)
@@ -249,6 +258,15 @@ namespace PH.Core.UI
             }
 
             RefreshSelectedCharacterInfo();
+        }
+
+        private void ApplyUserProfileData()
+        {
+            string profileNickname = UserProfileManager.Nickname;
+            if (!string.IsNullOrWhiteSpace(profileNickname))
+            {
+                playerNickname = profileNickname;
+            }
         }
 
         private void RefreshSelectedCharacterInfo()
@@ -452,6 +470,11 @@ namespace PH.Core.UI
             {
                 RefreshSelectedCharacterInfo();
             }
+        }
+
+        private void HandleUserProfileChanged()
+        {
+            RefreshLobbyData();
         }
 
         private void ApplySafeAreaLayout()
@@ -746,7 +769,6 @@ namespace PH.Core.UI
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            playerLevel = Mathf.Max(1, playerLevel);
             bestHighestFloor = Mathf.Max(0, bestHighestFloor);
             bestScore = Mathf.Max(0, bestScore);
         }

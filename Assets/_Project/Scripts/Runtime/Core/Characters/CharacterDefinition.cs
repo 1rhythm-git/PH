@@ -16,6 +16,9 @@ namespace PH.Core.Characters
         private Sprite portraitSprite;
 
         [SerializeField]
+        private Rect ingamePortraitFaceRect = new Rect(0.24f, 0.52f, 0.52f, 0.34f);
+
+        [SerializeField]
         private Color bodyColor = new Color(0.95f, 0.78f, 0.22f, 1f);
 
         [SerializeField]
@@ -104,6 +107,7 @@ namespace PH.Core.Characters
         public string CharacterId => characterId;
         public string DisplayName => displayName;
         public Sprite PortraitSprite => portraitSprite;
+        public Rect IngamePortraitFaceRect => ingamePortraitFaceRect;
         public Color BodyColor => bodyColor;
         public Color OutlineColor => outlineColor;
         public CharacterBodyShape BodyShape => bodyShape;
@@ -174,6 +178,7 @@ namespace PH.Core.Characters
         private void OnValidate()
         {
             moveSpeedColumnsPerSecond = Mathf.Max(0f, moveSpeedColumnsPerSecond);
+            ingamePortraitFaceRect = ClampNormalizedRect(ingamePortraitFaceRect);
             animationFramesPerSecond = Mathf.Max(1f, animationFramesPerSecond);
             spriteVisualScale.x = Mathf.Max(0.01f, spriteVisualScale.x);
             spriteVisualScale.y = Mathf.Max(0.01f, spriteVisualScale.y);
@@ -210,6 +215,15 @@ namespace PH.Core.Characters
             {
                 frameScales[i] = Mathf.Max(0.01f, frameScales[i]);
             }
+        }
+
+        private Rect ClampNormalizedRect(Rect rect)
+        {
+            float width = Mathf.Clamp(rect.width, 0.01f, 1f);
+            float height = Mathf.Clamp(rect.height, 0.01f, 1f);
+            float x = Mathf.Clamp(rect.x, 0f, 1f - width);
+            float y = Mathf.Clamp(rect.y, 0f, 1f - height);
+            return new Rect(x, y, width, height);
         }
 #endif
     }

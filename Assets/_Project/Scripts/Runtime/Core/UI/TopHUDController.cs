@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using PH.Core.Characters;
 using PH.Core.Game;
 using PH.Core.Player;
+using PH.Core.Profile;
 using PH.Core.World;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -31,7 +32,8 @@ namespace PH.Core.UI
         private string playerNickname = "Player";
 
         [SerializeField]
-        private int playerLevel = 1;
+        [FormerlySerializedAs("playerLevel")]
+        private int characterLevel = 1;
 
         [SerializeField]
         private int maxHearts = 3;
@@ -106,6 +108,7 @@ namespace PH.Core.UI
         private Image feverGaugeFillImage;
         private Font hudFont;
         private Sprite heartIconSprite;
+        private Sprite generatedPortraitSprite;
         private readonly List<Image> heartImages = new List<Image>();
         private PlayerCharacterRuntime characterRuntime;
         private CharacterDefinition activeCharacterDefinition;
@@ -134,6 +137,7 @@ namespace PH.Core.UI
         private void OnEnable()
         {
             CharacterProgressionState.ProgressChanged += HandleCharacterProgressChanged;
+            UserProfileManager.ProfileChanged += HandleUserProfileChanged;
 
             if (floorManager != null)
             {
@@ -169,6 +173,7 @@ namespace PH.Core.UI
         private void OnDisable()
         {
             CharacterProgressionState.ProgressChanged -= HandleCharacterProgressChanged;
+            UserProfileManager.ProfileChanged -= HandleUserProfileChanged;
 
             if (floorManager != null)
             {
@@ -179,6 +184,11 @@ namespace PH.Core.UI
             {
                 characterRuntime.FeverGaugeChanged -= HandleFeverGaugeChanged;
             }
+        }
+
+        private void OnDestroy()
+        {
+            DestroyGeneratedPortraitSprite();
         }
 
         public void AddScore(int amount)
@@ -282,8 +292,8 @@ namespace PH.Core.UI
 
             activeCharacterDefinition = definition;
             CharacterProgressionSnapshot progression = CharacterProgressionState.GetSnapshot(definition);
-            playerLevel = progression.Level;
-            characterPortrait = definition.PortraitSprite;
+            characterLevel = progression.Level;
+            characterPortrait = CreateInGamePortraitSprite(definition);
             maxHearts = Mathf.Max(1, definition.MaxLife);
             currentHearts = maxHearts;
             RefreshIdentity();
@@ -648,10 +658,16 @@ namespace PH.Core.UI
         {
             if (activeCharacterDefinition != null)
             {
-                playerLevel = CharacterProgressionState.GetSnapshot(activeCharacterDefinition).Level;
+                characterLevel = CharacterProgressionState.GetSnapshot(activeCharacterDefinition).Level;
             }
 
-            playerLevel = Mathf.Max(1, playerLevel);
+            string profileNickname = UserProfileManager.Nickname;
+            if (!string.IsNullOrWhiteSpace(profileNickname))
+            {
+                playerNickname = profileNickname;
+            }
+
+            characterLevel = Mathf.Max(1, characterLevel);
 
             if (nicknameText != null)
             {
@@ -660,7 +676,7 @@ namespace PH.Core.UI
 
             if (levelText != null)
             {
-                levelText.text = $"Lv. {playerLevel}";
+                levelText.text = $"Lv. {characterLevel}";
             }
         }
 
@@ -674,6 +690,75 @@ namespace PH.Core.UI
             portraitImage.sprite = characterPortrait;
             portraitImage.color = characterPortrait == null ? portraitFallbackColor : Color.white;
             portraitImage.preserveAspect = true;
+        }
+
+        private Sprite CreateInGamePortraitSprite(CharacterDefinition definition)
+        {
+            DestroyGeneratedPortraitSprite();
+
+            Sprite source = definition != null ? definition.PortraitSprite : null;
+            if (source == null)
+            {
+                return null;
+            }
+
+            Rect normalizedRect = ClampNormalizedRect(definition.IngamePortraitFaceRect);
+            Rect sourceRect = source.textureRect;
+            Rect faceRect = new Rect(
+                sourceRect.x + sourceRect.width * normalizedRect.x,
+                sourceRect.y + sourceRect.height * normalizedRect.y,
+                Mathf.Max(1f, sourceRect.width * normalizedRect.width),
+                Mathf.Max(1f, sourceRect.height * normalizedRect.height));
+
+            generatedPortraitSprite = Sprite.Create(
+                source.texture,
+                PixelSnapRect(faceRect),
+                new Vector2(0.5f, 0.5f),
+                source.pixelsPerUnit,
+                0,
+                SpriteMeshType.FullRect,
+                Vector4.zero,
+                false);
+            generatedPortraitSprite.name = $"{source.name}_InGameFace";
+            generatedPortraitSprite.hideFlags = HideFlags.HideAndDontSave;
+            return generatedPortraitSprite;
+        }
+
+        private void DestroyGeneratedPortraitSprite()
+        {
+            if (generatedPortraitSprite == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(generatedPortraitSprite);
+            }
+            else
+            {
+                DestroyImmediate(generatedPortraitSprite);
+            }
+
+            generatedPortraitSprite = null;
+        }
+
+        private static Rect ClampNormalizedRect(Rect rect)
+        {
+            float width = Mathf.Clamp(rect.width, 0.01f, 1f);
+            float height = Mathf.Clamp(rect.height, 0.01f, 1f);
+            float x = Mathf.Clamp(rect.x, 0f, 1f - width);
+            float y = Mathf.Clamp(rect.y, 0f, 1f - height);
+            return new Rect(x, y, width, height);
+        }
+
+        private static Rect PixelSnapRect(Rect rect)
+        {
+            float x = Mathf.Round(rect.x);
+            float y = Mathf.Round(rect.y);
+            float width = Mathf.Max(1f, Mathf.Round(rect.width));
+            float height = Mathf.Max(1f, Mathf.Round(rect.height));
+            return new Rect(x, y, width, height);
         }
 
         private void RefreshHearts()
@@ -808,6 +893,11 @@ namespace PH.Core.UI
             RefreshCharacterExperience();
         }
 
+        private void HandleUserProfileChanged()
+        {
+            RefreshIdentity();
+        }
+
         private void RefreshSpeedBuffStatus()
         {
             if (speedBuffText == null)
@@ -881,7 +971,7 @@ namespace PH.Core.UI
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            playerLevel = Mathf.Max(1, playerLevel);
+            characterLevel = Mathf.Max(1, characterLevel);
             maxHearts = Mathf.Max(1, maxHearts);
             currentHearts = Mathf.Clamp(currentHearts, 0, maxHearts);
             runDurationSeconds = Mathf.Max(0f, runDurationSeconds);

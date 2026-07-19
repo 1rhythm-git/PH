@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using PH.Core.Characters;
 using PH.Core.Player;
+using PH.Core.Profile;
 using PH.Core.World;
 using UnityEngine;
 using UnityEngine.UI;
@@ -341,23 +342,24 @@ namespace PH.Core.Items
 
         private float GetPlayerCollectionChanceBonusPercent()
         {
+            float userTraitBonusPercent = UserProfileManager.GetCollectionTraitChanceBonusPercent();
             CharacterDefinition definition = CharacterSelectionState.SelectedCharacter;
             if (playerSpawner != null && playerSpawner.SpawnedPlayer != null)
             {
                 PlayerCharacterRuntime runtime = playerSpawner.SpawnedPlayer.GetComponent<PlayerCharacterRuntime>();
                 if (runtime != null)
                 {
-                    return runtime.CollectionItemChanceBonusPercent;
+                    return runtime.CollectionItemChanceBonusPercent + userTraitBonusPercent;
                 }
             }
 
             if (definition == null)
             {
-                return 0f;
+                return userTraitBonusPercent;
             }
 
             CharacterUpgradeModifiers modifiers = CharacterUpgradeResolver.Resolve(definition);
-            return definition.CollectionItemChanceBonusPercent + modifiers.CollectionItemChanceBonusPercent;
+            return definition.CollectionItemChanceBonusPercent + modifiers.CollectionItemChanceBonusPercent + userTraitBonusPercent;
         }
 
         private ItemDefinition PickPageSkillItem(int absoluteFloor, System.Random random)
