@@ -89,6 +89,9 @@ namespace PH.Core.Characters
         private int[] requiredExperienceByLevel = { 100, 150, 225, 325, 450, 600, 800, 1050, 1350 };
 
         [SerializeField]
+        private int[] runExperienceRewardByLevel = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
+        [SerializeField]
         private string unlockableSkillId = "skill_item_page_chance";
 
         [SerializeField]
@@ -164,6 +167,18 @@ namespace PH.Core.Characters
             return Mathf.Max(1, requiredExperienceByLevel[index]);
         }
 
+        // (추가) 런 종료 시 현재 캐릭터 레벨에 대응하는 기본 획득 XP를 반환한다.
+        public int GetRunExperienceRewardForLevel(int currentLevel)
+        {
+            if (runExperienceRewardByLevel == null || runExperienceRewardByLevel.Length == 0)
+            {
+                return 0;
+            }
+
+            int index = Mathf.Clamp(Mathf.Max(1, currentLevel) - 1, 0, runExperienceRewardByLevel.Length - 1);
+            return Mathf.Max(0, runExperienceRewardByLevel[index]);
+        }
+
         private float GetFrameScale(float[] frameScales, int frameIndex)
         {
             if (frameScales == null || frameIndex < 0 || frameIndex >= frameScales.Length)
@@ -200,6 +215,14 @@ namespace PH.Core.Characters
                 for (int i = 0; i < requiredExperienceByLevel.Length; i++)
                 {
                     requiredExperienceByLevel[i] = Mathf.Max(1, requiredExperienceByLevel[i]);
+                }
+            }
+
+            if (runExperienceRewardByLevel != null)
+            {
+                for (int i = 0; i < runExperienceRewardByLevel.Length; i++)
+                {
+                    runExperienceRewardByLevel[i] = Mathf.Max(0, runExperienceRewardByLevel[i]);
                 }
             }
         }

@@ -53,6 +53,17 @@ MonoBehaviour:
   - 800
   - 1050
   - 1350
+  runExperienceRewardByLevel:
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
   unlockableSkillId: maid_fortune
   unlockableSkillName: Maid's Fortune
   unlockableSkillDescription: Adds a 22.5% chance to guarantee a Time or Skill item on each page.

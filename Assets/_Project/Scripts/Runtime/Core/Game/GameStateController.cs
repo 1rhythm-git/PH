@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using PH.Core.Characters;
 using PH.Core.Items;
 using PH.Core.Player;
+using PH.Core.Profile;
 using PH.Core.SceneFlow;
 using PH.Core.UI;
 using PH.Core.World;
@@ -53,7 +55,10 @@ namespace PH.Core.Game
         private Color confirmButtonTextColor = Color.black;
 
         [SerializeField]
-        private int gameOverFontSize = 74;
+        private int gameOverFontSize = 111;
+
+        [SerializeField]
+        private int resultFontSize = 48;
 
         [SerializeField]
         private bool clickToLobby = true;
@@ -61,8 +66,12 @@ namespace PH.Core.Game
         [SerializeField]
         private bool logGameOver = true;
 
+        [SerializeField]
+        private RunRewardSettings rewardSettings = new RunRewardSettings();
+
         private bool isGameOver;
         private bool exitRequested;
+        private bool rewardsSettled;
         private GameOverReason gameOverReason = GameOverReason.None;
 
         [SerializeField]
@@ -142,6 +151,7 @@ namespace PH.Core.Game
             }
 
             exitRequested = true;
+            SettleRunRewards();
 
             if (!clickToLobby)
             {
@@ -210,9 +220,53 @@ namespace PH.Core.Game
             int score = topHUDController != null ? topHUDController.CurrentScore : 0;
             float remainingSeconds = topHUDController != null ? topHUDController.RemainingSeconds : 0f;
             int remainingHearts = topHUDController != null ? topHUDController.CurrentHearts : 0;
+            int acquiredGameMoney = topHUDController != null ? topHUDController.CurrentRunGameMoney : 0;
             IReadOnlyList<ItemRunEvent> acquiredItemEvents = itemEventRecorder != null ? itemEventRecorder.AcquiredItemEvents : null;
 
-            return new RunResultData(reason, highestFloor, score, remainingSeconds, remainingHearts, acquiredItemEvents);
+            CharacterDefinition characterDefinition = ResolveActiveCharacterDefinition();
+            CharacterProgressionSnapshot progression = CharacterProgressionState.GetSnapshot(characterDefinition);
+            int startFloor = floorManager != null ? floorManager.StartAbsoluteFloor : 1;
+            RunRewardBreakdown rewards = RunRewardCalculator.Calculate(
+                rewardSettings,
+                characterDefinition,
+                progression.Level,
+                startFloor,
+                highestFloor,
+                score,
+                remainingHearts,
+                acquiredGameMoney);
+
+            return new RunResultData(
+                reason,
+                highestFloor,
+                rewards,
+                characterDefinition != null ? characterDefinition.CharacterId : string.Empty,
+                progression.Level,
+                remainingSeconds,
+                remainingHearts,
+                acquiredItemEvents);
+        }
+
+        // (추가) 결과 확인은 여러 번 호출돼도 한 런의 보상을 한 번만 반영한다.
+        private void SettleRunRewards()
+        {
+            if (rewardsSettled || lastRunResultData == null)
+            {
+                return;
+            }
+
+            rewardsSettled = true;
+
+            if (lastRunResultData.TotalGameMoney > 0)
+            {
+                UserProfileManager.AddCurrency(UserCurrencyType.GameMoney, lastRunResultData.TotalGameMoney);
+            }
+
+            CharacterDefinition characterDefinition = ResolveActiveCharacterDefinition();
+            if (characterDefinition != null && lastRunResultData.TotalExperience > 0)
+            {
+                CharacterProgressionState.AddExperience(characterDefinition, lastRunResultData.TotalExperience);
+            }
         }
 
         private void ShowGameOverOverlay()
@@ -281,8 +335,8 @@ namespace PH.Core.Game
             textObject.transform.SetParent(overlayRect, false);
 
             RectTransform textRect = textObject.GetComponent<RectTransform>();
-            textRect.anchorMin = new Vector2(0.08f, 0.72f);
-            textRect.anchorMax = new Vector2(0.92f, 0.92f);
+            textRect.anchorMin = new Vector2(0.08f, 0.84f);
+            textRect.anchorMax = new Vector2(0.92f, 0.97f);
             textRect.offsetMin = Vector2.zero;
             textRect.offsetMax = Vector2.zero;
             textRect.pivot = new Vector2(0.5f, 0.5f);
@@ -305,8 +359,8 @@ namespace PH.Core.Game
             panelObject.transform.SetParent(overlayRect, false);
 
             RectTransform panelRect = panelObject.GetComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0.1f, 0.18f);
-            panelRect.anchorMax = new Vector2(0.9f, 0.68f);
+            panelRect.anchorMin = new Vector2(0.08f, 0.1f);
+            panelRect.anchorMax = new Vector2(0.92f, 0.82f);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
             panelRect.pivot = new Vector2(0.5f, 0.5f);
@@ -341,7 +395,7 @@ namespace PH.Core.Game
             text.text = BuildResultSummaryText();
             text.alignment = TextAnchor.UpperLeft;
             text.color = gameOverTextColor;
-            text.fontSize = 34;
+            text.fontSize = Mathf.Max(1, resultFontSize);
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.raycastTarget = false;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -385,7 +439,7 @@ namespace PH.Core.Game
             label.text = "CONFIRM";
             label.alignment = TextAnchor.MiddleCenter;
             label.color = confirmButtonTextColor;
-            label.fontSize = 34;
+            label.fontSize = 51;
             label.fontStyle = FontStyle.Bold;
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.raycastTarget = false;
@@ -398,10 +452,10 @@ namespace PH.Core.Game
             RunResultData resultData = lastRunResultData;
             if (resultData == null)
             {
-                return "RUN RESULT\nReason: Unknown\nHighest Floor: 1F\nScore: 0\nTime Left: 00:00\nHP Left: 0\nItems: 0";
+                return "RUN RESULT\nReason: Unknown\nHighest Floor: 1F\nAcquired Score: 0\nFloor Bonus Score: 0\nLife Bonus Score: 0\nTotal Score: 0\nLevel XP: 0\nFloor XP: 0\nBonus XP: 0\nTotal XP: 0\nMoney: 0\nItems: 0";
             }
 
-            return $"RUN RESULT\nReason: {FormatGameOverReason(resultData.GameOverReason)}\nHighest Floor: {resultData.HighestFloor}F\nScore: {resultData.Score}\nTime Left: {FormatRemainingTime(resultData.RemainingSeconds)}\nHP Left: {resultData.RemainingHearts}\nItems: {resultData.AcquiredItemEvents.Count}";
+            return $"RUN RESULT\nReason: {FormatGameOverReason(resultData.GameOverReason)}\nHighest Floor: {resultData.HighestFloor}F\nAcquired Score: {resultData.GameplayScore:N0}\nFloor Bonus Score: +{resultData.FloorScore:N0}\nLife Bonus Score: +{resultData.LifeScore:N0}\nTotal Score: {resultData.Score:N0}\nLevel XP: +{resultData.LevelExperience:N0}\nFloor XP: +{resultData.FloorExperience:N0}\nBonus XP: +{resultData.BonusExperience:N0}\nTotal XP: +{resultData.TotalExperience:N0}\nMoney: +{resultData.TotalGameMoney:N0} ({resultData.AcquiredGameMoney:N0}+{resultData.BonusGameMoney:N0})\nItems: {resultData.AcquiredItemEvents.Count}";
         }
 
         private static string FormatGameOverReason(GameOverReason reason)
@@ -459,6 +513,20 @@ namespace PH.Core.Game
             }
 
             return FindFirstObjectByType<PlayerMotor>();
+        }
+
+        private CharacterDefinition ResolveActiveCharacterDefinition()
+        {
+            if (topHUDController != null && topHUDController.ActiveCharacterDefinition != null)
+            {
+                return topHUDController.ActiveCharacterDefinition;
+            }
+
+            PlayerController playerController = ResolvePlayerController();
+            PlayerCharacterRuntime characterRuntime = playerController != null
+                ? playerController.GetComponent<PlayerCharacterRuntime>()
+                : FindFirstObjectByType<PlayerCharacterRuntime>();
+            return characterRuntime != null ? characterRuntime.CharacterDefinition : null;
         }
 
         private void EnsureReferences()

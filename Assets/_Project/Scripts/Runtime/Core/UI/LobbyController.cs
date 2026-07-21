@@ -62,6 +62,7 @@ namespace PH.Core.UI
         private CharacterDefinition selectedCharacter;
         private Text profileText;
         private Text currencyText;
+        private Text rubyCurrencyText;
         private Text bestFloorText;
         private Text bestScoreText;
         private Text selectedCharacterLevelText;
@@ -71,6 +72,7 @@ namespace PH.Core.UI
         private Text selectedCharacterExperienceText;
         private Image selectedCharacterPortraitImage;
         private Image selectedCharacterExperienceFill;
+        private RectTransform selectedCharacterExperienceFillRect;
         private Rect lastSafeArea;
         private Vector2Int lastScreenSize;
 
@@ -159,7 +161,10 @@ namespace PH.Core.UI
             Text titleText = CreateText(root, "TitleText", "PHANTOM HEIST", new Vector2(0.055f, 0.43f), new Vector2(0.945f, 0.92f), TextAnchor.MiddleLeft, 58, primaryTextColor);
             titleText.fontStyle = FontStyle.Bold;
             profileText = CreateText(root, "ProfileText", string.Empty, new Vector2(0.06f, 0.08f), new Vector2(0.7f, 0.43f), TextAnchor.MiddleLeft, 29, secondaryTextColor);
-            currencyText = CreateText(root, "CurrencyText", string.Empty, new Vector2(0.43f, 0.08f), new Vector2(0.7f, 0.43f), TextAnchor.MiddleRight, 23, secondaryTextColor);
+            CreateResourceImage(root, "GameMoneyIcon", "Items/Icons/score_coin", new Vector2(0.43f, 0.14f), new Vector2(0.465f, 0.37f));
+            currencyText = CreateText(root, "CurrencyText", string.Empty, new Vector2(0.47f, 0.08f), new Vector2(0.545f, 0.43f), TextAnchor.MiddleRight, 23, secondaryTextColor);
+            CreateResourceImage(root, "RubyCurrencyIcon", "Items/Icons/ruby", new Vector2(0.55f, 0.14f), new Vector2(0.585f, 0.37f));
+            rubyCurrencyText = CreateText(root, "RubyCurrencyText", string.Empty, new Vector2(0.59f, 0.08f), new Vector2(0.7f, 0.43f), TextAnchor.MiddleRight, 23, secondaryTextColor);
             CreateText(root, "LoginStateText", "GUEST", new Vector2(0.7f, 0.08f), new Vector2(0.94f, 0.43f), TextAnchor.MiddleRight, 26, secondaryTextColor);
         }
 
@@ -214,9 +219,9 @@ namespace PH.Core.UI
         {
             RectTransform background = CreatePanel(parent, "ExperienceGauge", new Vector2(0.055f, 0.235f), new Vector2(0.945f, 0.275f), new Color(0f, 0f, 0f, 0.5f), false);
             selectedCharacterExperienceFill = CreateImage(background, "Fill", new Vector2(0.008f, 0.16f), new Vector2(0.992f, 0.84f), experienceColor);
-            selectedCharacterExperienceFill.type = Image.Type.Filled;
-            selectedCharacterExperienceFill.fillMethod = Image.FillMethod.Horizontal;
-            selectedCharacterExperienceFill.fillOrigin = 0;
+            selectedCharacterExperienceFill.type = Image.Type.Simple;
+            selectedCharacterExperienceFillRect = selectedCharacterExperienceFill.rectTransform;
+            selectedCharacterExperienceFillRect.pivot = new Vector2(0f, 0.5f);
             selectedCharacterExperienceText = CreateText(background, "ExperienceText", string.Empty, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 18, primaryTextColor);
             selectedCharacterExperienceText.fontStyle = FontStyle.Bold;
         }
@@ -244,7 +249,12 @@ namespace PH.Core.UI
 
             if (currencyText != null)
             {
-                currencyText.text = $"G {UserProfileManager.GameMoney:N0}  R {UserProfileManager.Ruby:N0}";
+                currencyText.text = UserProfileManager.GameMoney.ToString("N0");
+            }
+
+            if (rubyCurrencyText != null)
+            {
+                rubyCurrencyText.text = UserProfileManager.Ruby.ToString("N0");
             }
 
             if (bestFloorText != null)
@@ -300,9 +310,13 @@ namespace PH.Core.UI
                     : $"XP  {progression.CurrentExperience:N0} / {progression.RequiredExperience:N0}";
             }
 
-            if (selectedCharacterExperienceFill != null)
+            if (selectedCharacterExperienceFillRect != null)
             {
-                selectedCharacterExperienceFill.fillAmount = progression.NormalizedExperience;
+                // (변경) Sprite 유무와 관계없이 현재 XP 비율만큼 게이지 폭을 직접 조절한다.
+                float normalizedExperience = Mathf.Clamp01(progression.NormalizedExperience);
+                selectedCharacterExperienceFillRect.anchorMax = new Vector2(
+                    Mathf.Lerp(0.008f, 0.992f, normalizedExperience),
+                    0.84f);
             }
 
             RefreshSelectedCharacterPortrait();
@@ -591,6 +605,15 @@ namespace PH.Core.UI
             Image image = imageObject.GetComponent<Image>();
             image.color = color;
             image.raycastTarget = false;
+            return image;
+        }
+
+        private Image CreateResourceImage(RectTransform parent, string objectName, string resourcePath, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            Image image = CreateImage(parent, objectName, anchorMin, anchorMax, Color.white);
+            image.sprite = Resources.Load<Sprite>(resourcePath);
+            image.color = image.sprite != null ? Color.white : secondaryTextColor;
+            image.preserveAspect = true;
             return image;
         }
 

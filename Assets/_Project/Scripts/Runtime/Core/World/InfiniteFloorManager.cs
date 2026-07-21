@@ -39,6 +39,7 @@ namespace PH.Core.World
         public int CurrentPageIndex => currentPageIndex;
         public int CurrentPageFloorIndex => currentPageFloorIndex;
         public int RunHighestFloor => runHighestFloor;
+        public int StartAbsoluteFloor => Mathf.Max(1, startAbsoluteFloor);
 
         private void Awake()
         {

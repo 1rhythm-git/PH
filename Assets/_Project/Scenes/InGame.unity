@@ -342,7 +342,8 @@ MonoBehaviour:
   resultPanelColor: {r: 0.08, g: 0.1, b: 0.13, a: 0.94}
   confirmButtonColor: {r: 0.96, g: 0.82, b: 0.22, a: 1}
   confirmButtonTextColor: {r: 0, g: 0, b: 0, a: 1}
-  gameOverFontSize: 74
+  gameOverFontSize: 111
+  resultFontSize: 48
   clickToLobby: 1
   logGameOver: 1
   lastRunResultData:
@@ -518,8 +519,8 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 300601}
   - {fileID: 300501}
+  - {fileID: 300601}
   - {fileID: 300401}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -733,11 +734,13 @@ MonoBehaviour:
   primaryTextColor: {r: 1, g: 1, b: 1, a: 1}
   secondaryTextColor: {r: 1, g: 1, b: 1, a: 0.74}
   heartColor: {r: 1, g: 0.18, b: 0.24, a: 1}
-  boosterReadyColor: {r: 0.96, g: 0.82, b: 0.22, a: 1}
-  boosterGaugeBackgroundColor: {r: 0, g: 0, b: 0, a: 0.68}
-  boosterGaugeFillColor: {r: 0.16, g: 0.72, b: 0.96, a: 1}
-  boosterGaugeEmptyColor: {r: 1, g: 1, b: 1, a: 0.08}
-  boosterReadyBlinkInterval: 0.18
+  feverReadyColor: {r: 0.96, g: 0.82, b: 0.22, a: 1}
+  feverGaugeBackgroundColor: {r: 0, g: 0, b: 0, a: 0.68}
+  feverGaugeFillColor: {r: 0.16, g: 0.72, b: 0.96, a: 1}
+  feverGaugeEmptyColor: {r: 1, g: 1, b: 1, a: 0.08}
+  feverReadyBlinkInterval: 0.18
+  experienceGaugeBackgroundColor: {r: 0, g: 0, b: 0, a: 0.68}
+  experienceGaugeFillColor: {r: 0.42, g: 0.9, b: 0.42, a: 1}
 --- !u!114 &300405
 MonoBehaviour:
   m_ObjectHideFlags: 0

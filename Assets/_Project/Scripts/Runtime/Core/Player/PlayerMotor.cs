@@ -148,6 +148,19 @@ namespace PH.Core.Player
             return moveSpeedColumnsPerSecond;
         }
 
+        // (추가) 피격 등 외부 조건에서 모든 이동속도 아이템 효과를 제거하고 기본 속도로 복원한다.
+        public bool ClearMoveSpeedBuffs()
+        {
+            if (moveSpeedBuffs.Count <= 0)
+            {
+                return false;
+            }
+
+            moveSpeedBuffs.Clear();
+            RecalculateMoveSpeed();
+            return true;
+        }
+
         public void SetManualAnchoredPosition(Vector2 anchoredPosition)
         {
             CacheRectTransforms();

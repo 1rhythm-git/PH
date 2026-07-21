@@ -2063,10 +2063,7 @@ ________________________________________
 • 반복 빌드 로그에서 Unity 생성물 `Library/Bee/.../PHHapticPermission.androidlib/build.gradle`에 소스 `build.gradle`이 반영되지 않는 것을 확인하고 후처리 보정 추가
 
 남은 확인:
-• Android 빌드 재시도 후 Gradle `namespace` 오류가 해소되는지 확인 필요
-• Android 실기기 빌드에서 피벗 시 짧고 약한 진동 확인 필요
-• Android 실기기 빌드에서 피격 시 피벗보다 길고 강한 진동 확인 필요
-• 기기/OS 시스템 햅틱 설정 영향 여부 확인 필요
+• 사용자 확인 기준 Android 빌드 및 실기기 피벗/피격 햅틱 검증 완료
 
 관련 작업 기준:
 • 햅틱 적용 범위는 피격과 캐릭터 피벗으로 제한
@@ -2074,25 +2071,295 @@ ________________________________________
 
 ________________________________________
 
+2.69 런 결과 계산 / 캐릭터 XP / 게임머니 보상 구현
+
+작업 기준:
+• 불분명한 Line Bonus 정책 삭제
+• `Total Score = Gameplay Score + Floor Score + Life Score`
+• 캐릭터별 레벨 기본 XP와 `Total Score × 0.025` 보정 XP 합산
+• 런 일반 재화는 게임머니만 지급하고 Ruby는 별도 획득 경로로 분리
+• 런 중 획득 게임머니를 보유 재화와 분리 표시하고 결과 확정 시 합산
+
+완료 내용:
+• `RunRewardCalculator`와 Inspector 조정 가능한 `RunRewardSettings` 추가
+• 초기값을 층당 100점, 잔여 하트당 100점, XP 배율 0.025, 보너스 게임머니 배율 0.01로 설정
+• 4개 캐릭터 에셋에 레벨별 기본 런 XP 테이블 추가
+• `RunResultData`에 점수, XP, 게임머니 세부 산출값 추가
+• 결과창 `CONFIRM` 시 게임머니와 사용 캐릭터 XP를 한 번만 지급
+• 게임머니 아이템 효과와 소액/중액/고액 가중치 항목 추가
+• 고액 게임머니일수록 낮은 `SpawnWeight`를 사용하도록 데이터 구성
+• TopUI에 보유 게임머니, Ruby, 현재 런 획득 게임머니 표시 추가
+• 작은 스코어는 신규 골드바, 큰 스코어는 기존 파란 보석, 게임머니는 금색 코인으로 분리
+• Ruby 재화용 붉은 루비 픽셀 아이콘을 신규 생성하고 TopUI 및 Lobby 보유 Ruby 표시에 연결
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Game/RunRewardCalculator.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Game/RunResultData.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Game/GameStateController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/*RunGameMoney*`
+• `Assets/_Project/Data/Characters/*.asset`
+• `Assets/_Project/Data/Tables/Items.csv`
+• `Assets/_Project/Data/Tables/ItemIcons.csv`
+• `Assets/_Project/Resources/Items/Icons/score_gold_bar.png`
+• `Assets/_Project/Resources/Items/Icons/ruby.png`
+
+검증 상태:
+• 이번 변경 대상 `git diff --check` 통과
+• `Items.csv` 28개 컬럼, `ItemIcons.csv` 6개 컬럼 전체 행 일치 확인
+• 열린 Unity Editor 자동 컴파일에서 `Assembly-CSharp.dll`, `Assembly-CSharp-Editor.dll` 생성 및 Csc 종료 코드 0 확인
+• 신규 골드바와 Ruby 아이콘이 64×64 RGBA PNG이며 Point 필터, Mipmap Off, Alpha Is Transparency 메타 설정을 사용하는지 확인
+• Lobby Ruby 연결 변경 후 Unity 포함 Roslyn 수동 컴파일 종료 코드 0 확인
+• 별도 Batch Mode는 열린 Editor와의 프로젝트 중복 실행 제한으로 중단
+
+남은 확인:
+• Play Mode에서 TopUI 재화 3종 표시가 서로 겹치지 않는지 확인 필요
+• 소액/중액/고액 게임머니의 실제 체감 배치 확률 확인 필요
+• 결과 점수, XP, 게임머니 계산값과 `CONFIRM` 후 1회 지급 확인 필요
+• XP 및 보너스 계수는 밸런스 테스트 후 조정 필요
+• 캐릭터 XP의 영구 저장은 캐릭터 진행 저장 서비스 연결 시 추가 필요
+
+관련 작업 기준:
+• Ruby는 일반 런 결과로 지급하지 않음
+• 수집형 아이템은 기존대로 획득 즉시 저장하며 런 결과 정산과 분리
+• 향후 광고 부활 추가 시 최종 런 종료 전에는 `CONFIRM` 정산을 호출하지 않음
+
+________________________________________
+
+2.70 결과창 점수 상세 / 층 경험치 보정
+
+작업 기준:
+• 획득 스코어, 층 보너스 스코어, 생명력 보너스 스코어를 각각 표시한 뒤 Total Score 표시
+• 레벨별 기본 획득 XP를 낮추고 실제 상승 층수에 따른 XP 보정 추가
+• Total Score 보정 경험치는 `Bonus XP`로 표기
+
+완료 내용:
+• 결과창 점수를 `Acquired Score`, `Floor Bonus Score`, `Life Bonus Score`, `Total Score`로 분리
+• 경험치를 `Level XP`, `Floor XP`, `Bonus XP`, `Total XP`로 분리
+• 4개 캐릭터의 Lv.1~10 기본 런 XP를 `5~14`로 하향
+• 초기 층 XP를 실제 상승 층당 2로 설정
+• 기존 `Total Score × 0.025` 경험치를 `Bonus XP`로 명확히 구분
+• 결과 정보 증가에 맞춰 결과 패널 범위 확대, 본문 글꼴 28 적용, `GAME OVER` 제목 영역 상단 이동
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Game/RunRewardCalculator.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Game/RunResultData.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Game/GameStateController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Data/Characters/*.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+
+검증 상태:
+• 변경 대상 `git diff --check` 통과
+• Unity 포함 Roslyn 수동 컴파일 종료 코드 0 확인
+• 수동 Roslyn 실행 환경의 Unity Source Generator 버전 차이에 따른 `CS8032` 경고만 발생하고 C# 컴파일 오류 없음
+
+남은 확인:
+• Play Mode 결과창에서 전체 항목이 패널과 버튼에 겹치지 않는지 확인 필요
+• 실제 층 상승 수 기준 `Floor XP` 계산 확인 필요
+• `CONFIRM` 후 `Level XP + Floor XP + Bonus XP` 합계가 사용 캐릭터에 지급되는지 확인 필요
+
+관련 작업 기준:
+• `floorExperiencePerFloor`와 `scoreExperienceMultiplier`는 `GameStateController > Reward Settings`에서 조정
+• 캐릭터별 레벨 기본 XP는 각 `CharacterDefinition`의 `Run Experience Reward By Level`에서 조정
+
+________________________________________
+
+2.71 Lobby XP 게이지 채움 오류 수정
+
+목표:
+• Lobby 캐릭터 XP가 0이면 게이지를 비우고 현재 XP 비율만큼만 표시
+
+현재 상태:
+• XP 0과 XP 30 모두 Fill 이미지가 전체 폭으로 표시됨
+
+기대 동작:
+• `CurrentExperience / RequiredExperience` 비율만큼 왼쪽에서 오른쪽으로 채움
+
+원인:
+• Sprite가 없는 UI `Image`에 `Image.Type.Filled`와 `fillAmount`를 사용해 기본 흰 텍스처가 전체 Rect를 채움
+
+완료 내용:
+• Lobby 경험치 Fill을 `Image.Type.Simple`로 변경
+• `fillAmount` 대신 Fill `RectTransform.anchorMax.x`를 `NormalizedExperience`에 맞춰 직접 조정
+• XP 0은 폭 0, 진행 중 XP는 비율 폭, 최대 레벨은 전체 폭으로 표시
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 변경 대상 `git diff --check` 통과
+• Unity 포함 Roslyn 수동 컴파일 종료 코드 0 확인
+• 수동 Roslyn 환경의 Source Generator `CS8032` 경고 외 C# 컴파일 오류 없음
+
+남은 확인:
+• Play Mode에서 XP 0일 때 빈 게이지 확인 필요
+• XP 30 획득 후 필요 XP 대비 비율만큼 채워지는지 확인 필요
+• 캐릭터 전환 시 각 캐릭터 XP 비율로 즉시 갱신되는지 확인 필요
+
+________________________________________
+
+2.72 피격 시 이동속도 아이템 효과 제거
+
+목표:
+• 생명력이 차감될 때 활성 이동속도 아이템 효과를 제거하고 캐릭터 기본 속도로 복원
+
+현재 상태:
+• 이동속도 버프가 피격 여부와 관계없이 설정된 지속시간까지 유지됨
+
+기대 동작:
+• 실제 피해가 적용돼 생명력이 감소한 순간 이동속도 버프 전체 초기화
+
+완료 내용:
+• `PlayerMotor.ClearMoveSpeedBuffs()` 공용 API 추가
+• 활성 이동속도 버프 목록 제거 후 캐릭터 기본 이동속도로 즉시 재계산
+• `PlayerHealth.TakeDamage()`의 피해 성공 경로에 버프 초기화 연결
+• 무적 상태, Game Over 상태, 피해량 0 등 생명력이 줄지 않는 경우 버프 유지
+• 버프 상태를 참조하는 Run 애니메이션, 이동 먼지, TopUI 속도 표시가 함께 종료되는 기존 구조 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerMotor.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerHealth.cs`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 변경 대상 `git diff --check` 통과
+• Unity 포함 Roslyn 수동 컴파일 종료 코드 0 확인
+• 수동 Roslyn 환경의 Source Generator `CS8032` 경고 외 C# 컴파일 오류 없음
+
+남은 확인:
+• 사용자 확인 기준 이동속도 아이템 획득 후 피격 시 기본 속도 복원 및 관련 표시 해제 정상 동작 확인 완료
+
+________________________________________
+
+2.73 결과창 본문 글꼴 확대
+
+작업 기준:
+• 사용자 확인 결과 결과창 상세 텍스트가 작아 가독성 개선 필요
+
+완료 내용:
+• 결과창 본문 글꼴 크기를 28에서 32로 확대
+• `resultFontSize` Inspector 필드로 분리해 이후 크기 조정 가능하게 구성
+• 기존 결과 패널 크기, 항목 구성, 확인 버튼 배치는 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Game/GameStateController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 변경 대상 `git diff --check` 통과
+• Unity 포함 Roslyn 수동 컴파일 종료 코드 0 확인
+• 수동 Roslyn 환경의 Source Generator `CS8032` 경고 외 C# 컴파일 오류 없음
+
+남은 확인:
+• Play Mode에서 13개 결과 항목이 잘리지 않고 표시되는지 확인 필요
+• 긴 숫자 사용 시 줄바꿈 또는 확인 버튼 영역 침범 여부 확인 필요
+
+________________________________________
+
+2.74 결과창 전체 텍스트 크기 2배 확대
+
+작업 기준:
+• 결과창의 `GAME OVER`, 결과 상세 본문, `CONFIRM` 텍스트를 기존 적용값의 2배로 확대
+
+완료 내용:
+• `GAME OVER` 글꼴 크기를 74에서 148로 변경
+• 결과 상세 본문 글꼴 크기를 32에서 64로 변경
+• `CONFIRM` 글꼴 크기를 34에서 68로 변경
+• 기존 결과 계산, 출력 항목, 패널 및 버튼 배치는 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Game/GameStateController.cs`
+• `Assets/_Project/Scenes/InGame.unity`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 이번 변경 줄에 후행 공백 없음 확인
+• `GameStateController.cs`, `Docs/05_WORK_LOG.md`의 `git diff --check` 통과
+• `InGame.unity` 전체 diff의 기존 후행 공백은 이번 작업 범위에서 변경하지 않음
+
+남은 확인:
+• Play Mode에서 13개 결과 항목의 잘림 및 겹침 여부 확인 필요
+• `GAME OVER`와 `CONFIRM` 텍스트가 각 영역을 벗어나지 않는지 확인 필요
+
+________________________________________
+
+2.75 결과창 전체 텍스트 크기 1.5배 조정
+
+작업 기준:
+• 2배 확대 전 최초 적용값을 기준으로 결과창 전체 텍스트를 1.5배 크기로 재조정
+
+완료 내용:
+• `GAME OVER` 글꼴 크기를 148에서 111로 변경 (최초 74의 1.5배)
+• 결과 상세 본문 글꼴 크기를 64에서 48로 변경 (최초 32의 1.5배)
+• `CONFIRM` 글꼴 크기를 68에서 51로 변경 (최초 34의 1.5배)
+• 기존 결과 계산, 출력 항목, 패널 및 버튼 배치는 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Game/GameStateController.cs`
+• `Assets/_Project/Scenes/InGame.unity`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 스크립트 기본값과 Scene 직렬화 값이 111/48로 일치함을 확인
+• `CONFIRM` 글꼴 크기 51 적용 확인
+• `GameStateController.cs`, `Docs/05_WORK_LOG.md`의 `git diff --check` 통과
+• `InGame.unity` 전체 diff의 기존 후행 공백은 이번 작업 범위에서 변경하지 않음
+
+남은 확인:
+• Play Mode에서 결과 상세 항목의 잘림과 버튼 영역 겹침 여부 확인 필요
+
+________________________________________
+
+2.76 결과·보상 작업 기획서 최종 반영 및 커밋 준비
+
+작업 기준:
+• 현재 미커밋된 결과 계산, 보상, 재화 UI, Lobby XP, 이동속도 효과, 결과창 가독성 작업을 기획 문서와 일치시킨 뒤 전체 커밋
+
+완료 내용:
+• 캐릭터 XP의 과거 미확정 문구를 현재 Level/Floor/Bonus XP 계산 정책으로 갱신
+• TopUI 재화 3종 구분과 스코어/게임머니/Ruby 아이콘 매핑을 마스터 기획서에 반영
+• 결과창 표시 항목과 최종 글꼴 크기 111/48/51을 마스터 기획서와 실행 계획에 반영
+• Lobby XP 게이지와 피격 시 이동속도 효과 제거 규칙을 실행 계획에 반영
+
+변경된 주요 파일:
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Roslyn 응답 파일 기반 전체 `Assembly-CSharp` 컴파일 종료 코드 0 확인
+• `Items.csv` 12행 28열, `ItemIcons.csv` 11행 6열 구조 일치 확인
+• 신규 골드바와 Ruby 아이콘이 64×64 RGBA PNG이며 Point 필터, Sprite, Alpha Is Transparency 설정을 사용하는지 확인
+• Unity 직렬화 파일의 후행 공백만 정리한 뒤 전체 `git diff --check` 통과
+• 스크립트 기본값과 `InGame.unity`의 결과창 글꼴 값 111/48 일치 및 `CONFIRM` 51 적용 확인
+
+남은 확인:
+• Play Mode UI 배치와 보상 지급 흐름 최종 확인 필요
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
-1. 결과 계산 및 정상 종료 보상 정책 정식화
-2. 캐릭터 강화 시스템 기획 및 구현
-3. PART 14 실제 Artifact / CharacterCoin 콘텐츠와 강화 에셋 구성 및 Play Mode 검증 (`2.62`, 선행 작업 완료 후 재개)
-4. PlayerRespawnController 정식 분리
-5. 피버타임 발동/효과 정책 정의
-6. Lobby 캐릭터 보유/장착 저장값 연결
-7. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
-8. TopUI 디자인 교체 전 구조 정리
-9. 유저 프로필 재화 보상 지급/차감 정책 및 서버 동기화 설계
-10. Google AdMob 보상형 광고 부활 흐름 설계
+1. 캐릭터 강화 시스템 기획 및 구현
+2. PART 14 실제 Artifact / CharacterCoin 콘텐츠와 강화 에셋 구성 및 Play Mode 검증 (`2.62`, 선행 작업 완료 후 재개)
+3. PlayerRespawnController 정식 분리
+4. 피버타임 발동/효과 정책 정의
+5. Lobby 캐릭터 보유/장착 저장값 연결
+6. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
+7. TopUI 디자인 교체 전 구조 정리
+8. 유저 프로필 재화 보상 지급/차감 정책 및 서버 동기화 설계
+9. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• 가장 먼저 런 결과 계산과 정상 종료 시 반영할 점수 및 보상 범위를 정식화한다.
-• 런 결과 보상 정책 확정 시 게임머니/루비 지급 규칙과 `UserProfileManager` 연결 지점을 함께 정한다.
 • 다음으로 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
-• 위 두 작업이 완료된 뒤 실제 Artifact와 CharacterCoin 콘텐츠 및 강화 에셋을 구성하고 PART 14 Play Mode 검증을 재개한다.
+• 캐릭터 강화 시스템이 완료된 뒤 실제 Artifact와 CharacterCoin 콘텐츠 및 강화 에셋을 구성하고 PART 14 Play Mode 검증을 재개한다.
 • 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.
 • 피버타임은 발동 조건과 캐릭터별 효과 정책을 확정한 뒤 구현한다.
 • Normal / Hard 선택은 실제 모드별 리스폰 정책을 정의한 뒤 Lobby에 활성 기능으로 연결한다.

@@ -12,7 +12,8 @@ namespace PH.Core.Items
         CollectionAlreadyOwned = 7,
         CollectionOwnedLimitReached = 8,
         CollectionRunLimitReached = 9,
-        CollectionDuplicateEvent = 10
+        CollectionDuplicateEvent = 10,
+        RunGameMoneyAdded = 11
     }
 
     public readonly struct ItemEffectResult

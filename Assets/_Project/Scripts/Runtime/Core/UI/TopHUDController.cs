@@ -51,6 +51,9 @@ namespace PH.Core.UI
         private int currentScore;
 
         [SerializeField]
+        private int currentRunGameMoney;
+
+        [SerializeField]
         private int fullHeartScoreBonusPerHeart = 100;
 
         [SerializeField]
@@ -98,6 +101,9 @@ namespace PH.Core.UI
         private Text timerText;
         private Text floorText;
         private Text scoreText;
+        private Text ownedGameMoneyText;
+        private Text ownedRubyText;
+        private Text runGameMoneyText;
         private Text itemText;
         private Text feverText;
         private Text speedBuffText;
@@ -124,6 +130,8 @@ namespace PH.Core.UI
         public int MaxHearts => maxHearts;
         public float RemainingSeconds => remainingSeconds;
         public int CurrentScore => currentScore;
+        public int CurrentRunGameMoney => currentRunGameMoney;
+        public CharacterDefinition ActiveCharacterDefinition => activeCharacterDefinition;
         public int FullHeartScoreBonusPerHeart => Mathf.Max(0, fullHeartScoreBonusPerHeart);
 
         private void Awake()
@@ -195,6 +203,13 @@ namespace PH.Core.UI
         {
             currentScore = Mathf.Max(0, currentScore + amount);
             RefreshScore();
+        }
+
+        // (추가) 런 중 획득한 게임머니는 결과 확정 전까지 보유 재화와 분리한다.
+        public void AddRunGameMoney(int amount)
+        {
+            currentRunGameMoney = Mathf.Max(0, currentRunGameMoney + Mathf.Max(0, amount));
+            RefreshCurrencies();
         }
 
         public void AddTime(float seconds)
@@ -388,6 +403,7 @@ namespace PH.Core.UI
 
             timerText = CreateText("TimerText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -58f), new Vector2(-18f, -12f), TextAnchor.UpperRight, 43, primaryTextColor);
             scoreText = CreateText("ScoreText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -104f), new Vector2(-18f, -60f), TextAnchor.UpperRight, 36, secondaryTextColor);
+            CreateCurrencyDisplays();
             itemText = CreateText("ItemStatusText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -138f), new Vector2(-18f, -106f), TextAnchor.UpperRight, 29, secondaryTextColor);
             speedBuffText = CreateText("SpeedBuffText", new Vector2(0.64f, 1f), new Vector2(1f, 1f), new Vector2(8f, -172f), new Vector2(-18f, -140f), TextAnchor.UpperRight, 27, feverReadyColor);
             CreateFeverGauge();
@@ -491,6 +507,26 @@ namespace PH.Core.UI
             text.verticalOverflow = VerticalWrapMode.Overflow;
 
             return text;
+        }
+
+        private void CreateCurrencyDisplays()
+        {
+            CreateCurrencyIcon("OwnedGameMoneyIcon", "Items/Icons/score_coin", new Vector2(0.41f, 1f), new Vector2(0f, -42f), new Vector2(28f, -14f));
+            ownedGameMoneyText = CreateText("OwnedGameMoneyText", new Vector2(0.445f, 1f), new Vector2(0.52f, 1f), new Vector2(0f, -46f), new Vector2(0f, -10f), TextAnchor.MiddleLeft, 24, primaryTextColor);
+
+            CreateCurrencyIcon("OwnedRubyIcon", "Items/Icons/ruby", new Vector2(0.525f, 1f), new Vector2(0f, -42f), new Vector2(28f, -14f));
+            ownedRubyText = CreateText("OwnedRubyText", new Vector2(0.56f, 1f), new Vector2(0.635f, 1f), new Vector2(0f, -46f), new Vector2(0f, -10f), TextAnchor.MiddleLeft, 24, primaryTextColor);
+
+            CreateCurrencyIcon("RunGameMoneyIcon", "Items/Icons/score_coin", new Vector2(0.41f, 1f), new Vector2(0f, -80f), new Vector2(28f, -52f));
+            runGameMoneyText = CreateText("RunGameMoneyText", new Vector2(0.445f, 1f), new Vector2(0.635f, 1f), new Vector2(0f, -84f), new Vector2(0f, -48f), TextAnchor.MiddleLeft, 22, feverReadyColor);
+        }
+
+        private void CreateCurrencyIcon(string objectName, string resourcePath, Vector2 anchor, Vector2 offsetMin, Vector2 offsetMax)
+        {
+            Image image = CreateImage(objectName, anchor, anchor, offsetMin, offsetMax, Color.white);
+            image.sprite = Resources.Load<Sprite>(resourcePath);
+            image.color = image.sprite != null ? Color.white : secondaryTextColor;
+            image.preserveAspect = true;
         }
 
         private void CreateFeverGauge()
@@ -648,6 +684,7 @@ namespace PH.Core.UI
             RefreshTimer();
             RefreshFloor(floorManager != null ? floorManager.CurrentAbsoluteFloor : 1);
             RefreshScore();
+            RefreshCurrencies();
             RefreshItemStatus();
             RefreshCharacterExperience();
             RefreshFeverGauge(characterRuntime != null ? characterRuntime.FeverGaugeNormalized : 0f);
@@ -853,6 +890,24 @@ namespace PH.Core.UI
             }
         }
 
+        private void RefreshCurrencies()
+        {
+            if (ownedGameMoneyText != null)
+            {
+                ownedGameMoneyText.text = UserProfileManager.GameMoney.ToString("N0");
+            }
+
+            if (ownedRubyText != null)
+            {
+                ownedRubyText.text = UserProfileManager.Ruby.ToString("N0");
+            }
+
+            if (runGameMoneyText != null)
+            {
+                runGameMoneyText.text = $"RUN +{Mathf.Max(0, currentRunGameMoney):N0}";
+            }
+        }
+
         private void RefreshItemStatus()
         {
             if (itemText != null)
@@ -896,6 +951,7 @@ namespace PH.Core.UI
         private void HandleUserProfileChanged()
         {
             RefreshIdentity();
+            RefreshCurrencies();
         }
 
         private void RefreshSpeedBuffStatus()

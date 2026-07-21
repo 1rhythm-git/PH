@@ -318,6 +318,8 @@ namespace PH.Core.Items
                     return "RUN LIMIT";
                 case ItemEffectOutcome.CollectionDuplicateEvent:
                     return "ALREADY PROCESSED";
+                case ItemEffectOutcome.RunGameMoneyAdded:
+                    return $"+{effectResult.Value} MONEY";
             }
 
             switch (definition.ItemType)
@@ -328,6 +330,8 @@ namespace PH.Core.Items
                     return "GET Life";
                 case ItemType.Score:
                     return "+SCORE";
+                case ItemType.Currency:
+                    return "+MONEY";
                 default:
                     return definition.AffectsScore ? "+SCORE" : definition.DisplayName;
             }
@@ -353,6 +357,8 @@ namespace PH.Core.Items
                 case ItemEffectOutcome.CollectionRunLimitReached:
                 case ItemEffectOutcome.CollectionDuplicateEvent:
                     return new Color(0.72f, 0.72f, 0.72f, 1f);
+                case ItemEffectOutcome.RunGameMoneyAdded:
+                    return new Color(1f, 0.78f, 0.12f, 1f);
             }
 
             switch (definition.ItemType)
@@ -363,6 +369,8 @@ namespace PH.Core.Items
                     return new Color(1f, 0.18f, 0.16f, 1f);
                 case ItemType.Score:
                     return Color.white;
+                case ItemType.Currency:
+                    return new Color(1f, 0.78f, 0.12f, 1f);
                 default:
                     return definition.AffectsScore ? Color.white : new Color(1f, 0.86f, 0.16f, 1f);
             }

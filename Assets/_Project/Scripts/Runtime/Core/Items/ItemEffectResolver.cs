@@ -5,6 +5,7 @@ namespace PH.Core.Items
         private readonly IItemEffect[] effects =
         {
             new AddScoreItemEffect(),
+            new AddRunGameMoneyItemEffect(),
             new AddTimeItemEffect(),
             new AddMaxLifeItemEffect(),
             new HealHeartItemEffect(),

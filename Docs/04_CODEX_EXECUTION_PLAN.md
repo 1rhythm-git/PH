@@ -153,13 +153,12 @@ PART 7
 •	광고 부활 사용 여부 필드 확장 준비
 •	Game Over 시 runHighestFloor 확정
 •	RunScoreResult에 runHighestFloor 포함
+•	Gameplay Score 반영
 •	Floor Score 계산: floorMoveCount × floorScoreValue
-•	도달 층수 기반 minimumRequiredVLinePassCount 계산
-•	PlayerLinePassTracker
-•	passedVLineCount 누적 기록
-•	lineEfficiencyRatio 계산: minimumRequiredVLinePassCount / max(passedVLineCount, minimumRequiredVLinePassCount)
-•	Line Bonus 계산: floor(lineEfficiencyRatio, 1) × lineScoreBonusValue
-•	Game Over 총점 계산: Floor Score + Line Bonus
+•	Life Score 계산: remainingHearts × lifeScorePerHeart
+•	Game Over 총점 계산: Gameplay Score + Floor Score + Life Score
+•	캐릭터 레벨 기본 XP, 층 XP, Total Score 보너스 XP 계산
+•	런 획득 게임머니와 Total Score 보너스 게임머니 계산
 •	ScoreBalanceData 또는 Inspector 설정으로 점수 계수 관리
 •	RunScoreResult 데이터 구조
 완료 조건
@@ -170,18 +169,20 @@ PART 7
 •	Game Over 기준 총점이 생성됨
 •	추후 AdMob 보상형 광고 부활 사용 여부를 저장/랭킹 데이터에 포함 가능
 •	보너스별 점수 breakdown을 UI와 저장 데이터에 전달 가능
-•	Line Bonus 계산에 필요한 최소 통과 수와 실제 통과 수가 분리됨
-•	Line Bonus가 비활성 상태여도 Floor Score 계산 구조가 깨지지 않음
+•	게임머니와 캐릭터 XP를 결과 확정 시 한 번만 지급
+•	결과창에 점수, XP, 게임머니 breakdown을 순서대로 표시
+•	결과창 글꼴은 `GAME OVER` 111, 결과 상세 48, `CONFIRM` 51 적용
 검토 메모
-•	Time Bonus와 Life Bonus는 기본 점수 공식에서 제외한다.
+•	Time Bonus는 기본 점수 공식에서 제외하고 Life Score는 포함한다.
 •	캐릭터별 이동속도, 방향전환 쿨타임, 아이템 즉시 획득 확률은 점수/랭킹 검증에 영향을 줄 수 있으므로 결과 데이터에 캐릭터 ID를 포함할 수 있어야 한다.
 •	무한 상승 구조라도 Game Over 시 해당 런의 최고 도달 층인 runHighestFloor를 확정한다.
-•	돌파 보너스는 Game Over 시 확정된 runHighestFloor를 기준으로 산정한다.
-•	minimumRequiredVLinePassCount는 runHighestFloor까지 진행하는 데 필요한 최소 세로 경계 통과 수이다.
-•	8컬럼 고정 좌측 시작 → 우측 도착 구조에서는 내부 경계 기준 minVLinePassPerFloor 기본값을 7로 둘 수 있다.
-•	향후 층별 시작/목표 컬럼이 달라지면 층 데이터에서 최소 통과 수를 계산한다.
-•	passedVLineCount는 최소 조작 플레이를 유도하기 위해 "런 중 실제 통과한 누적 세로 경계 횟수"로 정의한다.
-•	같은 경계 위에서 머무름, 떨림, 리스폰, 페이지 전환, 엘리베이터 위치 보정으로 인한 중복 카운트를 방지해야 한다.
+•	Line Bonus와 세로 경계 통과 기반 점수는 사용하지 않는다.
+구현 상태
+•	완료
+현행 메모
+•	`RunRewardSettings`에서 층 점수, 생명력 점수, 층 XP, 점수 XP 배율, 보너스 게임머니 배율을 조정한다.
+•	TopUI는 보유 게임머니, 보유 Ruby, 현재 런 획득 게임머니를 분리해 표시한다.
+•	Lobby XP 게이지는 현재 XP 비율을 RectTransform 폭으로 반영하며 XP 0에서는 비어 있다.
 ________________________________________
 PART 8
 적 기본 시스템
@@ -312,6 +313,7 @@ PART 13
 •	현재 구현된 스킬형 아이템은 `Red Sneaker`, `Winged Shoe`, `Winged Heart`이다.
 •	이동속도 증가는 `AddMoveSpeedItemEffect`로 처리한다.
 •	이동속도 증가는 영구 적용하지 않으며, 기본 5초에 스폰 시 부여된 1~3 카운트를 곱해 5초, 10초, 15초 동안 적용한다.
+•	생명력이 실제로 차감되면 활성 이동속도 효과를 즉시 제거하고 캐릭터 기본 이동속도로 복원한다.
 •	효과 지속 중 `PlayerBuffVisualFeedback`으로 캐릭터 점멸을 표시한다.
 •	활성 이동속도 버프는 현재 퍼센트 합산 방식으로 계산한다.
 •	Max Life 증가는 `AddMaxLifeItemEffect`로 처리하며, 현재 런에서 최대 +1까지만 허용한다.

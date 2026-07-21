@@ -356,8 +356,9 @@ ________________________________________
 •	스킬형 아이템 Page 출현 확률(Chance)
 
 캐릭터별 레벨업 필요 경험치는 `CharacterDefinition`의 레벨별 테이블에서 관리한다.
-획득 경험치의 최종 결과식과 런 결과 연동은 추후 점수/결과 시스템 정리 시 확정한다.
+런 종료 경험치는 현재 캐릭터 레벨 기본 XP, 실제 상승 층 XP, Total Score 보너스 XP를 합산하며 세부 계산식은 16.3.1을 따른다.
 현재 진행 상태 API는 경험치 누적과 연속 레벨업을 지원하며, 저장 연동 전까지 세션 단위로 유지한다.
+Lobby XP 게이지는 `CurrentExperience / RequiredExperience` 비율만큼 왼쪽에서 오른쪽으로 채우며, XP가 0이면 완전히 빈 상태로 표시한다.
 
 캐릭터 고유 스킬은 지정 레벨에 도달하면 자동 활성화한다.
 InGame HUD에는 고유 스킬을 별도 표시하지 않고 실제 버프만 적용한다.
@@ -401,7 +402,7 @@ ________________________________________
 16.1 최고 도달 층
 플레이어가 해당 런에서 도달한 가장 높은 절대 층수이다.
 무한 상승 구조이더라도 Game Over 시점에는 해당 런의 최고 도달 층을 반드시 확정한다.
-이 값은 Game Over 결과 화면, 저장 데이터, 랭킹 제출, Floor Score, Line Bonus 계산의 기준값이다.
+이 값은 Game Over 결과 화면, 저장 데이터, 랭킹 제출, Floor Score 계산의 기준값이다.
 16.2 플레이 점수
 현재 런에서 획득한 점수이다.
 점수는 다음 요소의 영향을 받을 수 있다.
@@ -415,11 +416,12 @@ ________________________________________
 Game Over가 발생하면 먼저 runHighestFloor를 확정하고, 확정된 runHighestFloor를 기준으로 점수를 계산한다.
 
 Game Over 시 총점은 다음 값으로 계산한다.
+•	Gameplay Score: 인게임에서 획득한 스코어
 •	Floor Score: floorMoveCount × floorScoreValue
-•	Line Bonus: floor(lineEfficiencyRatio, 1) × lineScoreBonusValue
+•	Life Score: remainingHearts × lifeScorePerHeart
 
 Game Over 총점:
-Total Score = Floor Score + Line Bonus
+Total Score = Gameplay Score + Floor Score + Life Score
 
 floorMoveCount는 Game Over 시 확정된 runHighestFloor 기준으로, 시작 층 이후 실제로 상승한 층 수이다.
 예시:
@@ -427,11 +429,55 @@ floorMoveCount는 Game Over 시 확정된 runHighestFloor 기준으로, 시작 �
 •	2F에서 Game Over: 1
 •	10F에서 Game Over: 9
 
-Time Bonus와 Life Bonus는 기본 점수 공식에서 제외한다.
-남은 시간과 남은 생명력은 결과 화면의 참고 정보로 표시할 수 있지만, 기본 총점에는 반영하지 않는다.
+Time Bonus는 기본 점수 공식에서 제외한다.
+남은 시간은 런 결과 데이터에는 유지하지만 현재 결과창 점수·보상 항목에는 표시하지 않는다.
 
-16.3.1 Game Over 결과창과 광고 부활
+초기 밸런스 값:
+•	floorScoreValue: 100
+•	lifeScorePerHeart: 100
+•	값은 `RunRewardSettings`에서 조정 가능하게 유지한다.
+
+16.3.1 캐릭터 경험치 및 게임머니 보상
+캐릭터 경험치는 해당 런에서 사용한 캐릭터에게만 지급한다.
+캐릭터마다 레벨별 기본 런 경험치 테이블을 별도로 가진다.
+
+런 종료 경험치:
+•	Level Experience: 캐릭터별 현재 레벨 기본 XP
+•	Floor Experience: floorMoveCount × floorExperiencePerFloor
+•	Bonus Experience: floor(Total Score × scoreExperienceMultiplier)
+
+Total Experience = Level Experience + Floor Experience + Bonus Experience
+
+초기 레벨별 기본 XP는 Lv.1부터 Lv.10까지 `5, 6, 7, 8, 9, 10, 11, 12, 13, 14`로 설정한다.
+초기 `floorExperiencePerFloor`는 2, `scoreExperienceMultiplier`는 0.025이며 추후 밸런스에 따라 수정할 수 있어야 한다.
+Total Score 보정으로 획득한 경험치는 결과창에서 `Bonus XP`로 표기한다.
+
+런에서 획득 가능한 재화는 게임머니로 제한한다.
+Ruby는 일반 런 결과로 직접 지급하지 않고 게임머니 교환, 현금 결제, 광고 보상 등 별도 경로로 획득한다.
+
+런 종료 게임머니:
+Total Game Money = Acquired Game Money + floor(Total Score × bonusGameMoneyMultiplier)
+
+게임머니 아이템은 소액, 중액, 고액 항목별 가중치를 사용하며 고액일수록 낮은 확률로 배치한다.
+초기 `bonusGameMoneyMultiplier`는 0.01이며 추후 밸런스에 따라 수정할 수 있어야 한다.
+런 중 획득 게임머니는 보유 게임머니와 분리해 표시하고 결과 확정 시 한 번만 합산한다.
+
+TopUI 재화 표시는 다음 세 값을 구분한다.
+• 보유 게임머니
+• 보유 Ruby
+• 현재 런에서 획득한 게임머니
+
+아이콘 매핑:
+• 작은 스코어 아이템: 골드바
+• 큰 스코어 아이템: 기존 파란 보석
+• 게임머니: 인게임 금색 코인
+• Ruby: 별도 제작한 붉은 루비
+
+16.3.2 Game Over 결과창과 광고 부활
 Game Over 결과창에는 기본적으로 결과 확인 후 Lobby로 복귀하는 버튼을 제공한다.
+현재 결과창은 `Acquired Score`, `Floor Bonus Score`, `Life Bonus Score`, `Total Score`, `Level XP`, `Floor XP`, `Bonus XP`, `Total XP`, `Money`, `Items` 순서로 세부 결과를 표시한다.
+`Money`는 총 획득량과 함께 인게임 획득량 및 점수 보너스 게임머니를 괄호 안에 구분해 표시한다.
+결과창 최종 글꼴 크기는 최초 적용값의 1.5배를 기준으로 `GAME OVER` 111, 결과 상세 48, `CONFIRM` 51을 사용한다.
 추후 Google AdMob 보상형 광고를 붙일 때는 결과창에 광고보기 버튼을 추가할 수 있다.
 플레이어가 광고보기를 선택하고 보상형 광고 시청을 정상 완료하면 해당 런을 즉시 종료하지 않고 부활 처리한다.
 
@@ -447,39 +493,7 @@ Game Over 결과창에는 기본적으로 결과 확인 후 Lobby로 복귀하�
 구현 시 Google AdMob SDK 직접 호출은 GameStateController나 결과창 UI에 직접 넣지 않는다.
 보상형 광고는 IRewardedAdService 같은 인터페이스 뒤에 두고, 결과창은 광고 요청/성공/실패 이벤트만 사용한다.
 
-16.4 돌파 보너스 검토
-돌파 보너스는 과거 프로젝트에서 플레이어가 세로 라인을 적게 통과할수록 높은 점수를 받도록 설계된 보너스이다.
-현재 프로젝트의 수직 경계 Line_V_0 ~ Line_V_8은 적 이동 경로와 EnemyTrail 표현에도 사용되므로, 점수 계산용 통과 카운터는 렌더링 라인과 분리해야 한다.
-
-현재 구조에서도 Game Over 시 도달 층수를 기반으로 돌파 보너스를 산정할 수 있다.
-기준은 "Game Over 시 확정된 runHighestFloor까지 진행하는 데 필요한 최소 세로 경계 통과 수"와 "실제 세로 경계 누적 통과 수"의 비율이다.
-
-권장 계산 흐름:
-1.	Game Over 시 runHighestFloor를 확정한다.
-2.	runHighestFloor로 floorMoveCount를 계산한다.
-3.	각 층의 시작 컬럼과 목표 컬럼을 기준으로 최소 세로 경계 통과 수를 계산한다.
-4.	최소 세로 경계 통과 수는 시작 층이 아니라, 실제 상승해 통과한 층 구간만 포함한다.
-5.	고정 좌측 시작 → 우측 도착 구조라면 기본 최소값은 floorMoveCount × minVLinePassPerFloor로 계산한다.
-6.	8컬럼 기준 내부 세로 경계만 점수 대상으로 삼으면 minVLinePassPerFloor 기본값은 7이다.
-7.	실제 통과 수 passedVLineCount는 런 중 플레이어가 통과한 세로 경계 누적 횟수로 기록한다.
-8.	lineEfficiencyRatio = minimumRequiredVLinePassCount / max(passedVLineCount, minimumRequiredVLinePassCount)
-9.	lineEfficiencyRatio를 소수 첫째 자리에서 내림 처리한다.
-10.	Line Bonus = floor(lineEfficiencyRatio, 1) × lineScoreBonusValue
-
-이 방식에서는 실제 통과 수가 최소 통과 수와 같을 때 최대 효율 1.0을 받는다.
-왕복, 아이템 재통과, 불필요한 이동으로 passedVLineCount가 증가하면 효율이 낮아진다.
-따라서 Game Over 시점까지 더 높은 층에 도달하면서도 세로 라인 통과를 최소화하는 플레이가 고점 목표가 된다.
-
-구현 시 필요한 조건:
-•	플레이어의 좌우 이동 중 셀 경계 통과를 감지하는 PlayerLinePassTracker가 필요하다.
-•	같은 경계선 위에서 머무르거나 떨림이 발생해도 중복 카운트되지 않아야 한다.
-•	층 이동, 리스폰, 페이지 전환 시 중복 계산 방지 상태를 초기화해야 한다.
-•	리스폰으로 위치가 바뀔 때는 순간이동 경로를 통과 수로 계산하지 않는다.
-•	엘리베이터 또는 층 이동 연출 중 자동 위치 보정은 통과 수로 계산하지 않는다.
-•	minimumRequiredVLinePassCount가 0인 경우 Line Bonus는 0으로 처리한다.
-•	층별 시작/목표 컬럼이 달라질 수 있으므로 minVLinePassPerFloor는 고정값이 아니라 층 데이터에서 계산할 수 있게 열어둔다.
-
-16.5 기록 분리
+16.4 기록 분리
 다음 값은 분리해서 저장한다.
 •	Current Floor
 •	Run Highest Floor

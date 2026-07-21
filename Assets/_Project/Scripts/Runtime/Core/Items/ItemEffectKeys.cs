@@ -8,5 +8,6 @@ namespace PH.Core.Items
         public const string AddMaxLife = "add_max_life";
         public const string AddMoveSpeedPercent = "add_move_speed_percent";
         public const string AddCollection = "add_collection";
+        public const string AddRunGameMoney = "add_run_game_money";
     }
 }

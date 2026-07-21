@@ -121,6 +121,8 @@ namespace PH.Core.Player
             }
 
             currentLife = Mathf.Max(0, currentLife - damage);
+            // (추가) 생명력이 실제로 차감되면 이동속도 아이템 효과를 즉시 제거한다.
+            playerMotor?.ClearMoveSpeedBuffs();
             ConsumeItemMaxLifeBonus(damage);
             SyncHUD();
             HapticFeedback.Play(HapticFeedbackPattern.Damage);

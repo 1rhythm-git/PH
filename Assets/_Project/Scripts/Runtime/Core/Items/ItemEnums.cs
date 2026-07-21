@@ -6,7 +6,8 @@ namespace PH.Core.Items
         Time,
         Heal,
         Skill,
-        Collection
+        Collection,
+        Currency
     }
 
     public enum ItemPassDirection
