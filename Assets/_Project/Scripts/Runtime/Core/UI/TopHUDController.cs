@@ -383,6 +383,7 @@ namespace PH.Core.UI
 
             ClearRuntimeRootChildren();
             DestroyExistingBottomFeverGauge();
+            AlignBottomUIToElevatorPlatformBottom();
 
             runtimeRoot.anchorMin = Vector2.zero;
             runtimeRoot.anchorMax = Vector2.one;
@@ -457,6 +458,20 @@ namespace PH.Core.UI
             {
                 DestroyImmediate(existing.gameObject);
             }
+        }
+
+        private void AlignBottomUIToElevatorPlatformBottom()
+        {
+            RectTransform bottomRoot = FindBottomUIRoot();
+            ElevatorController elevatorController = FindFirstObjectByType<ElevatorController>();
+            if (bottomRoot == null || elevatorController == null)
+            {
+                return;
+            }
+
+            Vector2 offsetMax = bottomRoot.offsetMax;
+            offsetMax.y = -elevatorController.PlatformHeight;
+            bottomRoot.offsetMax = offsetMax;
         }
 
         private Image CreateImage(string objectName, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax, Color color)

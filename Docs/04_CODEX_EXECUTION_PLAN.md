@@ -119,7 +119,7 @@ Lobby 선택값에 따라 플레이어를 런타임 생성하고 좌우 이동�
 •	`FeverBalanceSettings`에 공통 이동 기본 획득량 0.15와 방향전환 배율 1.5를 둔다.
 •	`CharacterDefinition`에는 `FeverGainMultiplier`만 두고 실제 이동/전환 획득량을 공통 설정에서 계산한다.
 •	기존 결과값은 Agent X 1.0, Alice 1.5, Landy 1.2, Ninja 2.0 배율로 동일하게 유지한다.
-•	Lobby 기본 능력치는 `SPEED`, `REFLEX`, `VITALITY`, `FEVER DRIVE`, `ITEM LUCK`, `AWAKENING`의 6개 항목을 좌우 2열로 표시한다.
+•	Lobby 기본 능력치는 `SPEED`, `REFLEX`, `VITALITY`, `FEVER DRIVE`, `ITEM LUCK`, `AWAKENING`의 6개 항목을 이름/값 정렬 목록으로 표시한다.
 •	`SPEED`, `REFLEX`, `FEVER DRIVE`는 Agent X를 100으로 보는 상대 지수이며, `REFLEX`는 방향전환 대기시간에 역비례한다.
 •	`VITALITY`는 최대 생명력, `ITEM LUCK`은 실제 확률(%), `AWAKENING`은 스킬 해금 레벨을 표시한다.
 •	기본 캐릭터 내부 ID `default`는 유지하고 Lobby 표시명은 `Agent X`를 사용한다.
@@ -129,7 +129,11 @@ Lobby 선택값에 따라 플레이어를 런타임 생성하고 좌우 이동�
 •	`CharacterSkillRuntime`은 런타임 생성 Player에 자동 부착하고 아이템 기본 효과 이후 스킬을 한 번 판정한다.
 •	스킬 효과는 `ICharacterSkillEffect` 구현체로 분리한다.
 •	Agent X Lv.5, Landy/Alice Lv.15, Ninja Lv.20 해금을 위해 캐릭터별 성장 테이블을 Lv.20까지 확장한다.
-•	Lobby 스킬 상세 UI는 현재 연결하지 않고 재구성 기획 이후 반영한다.
+•	Lobby 스킬 설명은 P1~P5를 현재 에셋 값으로 치환해 표시하며 강화/상세 조작은 후속 작업으로 남긴다.
+Lobby 디자인 현행 메모
+•	`concept/Lobby/Lobby_Design.png`의 세로 구성을 기준으로 상단 프로필/재화, BEST, 캐릭터, START, 메뉴, 광고 순서로 배치한다.
+•	하단 메뉴는 `MISSION`, `MAIL BOX`, `UPGRADE`, `ARTIFACT`, `SHOP`, `RANK` 6개이며 현재 기능을 연결하지 않는다.
+•	설정 버튼도 아이콘과 입력 상태만 구성하고 기능은 후속 작업으로 연결한다.
 ________________________________________
 PART 5
 엘리베이터와 층 상승

@@ -2764,6 +2764,246 @@ ________________________________________
 
 ________________________________________
 
+2.88 Lobby 디자인 기준 UI 재구성
+
+목표:
+• `concept/Lobby/Lobby_Design.png`을 기준으로 9:20 Lobby의 정보 계층과 배치를 재구성
+• 기존 캐릭터 선택, XP 표시, 재화 표시와 START 기능 유지
+• 하단 6개 메뉴는 기능 구현 전에 임시 버튼으로 구성
+
+완료 내용:
+• Safe Area 내부를 상단 13%, 중앙 69%, 하단 18% 밴드로 재조정
+• 상단에 게임 타이틀, 설정 아이콘, 닉네임, 게임머니, 루비와 GUEST 상태 배치
+• BEST 영역을 최고 층과 최고 점수의 좌우 분할 구조로 변경
+• 캐릭터 이름과 순서를 상단에 배치하고 중앙 초상화와 좌우 선택 버튼 유지
+• 레벨과 XP 게이지 아래에 6개 스테이터스를 이름/값 정렬 목록으로 표시
+• 캐릭터별 스킬 설명의 P1~P5를 실제 스킬 에셋 값으로 치환해 표시
+• START 버튼을 캐릭터 패널과 하단 메뉴 사이의 전체 너비 명령 버튼으로 재배치
+• 하단에 `MISSION`, `MAIL BOX`, `UPGRADE`, `ARTIFACT`, `SHOP`, `RANK` 임시 버튼 추가
+• 최하단 배너 광고 영역 유지
+• 설정 및 하단 6개 메뉴는 현재 클릭 기능을 연결하지 않고 후속 작업으로 분리
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• 1080×2400 기준 Header, BEST, Character, START, 메뉴, 광고 영역 사이 최소 25px 이상 간격 정적 확인
+• 하단 6개 버튼의 동일 폭과 최종 우측 경계 96.5% 이내 배치 확인
+• 캐릭터 전환 시 이름, 순서, 레벨, XP, 스테이터스 값, 스킬 설명 갱신 경로 정적 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode 1080×2400에서 참고 이미지와 실제 배치 비교 필요
+• Safe Area가 있는 Android 기기에서 상단 설정 아이콘과 하단 메뉴/광고 잘림 확인 필요
+• 하단 6개 메뉴와 설정 버튼의 실제 기능은 각각 별도 작업으로 진행
+
+________________________________________
+
+2.89 Lobby 설정 아이콘 크기 조정
+
+목표:
+• Lobby 우상단 설정 아이콘을 현재 위치를 유지한 채 0.8배로 축소
+
+완료 내용:
+• 설정 아이콘 앵커 중심 `(0.905, 0.765)` 유지
+• 가로 범위를 0.09에서 0.072로 축소
+• 세로 범위를 0.33에서 0.264로 축소
+• 최종 앵커 범위 `(0.869, 0.633) ~ (0.941, 0.897)` 적용
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• 기존 중심점 유지와 가로·세로 0.8배 축소 계산 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 설정 아이콘의 실제 표시 크기와 터치 영역 확인 필요
+
+________________________________________
+
+2.90 Lobby 스테이터스 가독성 조정
+
+목표:
+• 캐릭터 스테이터스 이름과 수치의 가독성 향상
+• 스킬 설명 영역이 차지하는 세로 공간 축소
+
+완료 내용:
+• 스킬 설명 패널 높이를 캐릭터 영역의 0.22에서 0.11로 절반 축소
+• 스킬 설명 패널의 하단 기준 위치는 유지
+• 스테이터스 표시 영역 높이를 0.19에서 0.31로 확대
+• 스테이터스 이름 및 수치 글꼴을 21에서 28로 확대
+• 6개 항목의 이름/값 정렬과 기존 줄 간격 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• 스킬 패널 0.11과 스테이터스 영역 0.31 사이 겹침 없음 확인
+• 스테이터스 28px 6개 행이 할당 높이 안에 들어가는지 정적 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 6개 항목의 실제 가독성과 스킬 설명 잘림 확인 필요
+
+________________________________________
+
+2.91 Lobby BEST 영역 여백 축소
+
+목표:
+• BEST 영역의 글자 크기에 비해 과도한 상하 여백 축소
+• BEST와 캐릭터 패널 사이의 기존 시각적 간격 유지
+
+완료 내용:
+• BEST 패널 높이를 중앙 영역의 0.143에서 0.11로 축소
+• BEST 패널 상단 위치는 유지하고 하단을 위로 조정
+• 확보된 세로 공간을 캐릭터 패널 상단에 추가
+• BEST와 캐릭터 패널 사이 간격은 중앙 영역의 0.017로 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• 1080×2400 기준 BEST 높이 약 182px 및 캐릭터 패널 간격 약 28px 확인
+• BEST, Character, START 영역 간 겹침 없음 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 BEST 제목, Floor, Score의 상하 균형 확인 필요
+
+________________________________________
+
+2.92 InGame BottomUI / 피버 게이지 경계 조정
+
+목표:
+• `BottomUI` 상단을 1층 하단 엘리베이터 플랫폼의 바닥 경계에 맞춰 축소
+• 피버 게이지를 동일한 플랫폼 바닥 경계로 이동
+
+완료 내용:
+• `InGame` 씬의 `BottomUI` 상단 오프셋을 0에서 -18로 조정
+• 현재 엘리베이터 높이 18을 기준으로 `BottomUI` 중심 위치와 높이를 함께 보정
+• `FeverGauge`가 `BottomUI` 최상단에 붙는 기존 구조를 유지해 플랫폼 바닥 경계로 함께 이동
+• `ElevatorController.PlatformHeight`를 공개하고 HUD 생성 시 해당 높이로 `BottomUI` 상단을 자동 정렬
+• 이후 Inspector에서 `elevatorSize.y`를 변경해도 피버 게이지와 `BottomUI`가 같은 경계를 유지하도록 구성
+
+변경된 주요 파일:
+• `Assets/_Project/Scenes/InGame.unity`
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/World/ElevatorController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• `BottomUI` 상단이 1층 바닥선보다 엘리베이터 높이 18만큼 아래에 위치하는 앵커 계산 확인
+• 피버 게이지가 `BottomUI` 상단 앵커를 사용해 같은 경계에 배치되는 구조 확인
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 1층 엘리베이터 플랫폼 하단과 피버 게이지 상단의 픽셀 정렬 확인 필요
+• Android 화면 비율에서 `BottomUI` 축소 후 하단 표시 영역 확인 필요
+
+________________________________________
+
+2.93 InGame 배경 바닥 정렬 / Lobby START·스킬 영역 조정
+
+목표:
+• 인게임 배경 이미지의 하단을 1층 바닥선에 정렬
+• Lobby START 버튼의 세로 크기를 0.7배로 축소
+• 확보된 높이를 스킬 설명 영역에 추가하고 글꼴 가독성 향상
+
+완료 내용:
+• 전체 `Canvas`에 직접 적용되던 인게임 배경 이미지를 전용 `BackgroundImage` 자식 오브젝트로 분리
+• `BackgroundImage` 하단 앵커를 1층 바닥선과 같은 Canvas Y 0.12에 배치
+• 9:20 원본 비율과 전체 화면 높이는 유지하고 상단 앵커도 함께 0.12 올려 세로 왜곡 방지
+• 배경은 Canvas 첫 번째 자식으로 배치해 기존 MiddleUI, BottomUI, TopUI보다 뒤에 렌더링
+• START 버튼 높이를 0.160에서 0.112로 변경해 정확히 0.7배 적용
+• START 버튼 하단과 캐릭터 패널 사이의 기존 간격 0.02 유지
+• 캐릭터 패널을 아래로 0.048 확장하고 확보된 높이 전체를 스킬 설명 패널에 추가
+• 캐릭터 정보, 초상화, XP와 스테이터스의 기존 화면상 위치를 유지하도록 내부 앵커 재계산
+• 스킬 제목 글꼴을 20에서 24, 설명 글꼴을 18에서 22로 확대
+
+변경된 주요 파일:
+• `Assets/_Project/Scenes/InGame.unity`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 배경 하단 앵커와 MiddleUI/1층 바닥선의 Canvas Y 0.12 일치 확인
+• 배경 앵커 높이 1.0 유지로 기존 9:20 표시 비율 보존 확인
+• START 버튼 높이 0.112가 기존 0.160의 70%인지 계산 확인
+• 스킬 패널 증가 높이와 START 버튼 감소 높이가 Content 영역 기준 0.048로 일치하는지 확인
+• 스킬 패널, 스테이터스, XP, 초상화 사이 앵커 겹침 없음 확인
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 인게임 배경 이미지의 실제 바닥 픽셀과 1층 바닥선 정렬 확인 필요
+• Lobby에서 가장 긴 캐릭터 스킬 설명의 줄바꿈과 가독성 확인 필요
+
+________________________________________
+
+2.94 Lobby 스킬 설명 글꼴 추가 확대
+
+목표:
+• 스킬 설명 글꼴을 스테이터스와 같은 크기로 맞춰 가독성 향상
+
+완료 내용:
+• `SKILL DESCRIPTION` 제목 글꼴을 24에서 28로 확대
+• 실제 스킬 설명 글꼴을 22에서 28로 확대
+• 스테이터스 이름 및 수치 글꼴과 동일한 28 적용
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 스킬 제목, 설명과 스테이터스 글꼴이 모두 28인지 확인
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 가장 긴 스킬 설명의 줄바꿈과 패널 내부 잘림 확인 필요
+
+________________________________________
+
+2.95 Lobby 스킬 해금 상태별 설명 색상 적용
+
+목표:
+• 캐릭터 스킬 해금 조건 충족 여부를 로비 설명 색상으로 구분
+
+완료 내용:
+• 미해금 스킬 설명에 회색 계열 `(0.58, 0.60, 0.64, 1.0)` 적용
+• 현재 캐릭터 레벨이 `SkillUnlockLevel` 이상이면 스킬 설명을 흰색으로 전환
+• 실제 스킬 발동과 동일한 `CharacterProgressionState.IsSkillUnlocked()` 판정 사용
+• 캐릭터 전환 또는 경험치 변경으로 Lobby 정보가 갱신될 때 색상도 함께 갱신
+• 미해금 색상을 `lockedSkillTextColor` 직렬화 필드로 구성해 Inspector에서 조정 가능하도록 적용
+
+변경된 주요 파일:
+• `Assets/_Project/Scenes/Lobby.unity`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 미해금 상태는 회색, 해금 상태는 `primaryTextColor`를 사용하는 분기 확인
+• 스킬 발동 조건과 Lobby 표시 조건이 동일한 API를 사용하는지 확인
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 해금 레벨 전후 캐릭터의 실제 색상 전환 확인 필요
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:

@@ -1,4 +1,5 @@
 using PH.Core.Characters;
+using PH.Core.Characters.Skills;
 using PH.Core.Profile;
 using PH.Core.SceneFlow;
 using UnityEngine;
@@ -15,12 +16,13 @@ namespace PH.Core.UI
         private const float AgentXBasePivotCooldown = 0.3f;
         private const float AgentXBaseFeverGainPerColumn = 0.15f;
 
-        private static readonly Vector2 HeaderBandMin = new Vector2(0f, 0.88f);
+        private static readonly string[] FooterMenuLabels = { "MISSION", "MAIL BOX", "UPGRADE", "ARTIFACT", "SHOP", "RANK" };
+        private static readonly Vector2 HeaderBandMin = new Vector2(0f, 0.87f);
         private static readonly Vector2 HeaderBandMax = Vector2.one;
-        private static readonly Vector2 ContentBandMin = new Vector2(0f, 0.12f);
-        private static readonly Vector2 ContentBandMax = new Vector2(1f, 0.88f);
+        private static readonly Vector2 ContentBandMin = new Vector2(0f, 0.18f);
+        private static readonly Vector2 ContentBandMax = new Vector2(1f, 0.87f);
         private static readonly Vector2 FooterBandMin = Vector2.zero;
-        private static readonly Vector2 FooterBandMax = new Vector2(1f, 0.12f);
+        private static readonly Vector2 FooterBandMax = new Vector2(1f, 0.18f);
 
         [SerializeField]
         private RectTransform headerRoot;
@@ -50,6 +52,12 @@ namespace PH.Core.UI
         private Color secondaryTextColor = new Color(1f, 1f, 1f, 0.72f);
 
         [SerializeField]
+        private Color lockedSkillTextColor = new Color(0.58f, 0.6f, 0.64f, 1f);
+
+        [SerializeField]
+        private Color accentTextColor = new Color(1f, 0.92f, 0f, 1f);
+
+        [SerializeField]
         private Color panelColor = new Color(0.05f, 0.07f, 0.1f, 0.78f);
 
         [SerializeField]
@@ -71,8 +79,9 @@ namespace PH.Core.UI
         private Text selectedCharacterLevelText;
         private Text selectedCharacterPositionText;
         private Text selectedCharacterNameText;
-        private Text selectedCharacterStatsLeftText;
-        private Text selectedCharacterStatsRightText;
+        private Text selectedCharacterStatNamesText;
+        private Text selectedCharacterStatValuesText;
+        private Text selectedCharacterSkillDescriptionText;
         private Text selectedCharacterExperienceText;
         private Image selectedCharacterPortraitImage;
         private Image selectedCharacterExperienceFill;
@@ -82,6 +91,7 @@ namespace PH.Core.UI
 
         private static Sprite leftArrowSprite;
         private static Sprite rightArrowSprite;
+        private static Sprite settingsSprite;
 
         private void Awake()
         {
@@ -162,14 +172,18 @@ namespace PH.Core.UI
                 return;
             }
 
-            Text titleText = CreateText(root, "TitleText", "PHANTOM HEIST", new Vector2(0.055f, 0.43f), new Vector2(0.945f, 0.92f), TextAnchor.MiddleLeft, 58, primaryTextColor);
+            Text titleText = CreateText(root, "TitleText", "PHANTOM HEIST", new Vector2(0.055f, 0.52f), new Vector2(0.78f, 0.95f), TextAnchor.MiddleLeft, 48, accentTextColor);
             titleText.fontStyle = FontStyle.Bold;
-            profileText = CreateText(root, "ProfileText", string.Empty, new Vector2(0.06f, 0.08f), new Vector2(0.7f, 0.43f), TextAnchor.MiddleLeft, 29, secondaryTextColor);
-            CreateResourceImage(root, "GameMoneyIcon", "Items/Icons/score_coin", new Vector2(0.43f, 0.14f), new Vector2(0.465f, 0.37f));
-            currencyText = CreateText(root, "CurrencyText", string.Empty, new Vector2(0.47f, 0.08f), new Vector2(0.545f, 0.43f), TextAnchor.MiddleRight, 23, secondaryTextColor);
-            CreateResourceImage(root, "RubyCurrencyIcon", "Items/Icons/ruby", new Vector2(0.55f, 0.14f), new Vector2(0.585f, 0.37f));
-            rubyCurrencyText = CreateText(root, "RubyCurrencyText", string.Empty, new Vector2(0.59f, 0.08f), new Vector2(0.7f, 0.43f), TextAnchor.MiddleRight, 23, secondaryTextColor);
-            CreateText(root, "LoginStateText", "GUEST", new Vector2(0.7f, 0.08f), new Vector2(0.94f, 0.43f), TextAnchor.MiddleRight, 26, secondaryTextColor);
+            CreateIconButton(root, "SettingsButton", GetSettingsSprite(), new Vector2(0.869f, 0.633f), new Vector2(0.941f, 0.897f), null, true, "Settings");
+
+            profileText = CreateText(root, "ProfileText", string.Empty, new Vector2(0.055f, 0.08f), new Vector2(0.36f, 0.43f), TextAnchor.MiddleLeft, 27, accentTextColor);
+            profileText.fontStyle = FontStyle.Bold;
+            CreateResourceImage(root, "GameMoneyIcon", "Items/Icons/score_coin", new Vector2(0.37f, 0.14f), new Vector2(0.405f, 0.37f));
+            currencyText = CreateText(root, "CurrencyText", string.Empty, new Vector2(0.415f, 0.08f), new Vector2(0.515f, 0.43f), TextAnchor.MiddleLeft, 25, accentTextColor);
+            CreateResourceImage(root, "RubyCurrencyIcon", "Items/Icons/ruby", new Vector2(0.545f, 0.14f), new Vector2(0.58f, 0.37f));
+            rubyCurrencyText = CreateText(root, "RubyCurrencyText", string.Empty, new Vector2(0.59f, 0.08f), new Vector2(0.69f, 0.43f), TextAnchor.MiddleLeft, 25, accentTextColor);
+            Text loginStateText = CreateText(root, "LoginStateText", "GUEST", new Vector2(0.74f, 0.08f), new Vector2(0.945f, 0.43f), TextAnchor.MiddleRight, 27, accentTextColor);
+            loginStateText.fontStyle = FontStyle.Bold;
         }
 
         private void BuildContent()
@@ -182,55 +196,64 @@ namespace PH.Core.UI
 
             BuildRecordStrip(root);
             BuildCharacterStage(root);
-            CreateButton(root, "StartButton", "START", new Vector2(0.1f, 0.025f), new Vector2(0.9f, 0.125f), startButtonColor, Color.black, StartGame, true);
+            CreateButton(root, "StartButton", "START", new Vector2(0.055f, 0.025f), new Vector2(0.945f, 0.137f), startButtonColor, primaryTextColor, StartGame, true);
         }
 
         private void BuildRecordStrip(RectTransform parent)
         {
-            RectTransform panel = CreatePanel(parent, "RecordStrip", new Vector2(0.055f, 0.855f), new Vector2(0.945f, 0.985f), panelColor, true);
-            Text title = CreateText(panel, "RecordTitleText", "BEST", new Vector2(0.045f, 0.18f), new Vector2(0.25f, 0.82f), TextAnchor.MiddleLeft, 27, secondaryTextColor);
+            RectTransform panel = CreatePanel(parent, "RecordStrip", new Vector2(0.055f, 0.875f), new Vector2(0.945f, 0.985f), panelColor, false);
+            Text title = CreateText(panel, "RecordTitleText", "BEST", new Vector2(0.03f, 0.52f), new Vector2(0.3f, 0.94f), TextAnchor.MiddleLeft, 32, primaryTextColor);
             title.fontStyle = FontStyle.Bold;
-            bestFloorText = CreateText(panel, "BestFloorText", string.Empty, new Vector2(0.25f, 0.16f), new Vector2(0.6f, 0.84f), TextAnchor.MiddleCenter, 31, primaryTextColor);
-            bestScoreText = CreateText(panel, "BestScoreText", string.Empty, new Vector2(0.6f, 0.16f), new Vector2(0.955f, 0.84f), TextAnchor.MiddleRight, 31, primaryTextColor);
-            CreateDivider(panel, "RecordDivider", new Vector2(0.595f, 0.23f), new Vector2(0.598f, 0.77f));
+            bestFloorText = CreateText(panel, "BestFloorText", string.Empty, new Vector2(0.03f, 0.05f), new Vector2(0.48f, 0.54f), TextAnchor.MiddleLeft, 29, primaryTextColor);
+            bestScoreText = CreateText(panel, "BestScoreText", string.Empty, new Vector2(0.53f, 0.05f), new Vector2(0.97f, 0.54f), TextAnchor.MiddleRight, 29, primaryTextColor);
+            CreateDivider(panel, "RecordDivider", new Vector2(0.498f, 0f), new Vector2(0.501f, 1f));
         }
 
         private void BuildCharacterStage(RectTransform parent)
         {
-            RectTransform stage = CreatePanel(parent, "CharacterStage", new Vector2(0.055f, 0.15f), new Vector2(0.945f, 0.83f), panelColor, false);
+            RectTransform stage = CreatePanel(parent, "CharacterStage", new Vector2(0.055f, 0.157f), new Vector2(0.945f, 0.858f), panelColor, false);
 
-            Text sectionTitle = CreateText(stage, "CharacterTitleText", "CHARACTER", new Vector2(0.055f, 0.9f), new Vector2(0.42f, 0.98f), TextAnchor.MiddleLeft, 27, secondaryTextColor);
+            Text sectionTitle = CreateText(stage, "CharacterTitleText", "CHARACTER  |", new Vector2(0.045f, 0.916f), new Vector2(0.31f, 0.986f), TextAnchor.MiddleLeft, 27, accentTextColor);
             sectionTitle.fontStyle = FontStyle.Bold;
-            selectedCharacterPositionText = CreateText(stage, "CharacterPositionText", string.Empty, new Vector2(0.58f, 0.9f), new Vector2(0.945f, 0.98f), TextAnchor.MiddleRight, 25, secondaryTextColor);
+            selectedCharacterNameText = CreateText(stage, "SelectedCharacterNameText", string.Empty, new Vector2(0.32f, 0.916f), new Vector2(0.73f, 0.986f), TextAnchor.MiddleLeft, 27, accentTextColor);
+            selectedCharacterNameText.fontStyle = FontStyle.Bold;
+            selectedCharacterPositionText = CreateText(stage, "CharacterPositionText", string.Empty, new Vector2(0.75f, 0.916f), new Vector2(0.95f, 0.986f), TextAnchor.MiddleRight, 27, accentTextColor);
+            selectedCharacterPositionText.fontStyle = FontStyle.Bold;
 
-            selectedCharacterPortraitImage = CreateImage(stage, "SelectedCharacterPortrait", new Vector2(0.2f, 0.37f), new Vector2(0.8f, 0.9f), Color.white);
+            selectedCharacterPortraitImage = CreateImage(stage, "SelectedCharacterPortrait", new Vector2(0.31f, 0.646f), new Vector2(0.69f, 0.916f), Color.white);
             selectedCharacterPortraitImage.preserveAspect = true;
 
             bool canNavigate = GetAvailableCharacterCount() > 1;
-            CreateIconButton(stage, "PreviousCharacterButton", GetArrowSprite(false), new Vector2(0.045f, 0.53f), new Vector2(0.18f, 0.68f), SelectPreviousCharacter, canNavigate, "Previous Character");
-            CreateIconButton(stage, "NextCharacterButton", GetArrowSprite(true), new Vector2(0.82f, 0.53f), new Vector2(0.955f, 0.68f), SelectNextCharacter, canNavigate, "Next Character");
+            CreateIconButton(stage, "PreviousCharacterButton", GetArrowSprite(false), new Vector2(0.12f, 0.711f), new Vector2(0.24f, 0.851f), SelectPreviousCharacter, canNavigate, "Previous Character");
+            CreateIconButton(stage, "NextCharacterButton", GetArrowSprite(true), new Vector2(0.76f, 0.711f), new Vector2(0.88f, 0.851f), SelectNextCharacter, canNavigate, "Next Character");
 
-            selectedCharacterNameText = CreateText(stage, "SelectedCharacterNameText", string.Empty, new Vector2(0.08f, 0.295f), new Vector2(0.7f, 0.37f), TextAnchor.MiddleLeft, 34, primaryTextColor);
-            selectedCharacterNameText.fontStyle = FontStyle.Bold;
-            selectedCharacterLevelText = CreateText(stage, "SelectedCharacterLevelText", string.Empty, new Vector2(0.7f, 0.295f), new Vector2(0.92f, 0.37f), TextAnchor.MiddleRight, 27, primaryTextColor);
+            selectedCharacterLevelText = CreateText(stage, "SelectedCharacterLevelText", string.Empty, new Vector2(0.055f, 0.585f), new Vector2(0.35f, 0.641f), TextAnchor.MiddleLeft, 27, accentTextColor);
+            selectedCharacterLevelText.fontStyle = FontStyle.Bold;
 
             BuildExperienceGauge(stage);
-            CreateDivider(stage, "InfoDivider", new Vector2(0.055f, 0.18f), new Vector2(0.945f, 0.184f));
-            CreateDivider(stage, "StatsDivider", new Vector2(0.497f, 0.035f), new Vector2(0.5f, 0.155f));
-            selectedCharacterStatsLeftText = CreateText(stage, "CharacterStatsLeftText", string.Empty, new Vector2(0.055f, 0.015f), new Vector2(0.475f, 0.17f), TextAnchor.MiddleLeft, 18, secondaryTextColor);
-            selectedCharacterStatsRightText = CreateText(stage, "CharacterStatsRightText", string.Empty, new Vector2(0.525f, 0.015f), new Vector2(0.945f, 0.17f), TextAnchor.MiddleLeft, 18, secondaryTextColor);
-            selectedCharacterStatsLeftText.lineSpacing = 1.15f;
-            selectedCharacterStatsRightText.lineSpacing = 1.15f;
+            CreateDivider(stage, "InfoDivider", new Vector2(0.055f, 0.511f), new Vector2(0.945f, 0.514f));
+
+            selectedCharacterStatNamesText = CreateText(stage, "CharacterStatNamesText", "SPEED\nREFLEX\nVITALITY\nFEVER DRIVE\nITEM LUCK\nAWAKENING", new Vector2(0.07f, 0.213f), new Vector2(0.48f, 0.502f), TextAnchor.MiddleLeft, 28, accentTextColor);
+            selectedCharacterStatValuesText = CreateText(stage, "CharacterStatValuesText", string.Empty, new Vector2(0.48f, 0.213f), new Vector2(0.93f, 0.502f), TextAnchor.MiddleLeft, 28, accentTextColor);
+            selectedCharacterStatNamesText.fontStyle = FontStyle.Bold;
+            selectedCharacterStatValuesText.fontStyle = FontStyle.Bold;
+            selectedCharacterStatNamesText.lineSpacing = 1.05f;
+            selectedCharacterStatValuesText.lineSpacing = 1.05f;
+
+            RectTransform skillPanel = CreatePanel(stage, "SkillDescriptionPanel", new Vector2(0.055f, 0.033f), new Vector2(0.945f, 0.204f), new Color(0f, 0f, 0f, 0.64f), true);
+            Text skillTitleText = CreateText(skillPanel, "SkillTitleText", "SKILL DESCRIPTION", new Vector2(0.035f, 0.62f), new Vector2(0.965f, 0.92f), TextAnchor.MiddleLeft, 28, primaryTextColor);
+            skillTitleText.fontStyle = FontStyle.Bold;
+            selectedCharacterSkillDescriptionText = CreateText(skillPanel, "SkillDescriptionText", string.Empty, new Vector2(0.035f, 0.08f), new Vector2(0.965f, 0.64f), TextAnchor.UpperLeft, 28, primaryTextColor);
         }
 
         private void BuildExperienceGauge(RectTransform parent)
         {
-            RectTransform background = CreatePanel(parent, "ExperienceGauge", new Vector2(0.055f, 0.235f), new Vector2(0.945f, 0.275f), new Color(0f, 0f, 0f, 0.5f), false);
-            selectedCharacterExperienceFill = CreateImage(background, "Fill", new Vector2(0.008f, 0.16f), new Vector2(0.992f, 0.84f), experienceColor);
+            RectTransform background = CreatePanel(parent, "ExperienceGauge", new Vector2(0.055f, 0.539f), new Vector2(0.945f, 0.581f), new Color(0f, 0f, 0f, 0.82f), false);
+            selectedCharacterExperienceFill = CreateImage(background, "Fill", new Vector2(0.006f, 0.12f), new Vector2(0.994f, 0.88f), experienceColor);
             selectedCharacterExperienceFill.type = Image.Type.Simple;
             selectedCharacterExperienceFillRect = selectedCharacterExperienceFill.rectTransform;
             selectedCharacterExperienceFillRect.pivot = new Vector2(0f, 0.5f);
-            selectedCharacterExperienceText = CreateText(background, "ExperienceText", string.Empty, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 18, primaryTextColor);
+            selectedCharacterExperienceText = CreateText(background, "ExperienceText", string.Empty, new Vector2(0.02f, 0f), new Vector2(0.98f, 1f), TextAnchor.MiddleLeft, 20, primaryTextColor);
             selectedCharacterExperienceText.fontStyle = FontStyle.Bold;
         }
 
@@ -242,8 +265,18 @@ namespace PH.Core.UI
                 return;
             }
 
-            RectTransform adArea = CreatePanel(root, "BannerAdArea", new Vector2(0.055f, 0.14f), new Vector2(0.945f, 0.86f), disabledButtonColor, false);
-            CreateText(adArea, "AdLabel", "AD", Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 24, secondaryTextColor);
+            const float leftMargin = 0.035f;
+            const float gap = 0.012f;
+            float buttonWidth = (0.93f - gap * (FooterMenuLabels.Length - 1)) / FooterMenuLabels.Length;
+            for (int i = 0; i < FooterMenuLabels.Length; i++)
+            {
+                float minX = leftMargin + i * (buttonWidth + gap);
+                CreateTemporaryMenuButton(root, FooterMenuLabels[i], minX, minX + buttonWidth);
+            }
+
+            RectTransform adArea = CreatePanel(root, "BannerAdArea", new Vector2(0f, 0f), new Vector2(1f, 0.31f), disabledButtonColor, false);
+            Text adLabel = CreateText(adArea, "AdLabel", "AD", Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 28, primaryTextColor);
+            adLabel.fontStyle = FontStyle.Bold;
         }
 
         private void RefreshLobbyData()
@@ -252,7 +285,7 @@ namespace PH.Core.UI
 
             if (profileText != null)
             {
-                profileText.text = playerNickname;
+                profileText.text = $"NAME : {playerNickname}";
             }
 
             if (currencyText != null)
@@ -267,12 +300,12 @@ namespace PH.Core.UI
 
             if (bestFloorText != null)
             {
-                bestFloorText.text = $"{Mathf.Max(0, bestHighestFloor)}F";
+                bestFloorText.text = $"Floor :  {Mathf.Max(0, bestHighestFloor)}F";
             }
 
             if (bestScoreText != null)
             {
-                bestScoreText.text = Mathf.Max(0, bestScore).ToString("N0");
+                bestScoreText.text = $"Score :  {Mathf.Max(0, bestScore):N0}";
             }
 
             RefreshSelectedCharacterInfo();
@@ -306,14 +339,17 @@ namespace PH.Core.UI
                 selectedCharacterPositionText.text = GetSelectedCharacterPositionLabel();
             }
 
-            if (selectedCharacterStatsLeftText != null)
+            if (selectedCharacterStatValuesText != null)
             {
-                selectedCharacterStatsLeftText.text = GetSelectedCharacterStatsLeftLabel();
+                selectedCharacterStatValuesText.text = GetSelectedCharacterStatValuesLabel();
             }
 
-            if (selectedCharacterStatsRightText != null)
+            if (selectedCharacterSkillDescriptionText != null)
             {
-                selectedCharacterStatsRightText.text = GetSelectedCharacterStatsRightLabel();
+                selectedCharacterSkillDescriptionText.text = GetSelectedCharacterSkillDescription();
+                selectedCharacterSkillDescriptionText.color = CharacterProgressionState.IsSkillUnlocked(selectedCharacter)
+                    ? primaryTextColor
+                    : lockedSkillTextColor;
             }
 
             if (selectedCharacterExperienceText != null)
@@ -328,8 +364,8 @@ namespace PH.Core.UI
                 // (변경) Sprite 유무와 관계없이 현재 XP 비율만큼 게이지 폭을 직접 조절한다.
                 float normalizedExperience = Mathf.Clamp01(progression.NormalizedExperience);
                 selectedCharacterExperienceFillRect.anchorMax = new Vector2(
-                    Mathf.Lerp(0.008f, 0.992f, normalizedExperience),
-                    0.84f);
+                    Mathf.Lerp(0.006f, 0.994f, normalizedExperience),
+                    0.88f);
             }
 
             RefreshSelectedCharacterPortrait();
@@ -361,28 +397,34 @@ namespace PH.Core.UI
             return $"1 / {total}";
         }
 
-        private string GetSelectedCharacterStatsLeftLabel()
+        private string GetSelectedCharacterStatValuesLabel()
         {
             if (selectedCharacter == null)
             {
-                return "SPEED  -\nVITALITY  -\nITEM LUCK  -";
+                return ":  -\n:  -\n:  -\n:  -\n:  -\n:  -";
             }
 
             int speedIndex = GetRelativeStatIndex(selectedCharacter.MoveSpeedColumnsPerSecond, AgentXBaseMoveSpeed);
-            float itemLuckPercent = selectedCharacter.ItemChance * 100f;
-            return $"SPEED  {speedIndex}\nVITALITY  {selectedCharacter.MaxLife}\nITEM LUCK  {itemLuckPercent:0.#}%";
-        }
-
-        private string GetSelectedCharacterStatsRightLabel()
-        {
-            if (selectedCharacter == null)
-            {
-                return "REFLEX  -\nFEVER DRIVE  -\nAWAKENING  -";
-            }
-
             int reflexIndex = GetInverseRelativeStatIndex(selectedCharacter.PivotCooldownSeconds, AgentXBasePivotCooldown);
             int feverDriveIndex = GetRelativeStatIndex(selectedCharacter.FeverGainPerColumn, AgentXBaseFeverGainPerColumn);
-            return $"REFLEX  {reflexIndex}\nFEVER DRIVE  {feverDriveIndex}\nAWAKENING  LV.{selectedCharacter.SkillUnlockLevel}";
+            float itemLuckPercent = selectedCharacter.ItemChance * 100f;
+            return $":  {speedIndex}\n:  {reflexIndex}\n:  {selectedCharacter.MaxLife}\n:  {feverDriveIndex}\n:  {itemLuckPercent:0.#}%\n:  LV.{selectedCharacter.SkillUnlockLevel}";
+        }
+
+        private string GetSelectedCharacterSkillDescription()
+        {
+            CharacterSkillDefinition skill = selectedCharacter != null ? selectedCharacter.CharacterSkill : null;
+            if (skill == null || string.IsNullOrWhiteSpace(skill.Description))
+            {
+                return "No skill description available.";
+            }
+
+            return skill.Description
+                .Replace("P1", skill.P1.ToString("0.#"))
+                .Replace("P2", skill.P2.ToString("0.#"))
+                .Replace("P3", skill.P3.ToString("0.#"))
+                .Replace("P4", skill.P4.ToString("0.#"))
+                .Replace("P5", skill.P5.ToString("0.#"));
         }
 
         private int GetRelativeStatIndex(float value, float baseline)
@@ -707,6 +749,35 @@ namespace PH.Core.UI
             return button;
         }
 
+        private Button CreateTemporaryMenuButton(RectTransform parent, string label, float minX, float maxX)
+        {
+            string objectName = label.Replace(" ", string.Empty) + "Button";
+            GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(Outline));
+            buttonObject.layer = parent.gameObject.layer;
+            buttonObject.transform.SetParent(parent, false);
+            RectTransform rectTransform = ConfigureRect(
+                buttonObject.GetComponent<RectTransform>(),
+                new Vector2(minX, 0.39f),
+                new Vector2(maxX, 0.95f));
+
+            Image image = buttonObject.GetComponent<Image>();
+            image.color = new Color(disabledButtonColor.r, disabledButtonColor.g, disabledButtonColor.b, 0.82f);
+
+            Outline outline = buttonObject.GetComponent<Outline>();
+            outline.effectColor = new Color(1f, 1f, 1f, 0.72f);
+            outline.effectDistance = new Vector2(2f, -2f);
+            outline.useGraphicAlpha = true;
+
+            Button button = buttonObject.GetComponent<Button>();
+            button.targetGraphic = image;
+            button.transition = Selectable.Transition.ColorTint;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+
+            Text labelText = CreateText(rectTransform, "Label", label, new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.34f), TextAnchor.MiddleCenter, 16, primaryTextColor);
+            labelText.fontStyle = FontStyle.Bold;
+            return button;
+        }
+
         private static RectTransform ConfigureRect(RectTransform rectTransform, Vector2 anchorMin, Vector2 anchorMax)
         {
             rectTransform.anchorMin = anchorMin;
@@ -770,6 +841,49 @@ namespace PH.Core.UI
             }
 
             return sprite;
+        }
+
+        private static Sprite GetSettingsSprite()
+        {
+            if (settingsSprite != null)
+            {
+                return settingsSprite;
+            }
+
+            const int textureSize = 64;
+            Texture2D texture = new Texture2D(textureSize, textureSize, TextureFormat.RGBA32, false)
+            {
+                name = "LobbySettingsTexture",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave
+            };
+
+            Color32[] pixels = new Color32[textureSize * textureSize];
+            Color32 iconColor = new Color32(255, 255, 255, 255);
+            for (int y = 0; y < textureSize; y++)
+            {
+                for (int x = 0; x < textureSize; x++)
+                {
+                    float normalizedX = ((x + 0.5f) / textureSize - 0.5f) * 2f;
+                    float normalizedY = ((y + 0.5f) / textureSize - 0.5f) * 2f;
+                    float radius = Mathf.Sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
+                    float angle = Mathf.Atan2(normalizedY, normalizedX);
+                    float outerRadius = Mathf.Cos(angle * 8f) > 0.35f ? 0.94f : 0.78f;
+                    if (radius >= 0.34f && radius <= outerRadius)
+                    {
+                        pixels[y * textureSize + x] = iconColor;
+                    }
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+
+            settingsSprite = Sprite.Create(texture, new Rect(0f, 0f, textureSize, textureSize), new Vector2(0.5f, 0.5f), textureSize);
+            settingsSprite.name = "LobbySettings";
+            settingsSprite.hideFlags = HideFlags.HideAndDontSave;
+            return settingsSprite;
         }
 
         private static void SetArrowPixel(Color32[] pixels, int textureSize, int x, int y, bool mirrorHorizontally, Color32 color)
