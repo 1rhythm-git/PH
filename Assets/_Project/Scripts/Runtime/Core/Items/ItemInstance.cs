@@ -1,6 +1,7 @@
 using System;
 using PH.Core.Audio;
 using PH.Core.Characters;
+using PH.Core.Characters.Skills;
 using PH.Core.Player;
 using PH.Core.UI;
 using PH.Core.World;
@@ -25,6 +26,7 @@ namespace PH.Core.Items
         private InfiniteFloorManager floorManager;
         private PlayerMotor playerMotor;
         private PlayerCharacterRuntime playerCharacterRuntime;
+        private CharacterSkillRuntime characterSkillRuntime;
         private PlayerHealth playerHealth;
         private PlayerBuffVisualFeedback playerBuffVisualFeedback;
         private PlayerItemPickupFeedback playerItemPickupFeedback;
@@ -201,6 +203,7 @@ namespace PH.Core.Items
 
             string eventId = Guid.NewGuid().ToString("N");
             ItemEffectResult effectResult = ApplyHUDItemEffect(eventId);
+            characterSkillRuntime?.TryActivate(definition, effectResult, topHUDController, playerMotor);
             eventRecorder?.Record(new ItemRunEvent(eventId, definition, absoluteFloor, pageIndex, pageFloorIndex, columnIndex, Time.time, effectResult));
             ShowPickupFeedback(effectResult);
             gameObject.SetActive(false);
@@ -251,6 +254,11 @@ namespace PH.Core.Items
             if (playerCharacterRuntime == null)
             {
                 playerCharacterRuntime = playerMotor.GetComponent<PlayerCharacterRuntime>();
+            }
+
+            if (characterSkillRuntime == null)
+            {
+                characterSkillRuntime = playerMotor.GetComponent<CharacterSkillRuntime>();
             }
 
             if (playerHealth == null)

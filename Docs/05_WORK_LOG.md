@@ -2471,7 +2471,7 @@ ________________________________________
 • Lobby 진입 시 저장된 장착 캐릭터 ID를 `availableCharacters`에서 복구
 • 미보유 캐릭터는 Lobby 좌우 선택과 캐릭터 수 표기에서 제외
 • 현재 4개 캐릭터는 기존 선택 동작을 보존하도록 `InitiallyOwned`를 활성화
-• 레벨별 필요 XP, 기본 런 XP, 스킬 해금 레벨과 확률은 계속 `CharacterDefinition`에서 관리하고 저장에는 현재 진행값만 기록
+• 레벨별 필요 XP, 기본 런 XP, Item Chance와 스킬 설정은 계속 `CharacterDefinition`에서 관리하고 저장에는 현재 진행값만 기록
 • 기존 프로필/재화/수집 저장 키는 변경하지 않고 별도 캐릭터 저장 키를 추가
 
 변경된 주요 파일:
@@ -2499,6 +2499,268 @@ ________________________________________
 사용자 확인:
 • Play Mode에서 XP 획득 후 에디터 재생 종료/재시작 시 XP와 레벨 복구 정상
 • 다른 캐릭터 선택 후 에디터 재생 종료/재시작 시 선택 및 장착 캐릭터 복구 정상
+
+________________________________________
+
+2.81 Item Chance 기본 스테이터스 분리
+
+목표:
+• Item Chance를 레벨 해금형 캐릭터 스킬에서 분리해 기본 스테이터스로 상시 적용
+• 캐릭터 고유 스킬은 추후 캐릭터마다 다른 능력치 또는 효과를 부여할 독립 영역으로 유지
+
+완료 내용:
+• `CharacterDefinition.itemChance`를 기본 게임플레이 스테이터스로 추가
+• 기존 `skillItemPageSpawnChance` 직렬화 값은 `FormerlySerializedAs`로 마이그레이션 가능하게 유지
+• 현재 캐릭터별 Item Chance 15%, 22.5%, 18%, 20% 보존
+• 페이지 Item Chance 판정에서 캐릭터 레벨 및 스킬 해금 조건 제거
+• Item Chance 성공 시 Time 또는 Skill 타입 아이템 1개 보장 동작 유지
+• 기존 가중치 추첨과 Collection 아이템 확률 계산은 변경하지 않음
+• Lobby에 `ITEM CHANCE`를 기본 정보로 표시하고 스킬은 `TO BE DEFINED`로 분리
+• 현재 캐릭터 스킬 ID와 설명을 `Undefined / Skill Pending` 상태로 정리
+• 기존 `SkillItemPageSpawnChance`와 `GetActiveSkillItemPageSpawnChance()` API는 호환 별칭으로 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterProgressionState.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerCharacterRuntime.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Data/Characters/*Character.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Roslyn 응답 파일 기반 전체 `Assembly-CSharp` 컴파일 종료 코드 0 확인
+• 기존 Item Chance 값 보존과 스킬 해금 의존 호출 제거 정적 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Play Mode에서 Lv.1 캐릭터도 각 Item Chance 값에 따라 Time 또는 Skill 아이템 보장 판정을 수행하는지 확인 필요
+• Lobby에서 Item Chance와 `SKILL TO BE DEFINED` 문구가 분리 표시되는지 확인 필요
+
+________________________________________
+
+2.82 피버 충전 단일 UI 스테이터스 정책 확정
+
+작업 기준:
+• 이동 시 피버 획득량과 방향전환 시 피버 획득량을 UI에서 하나의 스테이터스로 표현
+• 기존 캐릭터별 실제 피버 획득 결과값과 상대 밸런스는 유지
+
+기획 반영 내용:
+• UI 표기명을 `피버 충전`으로 확정
+• AgentX 배율 1.0을 UI 100으로 표시하는 상대 충전 효율 지수 적용
+• 이동속도는 별도 스테이터스이므로 피버 충전 UI 값에서 제외
+• 공통 1칸 이동 기본 획득량 0.15와 공통 방향전환 배율 1.5 확정
+• 실제 획득량은 공통값과 캐릭터별 `FeverGainMultiplier`를 곱해 계산
+• 캐릭터별 배율/UI 값은 AgentX 1.0/100, Alice 1.5/150, Landy 1.2/120, Ninja 2.0/200으로 설정
+• 공통값은 `FeverBalanceSettings` ScriptableObject에서 관리하는 방향으로 확정
+• 캐릭터 스킬이 특정 행동의 피버 획득을 변경할 경우 기본 스테이터스가 아니라 스킬 효과로 별도 표기
+
+변경된 주요 파일:
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 현재 캐릭터별 이동/방향전환 피버 값이 공통 기본값과 제안 배율로 동일하게 재현되는지 계산 확인
+• 모든 캐릭터의 방향전환 획득량이 이동 1칸 획득량의 1.5배인지 확인
+• `git diff --check` 통과
+
+남은 확인:
+• `FeverBalanceSettings` 및 `FeverGainMultiplier` 코드/에셋 전환 구현 필요
+• Lobby 또는 캐릭터 상세 UI에 단일 `피버 충전` 스테이터스 표시 필요
+
+________________________________________
+
+2.83 캐릭터별 아이템 획득 스킬 기반 구현
+
+목표:
+• 캐릭터마다 서로 다른 아이템 획득 조건과 효과를 가진 스킬을 데이터 에셋으로 관리
+• 모든 스킬에 P1~P5 파라미터를 제공하고 임시 밸런스 값으로 실제 효과 적용
+• Lobby 스킬 상세 UI 연결은 보류
+
+완료 내용:
+• `CharacterSkillDefinition` ScriptableObject와 발동 조건/효과 종류 enum 추가
+• P1 발동 확률과 효과별 P2~P5 수치를 캐릭터별 스킬 에셋에서 관리
+• `CharacterSkillRuntime`을 런타임 Player에 자동 부착
+• 아이템 기본 효과 적용 후 원본 `ItemType` 기준으로 스킬을 1회 판정
+• 효과 실행을 `ICharacterSkillEffect`와 점수/이동속도/Time 실행기로 분리
+• AgentX Lv.5: 스코어 아이템 획득 시 20% 확률로 실제 획득 점수의 50% 추가 지급
+• Landy Lv.15: 시계 획득 시 20% 확률로 5초 동안 이동속도 30% 증가
+• Alice Lv.15: 하트 획득 시 20% 확률로 5초 동안 이동속도 30% 증가
+• Ninja Lv.20: 스코어 아이템 획득 시 20% 확률로 Time 3초 즉시 증가
+• 모든 캐릭터 필요 XP 테이블을 19구간으로 확장해 최대 Lv.20 지원
+• 모든 캐릭터 기본 런 XP 테이블을 Lv.20까지 확장
+• 기존 캐릭터 스킬 메타데이터 공개 API는 신규 스킬 에셋 값을 우선 반환하도록 호환 유지
+• Lobby는 Item Chance만 유지하고 스킬명, 해금 레벨, 설명과 대기 문구를 표시하지 않음
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/Skills/*`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterProgressionState.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerCharacterRuntime.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemInstance.cs`
+• `Assets/_Project/Data/Characters/Skills/*`
+• `Assets/_Project/Data/Characters/*Character.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 신규 스킬 스크립트를 명시적으로 포함한 Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• 캐릭터별 필요 XP 19개와 기본 런 XP 20개 데이터 개수 확인
+• 캐릭터별 스킬 에셋 참조와 해금 레벨 정적 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Play Mode에서 캐릭터 레벨과 P1을 테스트용으로 조정해 각 발동 조건 및 효과 확인 필요
+• 피격 시 Landy/Alice 스킬 이동속도 효과가 기존 아이템 효과와 함께 초기화되는지 확인 필요
+• Lobby 스킬 상세 UI는 Lobby UI 재구성 기획 이후 반영
+
+________________________________________
+
+2.84 Lobby 캐릭터 스테이터스 용어 및 표시 적용
+
+목표:
+• 확정한 캐릭터 능력치 용어를 Lobby UI와 기획 문서에 반영
+• 기본 캐릭터를 UI에서 `Agent X`로 표시하되 내부 식별자는 유지
+
+완료 내용:
+• 이동속도 `SPEED`, 방향전환 `REFLEX`, 최대생명력 `VITALITY` 적용
+• 피버충전 `FEVER DRIVE`, 아이템 획득확률 `ITEM LUCK`, 스킬 해금 레벨 `AWAKENING` 적용
+• 6개 능력치를 Lobby 캐릭터 정보 하단의 좌우 2열에 3개씩 배치
+• `SPEED`, `REFLEX`, `FEVER DRIVE`는 Agent X 기본값을 100으로 보는 상대 지수로 표시
+• 방향전환 대기시간이 짧을수록 `REFLEX`가 높아지도록 역비례 계산
+• `VITALITY`는 최대 생명력, `ITEM LUCK`은 실제 확률(%), `AWAKENING`은 `LV.N` 형식으로 표시
+• 기본 캐릭터 에셋 표시명을 `AgentX`에서 `Agent X`로 변경
+• 저장 및 선택 호환성을 위해 기본 캐릭터 내부 ID `default`는 변경하지 않음
+• 스킬 이름, 설명, P1~P5 상세 수치는 기존 정책대로 Lobby에 노출하지 않음
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Data/Characters/DefaultCharacter.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 신규 스킬 스크립트를 포함한 Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• 네 캐릭터 에셋의 이동속도, 방향전환 대기시간, 최대 생명력, 피버 획득량, Item Chance, 스킬 해금 레벨 참조 경로 정적 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode 9:20 화면에서 두 열의 3개 항목이 겹침이나 잘림 없이 표시되는지 확인 필요
+• 네 캐릭터 전환 시 상대 지수, 생명력, 확률, 해금 레벨이 즉시 갱신되는지 확인 필요
+
+________________________________________
+
+2.85 캐릭터 Body Shape 더미 데이터 제거
+
+목표:
+• 초기 더미 캐릭터에 사용한 `Square`/`Triangle` 형태 선택 데이터를 현재 캐릭터 기본 정보에서 제거
+• 기존 스프라이트 기반 캐릭터 표시와 스프라이트 누락 fallback은 유지
+
+완료 내용:
+• `CharacterDefinition.bodyShape` 직렬화 필드와 `BodyShape` 공개 속성 제거
+• `CharacterBodyShape` enum 및 스크립트 제거
+• 네 캐릭터 에셋의 `bodyShape` 직렬화 값 제거
+• `PlayerShapeGraphic`의 Triangle 분기와 형태 설정 API 제거
+• `PlayerSpawner`의 캐릭터 형태 적용 및 형태 로그 제거
+• 스프라이트가 없는 개발 상황에서는 캐릭터 에셋과 무관한 고정 사각형 fallback 유지
+• Ninja의 기존 에셋명 `TriangleLowSpecCharacter`와 내부 ID `triangle_low_spec`는 저장 호환성을 위해 이번 작업에서 변경하지 않음
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerShapeGraphic.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterBodyShape.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerSpawner.cs`
+• `Assets/_Project/Data/Characters/*Character.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 삭제된 소스를 제외한 최신 Unity 응답 파일 기준 `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• 프로젝트 소스와 캐릭터 에셋에서 `CharacterBodyShape`, `bodyShape`, `BodyShape` 참조가 제거됐는지 정적 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 네 캐릭터의 Sprite Visual과 애니메이션이 기존과 동일하게 표시되는지 확인 필요
+• 테스트용 캐릭터의 모든 애니메이션 스프라이트를 비웠을 때 고정 사각형 fallback이 표시되는지 확인 필요
+
+________________________________________
+
+2.86 Ninja 캐릭터 ID 및 저장 데이터 마이그레이션
+
+목표:
+• Ninja의 과거 더미 ID `triangle_low_spec`를 정식 ID `ninja`로 변경
+• 기존 사용자의 캐릭터 진행과 강화 데이터를 손실 없이 자동 이전
+
+완료 내용:
+• Ninja 캐릭터 에셋의 `characterId`를 `ninja`로 변경
+• 공통 `CharacterIdMigration`에서 `triangle_low_spec`를 `ninja`로 정규화
+• 캐릭터 진행 저장 데이터 버전을 2로 상향
+• 기존 Ninja 레벨, XP, 보유, 선택, 장착 데이터를 `ninja` 항목으로 이전
+• 컬렉션/캐릭터 강화 저장 데이터 버전을 2로 상향하고 Ninja 강화 레벨 이전
+• 구 ID와 신 ID 진행 데이터가 동시에 있으면 더 높은 레벨을 우선하고, 같은 레벨이면 더 높은 XP를 보존
+• 구 ID와 신 ID 강화 데이터가 동시에 있으면 각 강화 항목의 더 높은 레벨을 보존
+• 기존 PlayerPrefs 저장 키 `PH.CharacterProgression.v1`, `PH.CollectionProgress.v1`는 유지
+• 에셋 파일명 `TriangleLowSpecCharacter`는 GUID와 씬 참조에 영향을 주지 않도록 이번 작업에서 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterIdMigration.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/LocalCharacterProgressionService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterProgressionData.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/LocalCollectionInventoryService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/CollectionData.cs`
+• `Assets/_Project/Data/Characters/TriangleLowSpecCharacter.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `triangle_low_spec`가 Ninja 에셋의 현행 ID가 아니라 마이그레이션 입력으로만 남았는지 정적 확인
+• 구·신 진행 데이터 병합 시 레벨 우선, 동레벨 XP 우선, 보유 상태 OR 및 최종 장착 상태 재계산 로직 확인
+• 구·신 강화 데이터 병합 시 캐릭터/강화 복합 키별 최대 강화 레벨 보존 로직 확인
+• `git diff --check` 통과
+
+남은 확인:
+• 기존 `triangle_low_spec` PlayerPrefs 샘플을 주입한 뒤 Lobby에서 Ninja 레벨, XP, 선택 상태가 유지되는지 Play Mode 확인 필요
+• 기존 Ninja 캐릭터 강화 데이터가 존재하는 샘플에서 강화 레벨 승계 확인 필요
+
+________________________________________
+
+2.87 Ninja ScriptableObject 명칭 정리
+
+목표:
+• 과거 더미 명칭 `TriangleLowSpecCharacter`를 Unity Project 및 Inspector에서 제거
+• 기존 씬 참조와 Ninja 저장 데이터 마이그레이션 유지
+
+완료 내용:
+• 에셋 파일명을 `TriangleLowSpecCharacter.asset`에서 `NinjaCharacter.asset`로 변경
+• ScriptableObject 내부 `m_Name`을 `NinjaCharacter`로 변경
+• 기존 `.meta` 파일을 함께 이동해 GUID `d0b4e87fbcab4d4f917299b9b05780ca` 유지
+• Lobby 및 복구 씬의 GUID 기반 캐릭터 참조는 수정 없이 유지
+• Ninja 내부 ID `ninja`와 `triangle_low_spec` 저장 마이그레이션 정책 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Data/Characters/NinjaCharacter.asset`
+• `Assets/_Project/Data/Characters/NinjaCharacter.asset.meta`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 에셋 이동 전후 GUID `d0b4e87fbcab4d4f917299b9b05780ca` 동일 확인
+• Lobby 씬이 기존 GUID로 NinjaCharacter를 계속 참조하는지 정적 확인
+• 활성 프로젝트 경로에서 `TriangleLowSpecCharacter` 명칭 제거 확인
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Project 창과 NinjaCharacter Inspector에서 새 명칭 표시 확인 필요
+• Lobby에서 Ninja 선택 및 InGame 진입 확인 필요
 
 ________________________________________
 

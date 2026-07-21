@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d11195ba3e2b4ef3a6bd3ee60539bbc1, type: 3}
+  m_Name: LandySkill
+  m_EditorClassIdentifier:
+  skillId: landy_clock_speed
+  displayName: Clockwork Rush
+  unlockLevel: 15
+  triggerType: 1
+  effectType: 1
+  description: On clock acquisition, P1% chance to gain P3% move speed for P2 seconds.
+  p1: 20
+  p2: 5
+  p3: 30
+  p4: 0
+  p5: 0

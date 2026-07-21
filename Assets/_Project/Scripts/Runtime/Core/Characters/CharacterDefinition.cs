@@ -1,3 +1,4 @@
+using PH.Core.Characters.Skills;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -25,9 +26,6 @@ namespace PH.Core.Characters
         private Color outlineColor = new Color(0.05f, 0.05f, 0.06f, 0.85f);
 
         [SerializeField]
-        private CharacterBodyShape bodyShape = CharacterBodyShape.Square;
-
-        [SerializeField]
         private Sprite[] idleSprites;
 
         [SerializeField]
@@ -51,6 +49,7 @@ namespace PH.Core.Characters
         [SerializeField]
         private Vector2 spriteVisualScale = Vector2.one;
 
+        [Header("Base Gameplay Stats")]
         [SerializeField]
         private float moveSpeedColumnsPerSecond = 4f;
 
@@ -79,6 +78,11 @@ namespace PH.Core.Characters
         [SerializeField, Range(0f, 1f)]
         private float instantItemAcquireChance;
 
+        [SerializeField, Range(0f, 1f)]
+        [FormerlySerializedAs("skillItemPageSpawnChance")]
+        [Tooltip("페이지 생성 시 Time 또는 Skill 타입 아이템 1개를 보장할 기본 확률입니다.")]
+        private float itemChance = 0.15f;
+
         [SerializeField, Min(0f)]
         private float collectionItemChanceBonusPercent;
 
@@ -98,21 +102,22 @@ namespace PH.Core.Characters
         [Tooltip("런 종료 시 현재 캐릭터 레벨에 따라 지급하는 기본 XP입니다.")]
         private int[] runExperienceRewardByLevel = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
 
+        [Header("Character Skill")]
         [SerializeField]
-        private string unlockableSkillId = "skill_item_page_chance";
+        private CharacterSkillDefinition characterSkill;
 
-        [SerializeField]
-        private string unlockableSkillName = "Item Scout";
+        [SerializeField, HideInInspector]
+        private string unlockableSkillId = "Undefined";
 
-        [SerializeField]
+        [SerializeField, HideInInspector]
+        private string unlockableSkillName = "Skill Pending";
+
+        [SerializeField, HideInInspector]
         [TextArea(2, 4)]
-        private string unlockableSkillDescription = "Increases the chance of a Time or Speed item appearing on each page.";
+        private string unlockableSkillDescription = "Character-specific ability will be configured later.";
 
-        [SerializeField]
+        [SerializeField, HideInInspector]
         private int skillUnlockLevel = 3;
-
-        [SerializeField, Range(0f, 1f)]
-        private float skillItemPageSpawnChance = 0.15f;
 
         public string CharacterId => characterId;
         public string DisplayName => displayName;
@@ -120,7 +125,6 @@ namespace PH.Core.Characters
         public Rect IngamePortraitFaceRect => ingamePortraitFaceRect;
         public Color BodyColor => bodyColor;
         public Color OutlineColor => outlineColor;
-        public CharacterBodyShape BodyShape => bodyShape;
         public Sprite[] IdleSprites => idleSprites;
         public Sprite[] WalkSprites => walkSprites;
         public Sprite[] RunSprites => runSprites;
@@ -138,15 +142,23 @@ namespace PH.Core.Characters
         public string BoosterBuffKey => FeverBuffKey;
         public int MaxLife => maxLife;
         public float InstantItemAcquireChance => instantItemAcquireChance;
+        public float ItemChance => Mathf.Clamp01(itemChance);
         public float CollectionItemChanceBonusPercent => Mathf.Max(0f, collectionItemChanceBonusPercent);
         public CharacterUpgradeDefinition[] CollectionUpgrades => collectionUpgrades;
         public bool InitiallyOwned => initiallyOwned;
         public int MaxCharacterLevel => Mathf.Max(1, (requiredExperienceByLevel?.Length ?? 0) + 1);
-        public string UnlockableSkillId => unlockableSkillId;
-        public string UnlockableSkillName => unlockableSkillName;
-        public string UnlockableSkillDescription => unlockableSkillDescription;
-        public int SkillUnlockLevel => Mathf.Clamp(skillUnlockLevel, 1, MaxCharacterLevel);
-        public float SkillItemPageSpawnChance => Mathf.Clamp01(skillItemPageSpawnChance);
+        public CharacterSkillDefinition CharacterSkill => characterSkill;
+        public string UnlockableSkillId => characterSkill != null ? characterSkill.SkillId : unlockableSkillId;
+        public string UnlockableSkillName => characterSkill != null ? characterSkill.DisplayName : unlockableSkillName;
+        public string UnlockableSkillDescription => characterSkill != null ? characterSkill.Description : unlockableSkillDescription;
+        public int SkillUnlockLevel => Mathf.Clamp(
+            characterSkill != null ? characterSkill.UnlockLevel : skillUnlockLevel,
+            1,
+            MaxCharacterLevel);
+        public bool IsSkillConfigured => characterSkill != null
+            || (!string.IsNullOrWhiteSpace(unlockableSkillId)
+                && !string.Equals(unlockableSkillId, "Undefined", System.StringComparison.OrdinalIgnoreCase));
+        public float SkillItemPageSpawnChance => ItemChance;
 
         public float GetIdleFrameScale(int frameIndex)
         {
@@ -214,10 +226,9 @@ namespace PH.Core.Characters
             feverGainPerPivot = Mathf.Max(0f, feverGainPerPivot);
             maxLife = Mathf.Max(1, maxLife);
             instantItemAcquireChance = Mathf.Clamp01(instantItemAcquireChance);
+            itemChance = Mathf.Clamp01(itemChance);
             collectionItemChanceBonusPercent = Mathf.Max(0f, collectionItemChanceBonusPercent);
             skillUnlockLevel = Mathf.Clamp(skillUnlockLevel, 1, MaxCharacterLevel);
-            skillItemPageSpawnChance = Mathf.Clamp01(skillItemPageSpawnChance);
-
             if (requiredExperienceByLevel != null)
             {
                 for (int i = 0; i < requiredExperienceByLevel.Length; i++)

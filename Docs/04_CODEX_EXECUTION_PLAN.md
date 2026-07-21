@@ -113,6 +113,23 @@ Lobby 선택값에 따라 플레이어를 런타임 생성하고 좌우 이동�
 •	런타임 생성
 •	좌우 이동 가능
 •	화면 밖으로 나가지 않음
+현행 및 전환 메모
+•	UI에는 이동/방향전환 피버 획득량을 분리하지 않고 `피버 충전` 단일 스테이터스로 표시한다.
+•	`피버 충전` UI 값은 Agent X 100 기준 상대 지수이며 이동속도는 포함하지 않는다.
+•	`FeverBalanceSettings`에 공통 이동 기본 획득량 0.15와 방향전환 배율 1.5를 둔다.
+•	`CharacterDefinition`에는 `FeverGainMultiplier`만 두고 실제 이동/전환 획득량을 공통 설정에서 계산한다.
+•	기존 결과값은 Agent X 1.0, Alice 1.5, Landy 1.2, Ninja 2.0 배율로 동일하게 유지한다.
+•	Lobby 기본 능력치는 `SPEED`, `REFLEX`, `VITALITY`, `FEVER DRIVE`, `ITEM LUCK`, `AWAKENING`의 6개 항목을 좌우 2열로 표시한다.
+•	`SPEED`, `REFLEX`, `FEVER DRIVE`는 Agent X를 100으로 보는 상대 지수이며, `REFLEX`는 방향전환 대기시간에 역비례한다.
+•	`VITALITY`는 최대 생명력, `ITEM LUCK`은 실제 확률(%), `AWAKENING`은 스킬 해금 레벨을 표시한다.
+•	기본 캐릭터 내부 ID `default`는 유지하고 Lobby 표시명은 `Agent X`를 사용한다.
+•	공통 피버 설정과 캐릭터별 배율 데이터 구조 전환은 캐릭터 강화 능력치 확정 시 진행한다.
+캐릭터 스킬 현행 메모
+•	`CharacterSkillDefinition` 에셋에서 해금 레벨, 발동 조건, 효과 종류, 설명과 P1~P5를 관리한다.
+•	`CharacterSkillRuntime`은 런타임 생성 Player에 자동 부착하고 아이템 기본 효과 이후 스킬을 한 번 판정한다.
+•	스킬 효과는 `ICharacterSkillEffect` 구현체로 분리한다.
+•	Agent X Lv.5, Landy/Alice Lv.15, Ninja Lv.20 해금을 위해 캐릭터별 성장 테이블을 Lv.20까지 확장한다.
+•	Lobby 스킬 상세 UI는 현재 연결하지 않고 재구성 기획 이후 반영한다.
 ________________________________________
 PART 5
 엘리베이터와 층 상승
@@ -401,7 +418,8 @@ PART 16
 구현 상태
 •	프로필 재화와 수집/강화 데이터의 로컬 저장 기반은 구현됨
 •	캐릭터별 레벨/경험치와 선택/보유/장착 상태를 `ICharacterProgressionService` 뒤에 분리해 로컬 저장 완료
-•	캐릭터 진행 저장 키 `PH.CharacterProgression.v1`과 데이터 버전 1 적용
+•	캐릭터 진행 저장 키 `PH.CharacterProgression.v1`과 데이터 버전 2 적용
+•	Ninja의 과거 ID `triangle_low_spec`는 로드 시 `ninja`로 변환하고 진행/선택/장착/강화 데이터를 병합
 •	기존 프로필/재화/수집 저장 키는 유지하고, 최초 캐릭터 데이터는 캐릭터 에셋의 `InitiallyOwned` 기준으로 생성
 •	레벨별 필요 XP와 기본 런 XP는 `CharacterDefinition` 에셋에서 계속 관리하여 추후 레벨 디자인 변경 가능
 •	선택 게임 모드, 최고 기록과 직전 런 기록의 통합 저장은 후속 작업

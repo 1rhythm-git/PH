@@ -74,7 +74,7 @@ namespace PH.Core.Items
     [Serializable]
     public sealed class CollectionSaveData
     {
-        public int Version = 1;
+        public int Version = 2;
         public List<CollectionData> Collections = new List<CollectionData>();
         public List<CharacterUpgradeData> CharacterUpgrades = new List<CharacterUpgradeData>();
         public List<PendingCollectionEventData> PendingEvents = new List<PendingCollectionEventData>();

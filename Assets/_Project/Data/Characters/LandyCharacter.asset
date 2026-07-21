@@ -23,7 +23,6 @@ MonoBehaviour:
     height: 0.56
   bodyColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
   outlineColor: {r: 0.84, g: 0.58, b: 0.08, a: 0.9}
-  bodyShape: 0
   idleSprites:
   - {fileID: 21300000, guid: f73fb03fc17d6144b9105195addc58d8, type: 3}
   - {fileID: 21300000, guid: cd4aee28bb35239419b1ddc853ea3c23, type: 3}
@@ -50,6 +49,7 @@ MonoBehaviour:
   boosterBuffKey: Undefined
   maxLife: 4
   instantItemAcquireChance: 0
+  itemChance: 0.18
   initiallyOwned: 1
   requiredExperienceByLevel:
   - 100
@@ -61,6 +61,16 @@ MonoBehaviour:
   - 800
   - 1050
   - 1350
+  - 1700
+  - 2100
+  - 2550
+  - 3050
+  - 3600
+  - 4200
+  - 4900
+  - 5700
+  - 6600
+  - 7600
   runExperienceRewardByLevel:
   - 5
   - 6
@@ -72,8 +82,18 @@ MonoBehaviour:
   - 12
   - 13
   - 14
-  unlockableSkillId: golden_instinct
-  unlockableSkillName: Golden Instinct
-  unlockableSkillDescription: Adds an 18% chance to guarantee a Time or Skill item on each page.
-  skillUnlockLevel: 3
-  skillItemPageSpawnChance: 0.18
+  - 15
+  - 16
+  - 17
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  characterSkill: {fileID: 11400000, guid: a2c1eb42ab0e48c2bde7b08d211d39f4, type: 2}
+  unlockableSkillId: Undefined
+  unlockableSkillName: Skill Pending
+  unlockableSkillDescription: Character-specific ability will be configured later.
+  skillUnlockLevel: 15

@@ -11,6 +11,9 @@ namespace PH.Core.UI
     public sealed class LobbyController : MonoBehaviour
     {
         private const string RuntimeRootName = "LobbyRuntimeRoot";
+        private const float AgentXBaseMoveSpeed = 2f;
+        private const float AgentXBasePivotCooldown = 0.3f;
+        private const float AgentXBaseFeverGainPerColumn = 0.15f;
 
         private static readonly Vector2 HeaderBandMin = new Vector2(0f, 0.88f);
         private static readonly Vector2 HeaderBandMax = Vector2.one;
@@ -68,7 +71,8 @@ namespace PH.Core.UI
         private Text selectedCharacterLevelText;
         private Text selectedCharacterPositionText;
         private Text selectedCharacterNameText;
-        private Text selectedCharacterSkillText;
+        private Text selectedCharacterStatsLeftText;
+        private Text selectedCharacterStatsRightText;
         private Text selectedCharacterExperienceText;
         private Image selectedCharacterPortraitImage;
         private Image selectedCharacterExperienceFill;
@@ -212,7 +216,11 @@ namespace PH.Core.UI
 
             BuildExperienceGauge(stage);
             CreateDivider(stage, "InfoDivider", new Vector2(0.055f, 0.18f), new Vector2(0.945f, 0.184f));
-            selectedCharacterSkillText = CreateText(stage, "SelectedCharacterSkillText", string.Empty, new Vector2(0.055f, 0.015f), new Vector2(0.945f, 0.17f), TextAnchor.MiddleLeft, 21, secondaryTextColor);
+            CreateDivider(stage, "StatsDivider", new Vector2(0.497f, 0.035f), new Vector2(0.5f, 0.155f));
+            selectedCharacterStatsLeftText = CreateText(stage, "CharacterStatsLeftText", string.Empty, new Vector2(0.055f, 0.015f), new Vector2(0.475f, 0.17f), TextAnchor.MiddleLeft, 18, secondaryTextColor);
+            selectedCharacterStatsRightText = CreateText(stage, "CharacterStatsRightText", string.Empty, new Vector2(0.525f, 0.015f), new Vector2(0.945f, 0.17f), TextAnchor.MiddleLeft, 18, secondaryTextColor);
+            selectedCharacterStatsLeftText.lineSpacing = 1.15f;
+            selectedCharacterStatsRightText.lineSpacing = 1.15f;
         }
 
         private void BuildExperienceGauge(RectTransform parent)
@@ -298,9 +306,14 @@ namespace PH.Core.UI
                 selectedCharacterPositionText.text = GetSelectedCharacterPositionLabel();
             }
 
-            if (selectedCharacterSkillText != null)
+            if (selectedCharacterStatsLeftText != null)
             {
-                selectedCharacterSkillText.text = GetSelectedCharacterSkillLabel();
+                selectedCharacterStatsLeftText.text = GetSelectedCharacterStatsLeftLabel();
+            }
+
+            if (selectedCharacterStatsRightText != null)
+            {
+                selectedCharacterStatsRightText.text = GetSelectedCharacterStatsRightLabel();
             }
 
             if (selectedCharacterExperienceText != null)
@@ -348,20 +361,38 @@ namespace PH.Core.UI
             return $"1 / {total}";
         }
 
-        private string GetSelectedCharacterSkillLabel()
+        private string GetSelectedCharacterStatsLeftLabel()
         {
             if (selectedCharacter == null)
             {
-                return "SKILL  None";
+                return "SPEED  -\nVITALITY  -\nITEM LUCK  -";
             }
 
-            bool isUnlocked = CharacterProgressionState.IsSkillUnlocked(selectedCharacter);
-            string status = isUnlocked ? "ACTIVE" : $"LOCKED Lv.{selectedCharacter.SkillUnlockLevel}";
-            int chancePercent = Mathf.RoundToInt(selectedCharacter.SkillItemPageSpawnChance * 100f);
-            string description = string.IsNullOrWhiteSpace(selectedCharacter.UnlockableSkillDescription)
-                ? "No skill description"
-                : selectedCharacter.UnlockableSkillDescription;
-            return $"{status}  {selectedCharacter.UnlockableSkillName}\n{description}  Chance +{chancePercent}%";
+            int speedIndex = GetRelativeStatIndex(selectedCharacter.MoveSpeedColumnsPerSecond, AgentXBaseMoveSpeed);
+            float itemLuckPercent = selectedCharacter.ItemChance * 100f;
+            return $"SPEED  {speedIndex}\nVITALITY  {selectedCharacter.MaxLife}\nITEM LUCK  {itemLuckPercent:0.#}%";
+        }
+
+        private string GetSelectedCharacterStatsRightLabel()
+        {
+            if (selectedCharacter == null)
+            {
+                return "REFLEX  -\nFEVER DRIVE  -\nAWAKENING  -";
+            }
+
+            int reflexIndex = GetInverseRelativeStatIndex(selectedCharacter.PivotCooldownSeconds, AgentXBasePivotCooldown);
+            int feverDriveIndex = GetRelativeStatIndex(selectedCharacter.FeverGainPerColumn, AgentXBaseFeverGainPerColumn);
+            return $"REFLEX  {reflexIndex}\nFEVER DRIVE  {feverDriveIndex}\nAWAKENING  LV.{selectedCharacter.SkillUnlockLevel}";
+        }
+
+        private int GetRelativeStatIndex(float value, float baseline)
+        {
+            return baseline > 0f ? Mathf.Max(0, Mathf.RoundToInt(value / baseline * 100f)) : 0;
+        }
+
+        private int GetInverseRelativeStatIndex(float value, float baseline)
+        {
+            return value > 0f ? Mathf.Max(0, Mathf.RoundToInt(baseline / value * 100f)) : 0;
         }
 
         private void RefreshSelectedCharacterPortrait()

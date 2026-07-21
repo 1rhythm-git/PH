@@ -248,8 +248,13 @@ ________________________________________
 •	실행마다 `runtimeSeed`를 생성하고, 페이지 인덱스를 섞어 배치 난수를 만든다.
 •	`randomizeSeedOnStart`가 켜져 있으면 새 실행마다 배치가 달라진다.
 •	`randomizeSeedOnStart`가 꺼져 있으면 `randomSeed` 기반으로 재현 가능한 배치를 만든다.
-•	캐릭터 레벨 스킬 해금 후 Page Chance 판정에 성공하면 해당 페이지의 아이템 중 1개를 Time 또는 Skill 타입으로 보장한다.
-•	Page Chance는 기존 아이템 가중치 추첨을 제거하지 않으며, 보장 대상 외 아이템은 기존 규칙으로 선택한다.
+•	캐릭터 기본 스테이터스인 Item Chance 판정에 성공하면 해당 페이지의 아이템 중 1개를 Time 또는 Skill 타입으로 보장한다.
+•	Item Chance는 레벨 또는 캐릭터 스킬 해금 여부와 관계없이 페이지 생성 시 항상 판정한다.
+•	Item Chance는 기존 아이템 가중치 추첨을 제거하지 않으며, 보장 대상 외 아이템은 기존 규칙으로 선택한다.
+•	캐릭터 스킬은 아이템 기본 효과 적용 이후 아이템 획득 1회당 한 번 판정한다.
+•	스킬 발동 조건은 원본 `ItemType`을 기준으로 하므로, 하트가 최대 상태에서 스코어로 전환되어도 하트 획득 스킬 조건으로 처리한다.
+•	스킬로 발생한 추가 Score 또는 Time은 아이템 획득 이벤트를 다시 발생시키지 않는다.
+•	캐릭터 스킬 발동 확률과 효과 수치는 `CharacterSkillDefinition`의 P1~P5에서 관리한다.
 •	Collection 아이템은 일반 아이템의 상대 가중치와 분리된 절대 확률을 사용한다.
 •	최종 확률은 `(CollectionBaseSpawnChance + CollectionSpawnChancePerFloor × (현재 층 - MinFloor)) × (1 + PlayerChanceBonusPercent / 100)`으로 계산한다.
 •	Artifact는 이미 보유했거나 `MaxOwnedAmount`에 도달하면 스폰 후보에서 제외한다.

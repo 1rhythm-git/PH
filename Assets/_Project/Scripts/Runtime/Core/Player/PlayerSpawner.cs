@@ -1,4 +1,5 @@
 using PH.Core.Characters;
+using PH.Core.Characters.Skills;
 using PH.Core.Game;
 using PH.Core.UI;
 using PH.Core.World;
@@ -113,6 +114,12 @@ namespace PH.Core.Player
                 characterRuntime = spawnedPlayer.AddComponent<PlayerCharacterRuntime>();
             }
 
+            CharacterSkillRuntime characterSkillRuntime = spawnedPlayer.GetComponent<CharacterSkillRuntime>();
+            if (characterSkillRuntime == null)
+            {
+                characterSkillRuntime = spawnedPlayer.AddComponent<CharacterSkillRuntime>();
+            }
+
             PlayerController controller = spawnedPlayer.GetComponent<PlayerController>();
             if (controller == null)
             {
@@ -146,6 +153,7 @@ namespace PH.Core.Player
             ElevatorController elevatorController = FindFirstObjectByType<ElevatorController>();
 
             characterRuntime.Configure(activeCharacterDefinition);
+            characterSkillRuntime.Configure(activeCharacterDefinition);
             ApplyCharacterVisual(spawnedPlayer);
             controller.Configure(motor, touchArea, characterRuntime, characterRuntime.PivotCooldownSeconds);
             motor.SetCharacterRuntime(characterRuntime);
@@ -187,12 +195,10 @@ namespace PH.Core.Player
                 legacyImage.enabled = false;
             }
 
-            CharacterBodyShape shape = activeCharacterDefinition != null ? activeCharacterDefinition.BodyShape : CharacterBodyShape.Square;
             bool useSpriteVisual = HasCharacterSprites(activeCharacterDefinition);
             shapeGraphic.enabled = !useSpriteVisual;
             shapeGraphic.color = activeCharacterDefinition != null ? activeCharacterDefinition.BodyColor : playerColor;
             shapeGraphic.raycastTarget = false;
-            shapeGraphic.SetShape(shape);
 
             Outline outline = playerObject.GetComponent<Outline>();
             if (outline != null)
@@ -212,7 +218,7 @@ namespace PH.Core.Player
                 DisableSpriteVisual(playerObject);
             }
 
-            Debug.Log($"Player character applied: {(activeCharacterDefinition != null ? activeCharacterDefinition.DisplayName : "Fallback")} shape={shape} sprite={useSpriteVisual}", this);
+            Debug.Log($"Player character applied: {(activeCharacterDefinition != null ? activeCharacterDefinition.DisplayName : "Fallback")} sprite={useSpriteVisual}", this);
         }
 
         private Image EnsureSpriteVisual(GameObject playerObject)

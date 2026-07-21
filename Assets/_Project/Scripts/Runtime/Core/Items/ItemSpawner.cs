@@ -157,7 +157,7 @@ namespace PH.Core.Items
             HashSet<int> occupied = new HashSet<int>();
             HashSet<string> spawnedCollectionIds = new HashSet<string>();
             int spawnedCount = 0;
-            bool needsSkillItemForPage = RollSkillItemPageChance(random);
+            bool needsItemChanceRewardForPage = RollItemChance(random);
 
             for (int guard = 0; guard < buildingGridUI.Rows * buildingGridUI.Columns && spawnedCount < maxItemsPerPage; guard++)
             {
@@ -172,8 +172,8 @@ namespace PH.Core.Items
 
                 FloorAddress address = pageData.GetAddressByRow(row);
                 ItemDefinition definition = TryPickCollectionItem(address.AbsoluteFloor, random, spawnedCollectionIds);
-                definition ??= needsSkillItemForPage
-                    ? PickPageSkillItem(address.AbsoluteFloor, random)
+                definition ??= needsItemChanceRewardForPage
+                    ? PickItemChanceReward(address.AbsoluteFloor, random)
                     : null;
                 definition ??= PickItem(address.AbsoluteFloor, random);
                 if (definition == null)
@@ -181,9 +181,9 @@ namespace PH.Core.Items
                     continue;
                 }
 
-                if (needsSkillItemForPage && IsPageSkillItem(definition))
+                if (needsItemChanceRewardForPage && IsItemChanceReward(definition))
                 {
-                    needsSkillItemForPage = false;
+                    needsItemChanceRewardForPage = false;
                 }
 
                 if (definition.ItemType == ItemType.Collection && !string.IsNullOrWhiteSpace(definition.CollectionId))
@@ -362,14 +362,14 @@ namespace PH.Core.Items
             return definition.CollectionItemChanceBonusPercent + modifiers.CollectionItemChanceBonusPercent + userTraitBonusPercent;
         }
 
-        private ItemDefinition PickPageSkillItem(int absoluteFloor, System.Random random)
+        private ItemDefinition PickItemChanceReward(int absoluteFloor, System.Random random)
         {
             List<ItemDefinition> candidates = itemTable.GetSpawnCandidates(absoluteFloor);
             int totalWeight = 0;
 
             for (int i = 0; i < candidates.Count; i++)
             {
-                if (IsPageSkillItem(candidates[i]) && CanSpawnForPlayer(candidates[i]))
+                if (IsItemChanceReward(candidates[i]) && CanSpawnForPlayer(candidates[i]))
                 {
                     totalWeight += Mathf.Max(0, candidates[i].SpawnWeight);
                 }
@@ -386,7 +386,7 @@ namespace PH.Core.Items
             for (int i = 0; i < candidates.Count; i++)
             {
                 ItemDefinition candidate = candidates[i];
-                if (!IsPageSkillItem(candidate) || !CanSpawnForPlayer(candidate))
+                if (!IsItemChanceReward(candidate) || !CanSpawnForPlayer(candidate))
                 {
                     continue;
                 }
@@ -401,7 +401,7 @@ namespace PH.Core.Items
             return null;
         }
 
-        private bool RollSkillItemPageChance(System.Random random)
+        private bool RollItemChance(System.Random random)
         {
             if (!string.IsNullOrWhiteSpace(forcedTestItemId))
             {
@@ -415,11 +415,11 @@ namespace PH.Core.Items
                 definition = runtime != null ? runtime.CharacterDefinition : null;
             }
 
-            float chance = CharacterProgressionState.GetActiveSkillItemPageSpawnChance(definition);
+            float chance = CharacterProgressionState.GetItemChance(definition);
             return chance > 0f && random.NextDouble() <= chance;
         }
 
-        private bool IsPageSkillItem(ItemDefinition definition)
+        private bool IsItemChanceReward(ItemDefinition definition)
         {
             return definition != null && (definition.ItemType == ItemType.Time || definition.ItemType == ItemType.Skill);
         }

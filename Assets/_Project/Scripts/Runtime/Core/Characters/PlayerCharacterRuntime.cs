@@ -31,9 +31,10 @@ namespace PH.Core.Characters
         public float CollectionItemChanceBonusPercent => characterDefinition != null
             ? characterDefinition.CollectionItemChanceBonusPercent + upgradeModifiers.CollectionItemChanceBonusPercent
             : 0f;
+        public float ItemChance => CharacterProgressionState.GetItemChance(characterDefinition);
         public CharacterProgressionSnapshot Progression => CharacterProgressionState.GetSnapshot(characterDefinition);
         public bool IsLevelSkillUnlocked => CharacterProgressionState.IsSkillUnlocked(characterDefinition);
-        public float SkillItemPageSpawnChance => CharacterProgressionState.GetActiveSkillItemPageSpawnChance(characterDefinition);
+        public float SkillItemPageSpawnChance => ItemChance;
         public float FeverGauge => feverGauge;
         public float FeverGaugeMax => characterDefinition != null ? characterDefinition.FeverGaugeMax : 100f;
         public float FeverGaugeNormalized => FeverGaugeMax <= 0f ? 0f : Mathf.Clamp01(feverGauge / FeverGaugeMax);

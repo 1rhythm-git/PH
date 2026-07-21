@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using PH.Core.Characters;
 using UnityEngine;
 
 namespace PH.Core.Items
 {
     public sealed class LocalCollectionInventoryService : ICollectionInventoryService
     {
+        private const int CurrentVersion = 2;
         private const string SaveKey = "PH.CollectionProgress.v1";
 
         private readonly CollectionSaveData saveData;
@@ -13,6 +15,7 @@ namespace PH.Core.Items
         public LocalCollectionInventoryService()
         {
             saveData = Load();
+            NormalizeSaveData();
         }
 
         public int GetOwnedAmount(string collectionId)
@@ -29,7 +32,7 @@ namespace PH.Core.Items
 
         public int GetCharacterUpgradeLevel(string characterId, string upgradeId)
         {
-            CharacterUpgradeData entry = FindUpgrade(characterId, upgradeId);
+            CharacterUpgradeData entry = FindUpgrade(CharacterIdMigration.Normalize(characterId), NormalizeKey(upgradeId));
             return entry != null ? Mathf.Max(0, entry.Level) : 0;
         }
 
@@ -102,6 +105,8 @@ namespace PH.Core.Items
 
         public CharacterUpgradeResult TryApplyCharacterUpgrade(string characterId, string upgradeId, IReadOnlyList<CollectionCost> costs)
         {
+            characterId = CharacterIdMigration.Normalize(characterId);
+            upgradeId = NormalizeKey(upgradeId);
             CharacterUpgradeData upgrade = FindUpgrade(characterId, upgradeId);
             int previousLevel = upgrade != null ? Mathf.Max(0, upgrade.Level) : 0;
             Dictionary<string, int> aggregatedCosts = AggregateCosts(costs);
@@ -195,6 +200,43 @@ namespace PH.Core.Items
             return null;
         }
 
+        private void NormalizeSaveData()
+        {
+            saveData.Version = CurrentVersion;
+            Dictionary<(string CharacterId, string UpgradeId), CharacterUpgradeData> knownUpgrades =
+                new Dictionary<(string CharacterId, string UpgradeId), CharacterUpgradeData>();
+            for (int i = saveData.CharacterUpgrades.Count - 1; i >= 0; i--)
+            {
+                CharacterUpgradeData entry = saveData.CharacterUpgrades[i];
+                if (entry == null)
+                {
+                    saveData.CharacterUpgrades.RemoveAt(i);
+                    continue;
+                }
+
+                entry.CharacterId = CharacterIdMigration.Normalize(entry.CharacterId);
+                entry.UpgradeId = NormalizeKey(entry.UpgradeId);
+                entry.Level = Mathf.Max(0, entry.Level);
+                if (string.IsNullOrEmpty(entry.CharacterId) || string.IsNullOrEmpty(entry.UpgradeId))
+                {
+                    saveData.CharacterUpgrades.RemoveAt(i);
+                    continue;
+                }
+
+                (string CharacterId, string UpgradeId) key = (entry.CharacterId, entry.UpgradeId);
+                if (knownUpgrades.TryGetValue(key, out CharacterUpgradeData existingEntry))
+                {
+                    existingEntry.Level = Mathf.Max(existingEntry.Level, entry.Level);
+                    saveData.CharacterUpgrades.RemoveAt(i);
+                    continue;
+                }
+
+                knownUpgrades.Add(key, entry);
+            }
+
+            TrySave();
+        }
+
         private CharacterUpgradeData FindUpgrade(string characterId, string upgradeId)
         {
             for (int i = 0; i < saveData.CharacterUpgrades.Count; i++)
@@ -209,6 +251,11 @@ namespace PH.Core.Items
             }
 
             return null;
+        }
+
+        private string NormalizeKey(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
         }
 
         private Dictionary<string, int> AggregateCosts(IReadOnlyList<CollectionCost> costs)

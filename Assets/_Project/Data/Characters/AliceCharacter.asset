@@ -23,7 +23,6 @@ MonoBehaviour:
     height: 0.56
   bodyColor: {r: 0.96, g: 0.76, b: 0.28, a: 1}
   outlineColor: {r: 0.22, g: 0.03, b: 0.04, a: 0.9}
-  bodyShape: 0
   idleSprites:
   - {fileID: 21300000, guid: 7fd5397fbf7ba4c4f80690b84c17bf17, type: 3}
   - {fileID: 21300000, guid: 64d093f91637b9746b5af8cf75358f5b, type: 3}
@@ -43,6 +42,7 @@ MonoBehaviour:
   boosterBuffKey: Undefined
   maxLife: 3
   instantItemAcquireChance: 0
+  itemChance: 0.225
   initiallyOwned: 1
   requiredExperienceByLevel:
   - 100
@@ -54,6 +54,16 @@ MonoBehaviour:
   - 800
   - 1050
   - 1350
+  - 1700
+  - 2100
+  - 2550
+  - 3050
+  - 3600
+  - 4200
+  - 4900
+  - 5700
+  - 6600
+  - 7600
   runExperienceRewardByLevel:
   - 5
   - 6
@@ -65,8 +75,18 @@ MonoBehaviour:
   - 12
   - 13
   - 14
-  unlockableSkillId: maid_fortune
-  unlockableSkillName: Maid's Fortune
-  unlockableSkillDescription: Adds a 22.5% chance to guarantee a Time or Skill item on each page.
-  skillUnlockLevel: 3
-  skillItemPageSpawnChance: 0.225
+  - 15
+  - 16
+  - 17
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  characterSkill: {fileID: 11400000, guid: a3d61326b9194eeb8ae83e5ac542ccbc, type: 2}
+  unlockableSkillId: Undefined
+  unlockableSkillName: Skill Pending
+  unlockableSkillDescription: Character-specific ability will be configured later.
+  skillUnlockLevel: 15

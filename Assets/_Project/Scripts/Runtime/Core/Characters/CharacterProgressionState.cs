@@ -120,12 +120,20 @@ namespace PH.Core.Characters
 
         public static bool IsSkillUnlocked(CharacterDefinition definition)
         {
-            return definition != null && GetSnapshot(definition).Level >= definition.SkillUnlockLevel;
+            return definition != null
+                && definition.IsSkillConfigured
+                && GetSnapshot(definition).Level >= definition.SkillUnlockLevel;
         }
 
+        public static float GetItemChance(CharacterDefinition definition)
+        {
+            return definition != null ? definition.ItemChance : 0f;
+        }
+
+        // 이전 API 호출부 호환용이며 Item Chance는 더 이상 스킬 해금에 종속되지 않는다.
         public static float GetActiveSkillItemPageSpawnChance(CharacterDefinition definition)
         {
-            return IsSkillUnlocked(definition) ? definition.SkillItemPageSpawnChance : 0f;
+            return GetItemChance(definition);
         }
 
         private static CharacterProgressionRecord GetNormalizedRecord(CharacterDefinition definition)

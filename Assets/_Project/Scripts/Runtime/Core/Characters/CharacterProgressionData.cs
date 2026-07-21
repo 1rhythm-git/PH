@@ -16,7 +16,7 @@ namespace PH.Core.Characters
     [Serializable]
     public sealed class CharacterProgressionSaveData
     {
-        public int Version = 1;
+        public int Version = 2;
         public string SelectedCharacterId;
         public string EquippedCharacterId;
         public List<CharacterProgressionData> Characters = new List<CharacterProgressionData>();

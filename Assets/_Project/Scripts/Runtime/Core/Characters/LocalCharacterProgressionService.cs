@@ -6,7 +6,7 @@ namespace PH.Core.Characters
 {
     public sealed class LocalCharacterProgressionService : ICharacterProgressionService
     {
-        private const int CurrentVersion = 1;
+        private const int CurrentVersion = 2;
         private const string SaveKey = "PH.CharacterProgression.v1";
 
         private readonly CharacterProgressionSaveData saveData;
@@ -136,11 +136,11 @@ namespace PH.Core.Characters
         private void NormalizeSaveData()
         {
             saveData.Characters ??= new List<CharacterProgressionData>();
-            saveData.Version = Mathf.Clamp(saveData.Version, 1, CurrentVersion);
+            saveData.Version = CurrentVersion;
             saveData.SelectedCharacterId = NormalizeId(saveData.SelectedCharacterId);
             saveData.EquippedCharacterId = NormalizeId(saveData.EquippedCharacterId);
 
-            HashSet<string> knownIds = new HashSet<string>(StringComparer.Ordinal);
+            Dictionary<string, CharacterProgressionData> knownEntries = new Dictionary<string, CharacterProgressionData>(StringComparer.Ordinal);
             for (int i = saveData.Characters.Count - 1; i >= 0; i--)
             {
                 CharacterProgressionData entry = saveData.Characters[i];
@@ -151,7 +151,7 @@ namespace PH.Core.Characters
                 }
 
                 entry.CharacterId = NormalizeId(entry.CharacterId);
-                if (string.IsNullOrEmpty(entry.CharacterId) || !knownIds.Add(entry.CharacterId))
+                if (string.IsNullOrEmpty(entry.CharacterId))
                 {
                     saveData.Characters.RemoveAt(i);
                     continue;
@@ -159,8 +159,14 @@ namespace PH.Core.Characters
 
                 entry.Level = Mathf.Max(1, entry.Level);
                 entry.CurrentExperience = Mathf.Max(0, entry.CurrentExperience);
-                entry.IsEquipped = string.Equals(entry.CharacterId, saveData.EquippedCharacterId, StringComparison.Ordinal)
-                    && entry.IsOwned;
+                if (knownEntries.TryGetValue(entry.CharacterId, out CharacterProgressionData existingEntry))
+                {
+                    MergeProgress(existingEntry, entry);
+                    saveData.Characters.RemoveAt(i);
+                    continue;
+                }
+
+                knownEntries.Add(entry.CharacterId, entry);
             }
 
             CharacterProgressionData equippedEntry = FindCharacter(saveData.EquippedCharacterId);
@@ -173,6 +179,13 @@ namespace PH.Core.Characters
             if (selectedEntry == null || !selectedEntry.IsOwned)
             {
                 saveData.SelectedCharacterId = saveData.EquippedCharacterId;
+            }
+
+            for (int i = 0; i < saveData.Characters.Count; i++)
+            {
+                CharacterProgressionData entry = saveData.Characters[i];
+                entry.IsEquipped = string.Equals(entry.CharacterId, saveData.EquippedCharacterId, StringComparison.Ordinal)
+                    && entry.IsOwned;
             }
 
             TrySave();
@@ -237,9 +250,24 @@ namespace PH.Core.Characters
                 entry.IsEquipped);
         }
 
+        private void MergeProgress(CharacterProgressionData target, CharacterProgressionData source)
+        {
+            if (source.Level > target.Level)
+            {
+                target.Level = source.Level;
+                target.CurrentExperience = source.CurrentExperience;
+            }
+            else if (source.Level == target.Level)
+            {
+                target.CurrentExperience = Mathf.Max(target.CurrentExperience, source.CurrentExperience);
+            }
+
+            target.IsOwned |= source.IsOwned;
+        }
+
         private string NormalizeId(string characterId)
         {
-            return string.IsNullOrWhiteSpace(characterId) ? string.Empty : characterId.Trim();
+            return CharacterIdMigration.Normalize(characterId);
         }
     }
 }
