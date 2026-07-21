@@ -2344,6 +2344,63 @@ ________________________________________
 
 ________________________________________
 
+2.77 Title 씬 추가 및 Loading/Lobby 구성 변경
+
+목표:
+• `Loading → Title → Lobby` 시작 흐름을 추가하고 신규 Title/Lobby 배경을 적용
+
+현재 상태:
+• Loading 씬에 로딩바가 포함되어 완료 후 Lobby로 직접 이동
+• Lobby는 기존 `Lobby_Background.png`를 사용
+
+기대 동작:
+• Loading은 기존 대기와 LAF 로고 강조를 유지하되 로딩바 없이 Title로 이동
+• Title은 `Title.png` 배경과 하단 1/4 지점 로딩바를 표시하고 100% 후 점멸 `TOUCH` 입력으로 Lobby 활성화
+• Lobby는 `Lobby.png`를 전체 화면 배경으로 표시
+
+완료 내용:
+• `SceneFlowManager`에 Title 씬 이름과 전환 API 추가
+• `RuntimeBootstrapper`의 기존 로딩 대기/로고 강조 유지 및 다음 씬을 Title로 변경
+• Loading 씬의 `LoadingBarRoot`와 `LoadingBarFill` 오브젝트 및 참조 제거
+• `TitleSceneController`가 Lobby를 비동기 로드하고 최소 1.5초 동안 진행률을 표시하도록 구현
+• 100% 완료 후 `TOUCH` 문구를 0.45초 간격으로 점멸하고 터치/클릭/확인 키 입력 시 Lobby 활성화
+• Title 배경은 `AspectRatioFitter.EnvelopeParent`로 원본 비율을 유지하면서 화면을 채우도록 구성
+• `Title.unity` 신규 생성 및 `Title.png` Sprite 연결
+• Lobby `BackgroundImage`를 신규 `Lobby.png`로 교체
+• Build Settings 순서를 Loading, Title, Lobby, InGame으로 변경
+
+변경된 주요 파일:
+• `Assets/_Project/Scenes/Loading.unity`
+• `Assets/_Project/Scenes/Title.unity`
+• `Assets/_Project/Scenes/Lobby.unity`
+• `Assets/_Project/Scripts/Runtime/Core/Bootstrap/RuntimeBootstrapper.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/SceneFlowManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Assets/_Project/Art/Backgrounds/Title.png`
+• `Assets/_Project/Art/Backgrounds/Lobby.png`
+• `ProjectSettings/EditorBuildSettings.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Roslyn 응답 파일 기반 전체 `Assembly-CSharp` 컴파일 종료 코드 0 확인
+• Loading 씬에 로딩바 오브젝트 및 직렬화 참조가 남지 않았는지 확인
+• Title/Lobby 배경 Sprite GUID와 Build Settings 씬 순서 정적 확인
+• 신규 배경 두 장이 Sprite, Bilinear, Mipmap Off 설정을 사용하는지 확인
+• 사용자 Play Mode 확인 기준 Loading → Title → Lobby 흐름, 진행률, `TOUCH` 입력 정상 동작
+• 열린 Unity Editor로 별도 Batch Mode 씬 Import 검증은 `Multiple Unity instances cannot open the same project.`로 중단
+
+남은 확인:
+• Title `Main Camera` 추가 후 `Display 1 No cameras rendering` 문구 제거 확인 필요
+• 9:20 화면에서 로딩바 위치와 Title/Lobby 배경 크롭 상태 확인 필요
+
+추가 수정:
+• 사용자 Play Mode 확인에서 Title 씬 기능은 정상 동작했으나 `Display 1 No cameras rendering` 문구가 노출됨
+• Title 씬에 다른 기본 씬과 동일한 활성 `Main Camera`와 `AudioListener`를 추가해 Game View 경고 제거
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:

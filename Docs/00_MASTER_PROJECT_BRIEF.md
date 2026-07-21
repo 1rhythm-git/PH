@@ -508,16 +508,25 @@ ________________________________________
 17. 씬 구성
 기본 씬은 다음과 같다.
 Loading
+Title
 Lobby
 InGame
 17.1 Loading
 역할:
 •	로딩 UI
-•	커스텀 로딩 바
 •	LAF 로고 빛 연출
 •	초기 서비스 준비
-•	다음 씬 이동
-17.2 Lobby
+•	Title 씬 이동
+•	로딩바는 표시하지 않으며 기존 로딩 대기와 초기화 기능은 유지
+17.2 Title
+역할:
+•	`Art/Backgrounds/Title.png` 전체 화면 표시
+•	화면 하단 1/4 지점 중앙에 Lobby 비동기 로딩 진행률 표시
+•	100% 완료 후 진행 문구를 `TOUCH`로 전환하고 점멸
+•	터치, 마우스 클릭 또는 확인 키 입력 시 준비된 Lobby 씬 활성화
+17.3 Lobby
+배경:
+•	`Art/Backgrounds/Lobby.png`를 전체 화면 배경으로 사용한다.
 필수 UI:
 •	중앙 단일 캐릭터 전면 초상화
 •	캐릭터 좌우 순환 선택 버튼
@@ -670,6 +679,7 @@ Assets
 │   │   └── UI
 │   ├── Scenes
 │   │   ├── Loading.unity
+│   │   ├── Title.unity
 │   │   ├── Lobby.unity
 │   │   └── InGame.unity
 │   ├── Scripts
