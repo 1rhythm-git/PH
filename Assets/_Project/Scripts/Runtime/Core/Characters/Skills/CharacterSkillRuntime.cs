@@ -46,10 +46,33 @@ namespace PH.Core.Characters.Skills
                 playerMotor));
             if (applied)
             {
+                ShowActivationFeedback(skill, true, playerMotor);
                 Debug.Log($"Character skill activated: {skill.SkillId}", this);
             }
 
             return applied;
+        }
+
+        public void ShowActivationFeedback(bool stackAboveItemFeedback)
+        {
+            ShowActivationFeedback(ActiveSkill, stackAboveItemFeedback, GetComponent<PlayerMotor>());
+        }
+
+        private void ShowActivationFeedback(CharacterSkillDefinition skill, bool stackAboveItemFeedback, PlayerMotor playerMotor)
+        {
+            if (skill == null)
+            {
+                return;
+            }
+
+            GameObject feedbackOwner = playerMotor != null ? playerMotor.gameObject : gameObject;
+            PlayerItemPickupFeedback feedback = feedbackOwner.GetComponent<PlayerItemPickupFeedback>();
+            if (feedback == null)
+            {
+                feedback = feedbackOwner.AddComponent<PlayerItemPickupFeedback>();
+            }
+
+            feedback.ShowSkillActivation(stackAboveItemFeedback);
         }
 
         private bool MatchesTrigger(CharacterSkillTriggerType triggerType, ItemType itemType)

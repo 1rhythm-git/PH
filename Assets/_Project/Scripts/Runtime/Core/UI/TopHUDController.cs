@@ -78,7 +78,7 @@ namespace PH.Core.UI
 
         [SerializeField]
         [FormerlySerializedAs("boosterGaugeFillColor")]
-        private Color feverGaugeFillColor = new Color(0.16f, 0.72f, 0.96f, 1f);
+        private Color feverGaugeFillColor = new Color(0.18f, 0.78f, 0.32f, 1f);
 
         [SerializeField]
         [FormerlySerializedAs("boosterGaugeEmptyColor")]

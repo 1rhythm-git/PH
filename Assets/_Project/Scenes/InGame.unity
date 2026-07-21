@@ -772,7 +772,7 @@ MonoBehaviour:
   heartColor: {r: 1, g: 0.18, b: 0.24, a: 1}
   feverReadyColor: {r: 0.96, g: 0.82, b: 0.22, a: 1}
   feverGaugeBackgroundColor: {r: 0, g: 0, b: 0, a: 0.68}
-  feverGaugeFillColor: {r: 0.16, g: 0.72, b: 0.96, a: 1}
+  feverGaugeFillColor: {r: 0.18, g: 0.78, b: 0.32, a: 1}
   feverGaugeEmptyColor: {r: 1, g: 1, b: 1, a: 0.08}
   feverReadyBlinkInterval: 0.18
   experienceGaugeBackgroundColor: {r: 0, g: 0, b: 0, a: 0.68}

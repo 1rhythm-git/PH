@@ -3004,6 +3004,96 @@ ________________________________________
 
 ________________________________________
 
+2.96 InGame 피버 게이지 기본 색상 변경
+
+목표:
+• 엘리베이터와 피버 게이지의 색상 혼동 제거
+
+완료 내용:
+• 피버 게이지 기본 충전색을 청색 `(0.16, 0.72, 0.96, 1.0)`에서 녹색 `(0.18, 0.78, 0.32, 1.0)`으로 변경
+• `TopHUDController` 기본값과 `InGame` 씬 직렬화 값을 동일하게 적용
+• 100% 충전 시 사용하는 기존 노란색 `feverReadyColor`와 점멸 효과 유지
+• 엘리베이터의 기존 청색은 변경하지 않음
+
+변경된 주요 파일:
+• `Assets/_Project/Scenes/InGame.unity`
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 기본 피버 게이지와 엘리베이터 색상값이 서로 다른 계열인지 확인
+• 100% 충전 분기와 점멸 로직이 기존 `feverReadyColor`를 유지하는지 확인
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 녹색 게이지의 실제 가독성과 100% 노란색 전환 확인 필요
+
+________________________________________
+
+2.97 캐릭터 스킬 발동 공용 텍스트 연출
+
+목표:
+• 캐릭터 스킬 발동 여부를 인게임에서 즉시 인지할 수 있는 공용 텍스트 피드백 추가
+• 아이템 획득 텍스트와 스킬 발동 텍스트가 동시에 표시될 때 겹침 방지
+• 향후 비아이템 조건 스킬도 같은 텍스트 연출을 재사용할 수 있는 구조 마련
+
+완료 내용:
+• `PlayerItemPickupFeedback`에 `ShowSkillActivation()` 공용 API 추가
+• 스킬 발동 텍스트에 기존 상승, 페이드, 굵은 글꼴, Outline과 Shadow 연출 재사용
+• 표시 문구를 공통 `SKILL ON!` 형식으로 구성하고 금색 계열 색상 적용
+• 현재 아이템 연계 스킬은 기존 아이템 획득 텍스트보다 Y 52 위에 함께 표시
+• 비아이템 연계 스킬은 `ShowActivationFeedback(false)` 호출 시 기존 아이템 텍스트 기본 위치에 표시 가능
+• `CharacterSkillRuntime`이 실제 효과 적용에 성공한 경우에만 발동 텍스트 출력
+• 피드백 컴포넌트가 누락된 Player에도 런타임 자동 보완
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/Skills/CharacterSkillRuntime.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerItemPickupFeedback.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 스킬 효과 성공 이후에만 텍스트 호출이 실행되는 순서 확인
+• 아이템 획득 스킬의 스킬 텍스트와 아이템 텍스트 시작 위치가 Y 52만큼 분리되는지 확인
+• 비아이템 스킬용 기본 위치 호출 경로 확인
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 4개 캐릭터 스킬 발동 시 문구, 위치, 상승과 페이드 연출 확인 필요
+• 아이템 획득 텍스트와 동시 출력 시 캐릭터 스프라이트 및 위층 UI와 겹침 확인 필요
+
+________________________________________
+
+2.98 스킬 발동 텍스트 문구 간소화
+
+목표:
+• 캐릭터별 영문 스킬명으로 길어지는 발동 텍스트 간소화
+
+완료 내용:
+• 기존 `SKILL! 스킬명` 문구를 모든 캐릭터 공통 `SKILL ON!`으로 변경
+• `ShowSkillActivation()`에서 스킬명 파라미터를 제거해 공통 문구만 출력하도록 API 정리
+• 기존 금색, 크기, 위치 분리, 상승 및 페이드 연출 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/Skills/CharacterSkillRuntime.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerItemPickupFeedback.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 스킬명 데이터가 발동 텍스트 호출 경로에 전달되지 않는지 확인
+• 모든 스킬이 동일한 `SKILL ON!` 문구를 사용하는지 확인
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 아이템 획득 텍스트와 함께 표시될 때 문구 길이와 위치 확인 필요
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:

@@ -128,6 +128,7 @@ Lobby 선택값에 따라 플레이어를 런타임 생성하고 좌우 이동�
 •	`CharacterSkillDefinition` 에셋에서 해금 레벨, 발동 조건, 효과 종류, 설명과 P1~P5를 관리한다.
 •	`CharacterSkillRuntime`은 런타임 생성 Player에 자동 부착하고 아이템 기본 효과 이후 스킬을 한 번 판정한다.
 •	스킬 효과는 `ICharacterSkillEffect` 구현체로 분리한다.
+•	스킬 발동 텍스트는 `PlayerItemPickupFeedback`의 공용 상승·페이드 연출을 재사용한다. 아이템 연계 발동은 아이템 텍스트 위쪽, 비아이템 연계 발동은 기본 위치에 표시한다.
 •	Agent X Lv.5, Landy/Alice Lv.15, Ninja Lv.20 해금을 위해 캐릭터별 성장 테이블을 Lv.20까지 확장한다.
 •	Lobby 스킬 설명은 P1~P5를 현재 에셋 값으로 치환해 표시하며 강화/상세 조작은 후속 작업으로 남긴다.
 Lobby 디자인 현행 메모
