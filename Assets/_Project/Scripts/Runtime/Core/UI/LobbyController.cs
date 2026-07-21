@@ -333,7 +333,7 @@ namespace PH.Core.UI
             int visibleIndex = 0;
             for (int i = 0; i < availableCharacters.Length; i++)
             {
-                if (availableCharacters[i] == null)
+                if (availableCharacters[i] == null || !CharacterProgressionState.IsOwned(availableCharacters[i]))
                 {
                     continue;
                 }
@@ -405,7 +405,9 @@ namespace PH.Core.UI
                 }
 
                 CharacterDefinition candidate = availableCharacters[index];
-                if (candidate != null && candidate != selectedCharacter)
+                if (candidate != null
+                    && candidate != selectedCharacter
+                    && CharacterProgressionState.IsOwned(candidate))
                 {
                     SelectCharacter(candidate);
                     return;
@@ -415,7 +417,7 @@ namespace PH.Core.UI
 
         private void SelectCharacter(CharacterDefinition characterDefinition)
         {
-            if (characterDefinition == null)
+            if (characterDefinition == null || !CharacterProgressionState.IsOwned(characterDefinition))
             {
                 return;
             }
@@ -428,13 +430,14 @@ namespace PH.Core.UI
 
         private void EnsureSelectedCharacter()
         {
-            if (selectedCharacter != null)
+            if (selectedCharacter != null && CharacterProgressionState.IsOwned(selectedCharacter))
             {
                 CharacterSelectionState.Select(selectedCharacter);
                 return;
             }
 
-            selectedCharacter = CharacterSelectionState.Resolve(GetFirstAvailableCharacter());
+            selectedCharacter = null;
+            selectedCharacter = CharacterSelectionState.Resolve(GetFirstAvailableCharacter(), availableCharacters);
             if (selectedCharacter != null)
             {
                 CharacterSelectionState.Select(selectedCharacter);
@@ -450,7 +453,7 @@ namespace PH.Core.UI
 
             for (int i = 0; i < availableCharacters.Length; i++)
             {
-                if (availableCharacters[i] != null)
+                if (availableCharacters[i] != null && CharacterProgressionState.IsOwned(availableCharacters[i]))
                 {
                     return availableCharacters[i];
                 }
@@ -469,7 +472,7 @@ namespace PH.Core.UI
             int count = 0;
             for (int i = 0; i < availableCharacters.Length; i++)
             {
-                if (availableCharacters[i] != null)
+                if (availableCharacters[i] != null && CharacterProgressionState.IsOwned(availableCharacters[i]))
                 {
                     count++;
                 }

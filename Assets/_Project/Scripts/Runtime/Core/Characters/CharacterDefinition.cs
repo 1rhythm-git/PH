@@ -85,10 +85,17 @@ namespace PH.Core.Characters
         [SerializeField]
         private CharacterUpgradeDefinition[] collectionUpgrades;
 
+        [Header("Progression And Ownership")]
         [SerializeField]
+        [Tooltip("새 저장 데이터에서 이 캐릭터를 기본 보유 상태로 생성할지 결정합니다.")]
+        private bool initiallyOwned = true;
+
+        [SerializeField]
+        [Tooltip("현재 레벨에서 다음 레벨로 올라갈 때 필요한 XP입니다. 배열 길이 + 1이 최대 레벨입니다.")]
         private int[] requiredExperienceByLevel = { 100, 150, 225, 325, 450, 600, 800, 1050, 1350 };
 
         [SerializeField]
+        [Tooltip("런 종료 시 현재 캐릭터 레벨에 따라 지급하는 기본 XP입니다.")]
         private int[] runExperienceRewardByLevel = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
 
         [SerializeField]
@@ -133,6 +140,7 @@ namespace PH.Core.Characters
         public float InstantItemAcquireChance => instantItemAcquireChance;
         public float CollectionItemChanceBonusPercent => Mathf.Max(0f, collectionItemChanceBonusPercent);
         public CharacterUpgradeDefinition[] CollectionUpgrades => collectionUpgrades;
+        public bool InitiallyOwned => initiallyOwned;
         public int MaxCharacterLevel => Mathf.Max(1, (requiredExperienceByLevel?.Length ?? 0) + 1);
         public string UnlockableSkillId => unlockableSkillId;
         public string UnlockableSkillName => unlockableSkillName;

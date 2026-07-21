@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace PH.Core.Characters
@@ -26,9 +25,20 @@ namespace PH.Core.Characters
 
     public static class CharacterProgressionState
     {
-        private static readonly Dictionary<string, ProgressEntry> ProgressByCharacterId = new Dictionary<string, ProgressEntry>();
+        private static ICharacterProgressionService service;
 
         public static event Action<string> ProgressChanged;
+        public static event Action<string> OwnershipChanged;
+        public static event Action<string> SelectionChanged;
+
+        public static ICharacterProgressionService Service => service ??= new LocalCharacterProgressionService();
+        public static string SelectedCharacterId => Service.SelectedCharacterId;
+        public static string EquippedCharacterId => Service.EquippedCharacterId;
+
+        public static void Configure(ICharacterProgressionService progressionService)
+        {
+            service = progressionService ?? throw new ArgumentNullException(nameof(progressionService));
+        }
 
         public static CharacterProgressionSnapshot GetSnapshot(CharacterDefinition definition)
         {
@@ -37,9 +47,9 @@ namespace PH.Core.Characters
                 return new CharacterProgressionSnapshot(string.Empty, 1, 0, 0);
             }
 
-            ProgressEntry entry = GetOrCreateEntry(definition);
-            int requiredExperience = definition.GetRequiredExperienceForLevel(entry.Level);
-            return new CharacterProgressionSnapshot(definition.CharacterId, entry.Level, entry.CurrentExperience, requiredExperience);
+            CharacterProgressionRecord record = GetNormalizedRecord(definition);
+            int requiredExperience = definition.GetRequiredExperienceForLevel(record.Level);
+            return new CharacterProgressionSnapshot(definition.CharacterId, record.Level, record.CurrentExperience, requiredExperience);
         }
 
         // (추가) 결과식이 확정되면 런 결과 계층에서 호출할 캐릭터 XP 지급 진입점이다.
@@ -50,32 +60,17 @@ namespace PH.Core.Characters
                 return GetSnapshot(definition);
             }
 
-            ProgressEntry entry = GetOrCreateEntry(definition);
-            entry.CurrentExperience += Mathf.Max(0, amount);
+            CharacterProgressionRecord record = GetNormalizedRecord(definition);
+            int level = record.Level;
+            int currentExperience = (int)Math.Min(int.MaxValue, (long)record.CurrentExperience + Mathf.Max(0, amount));
+            NormalizeProgress(definition, ref level, ref currentExperience);
 
-            while (entry.Level < definition.MaxCharacterLevel)
-            {
-                int requiredExperience = definition.GetRequiredExperienceForLevel(entry.Level);
-                if (requiredExperience <= 0 || entry.CurrentExperience < requiredExperience)
-                {
-                    break;
-                }
-
-                entry.CurrentExperience -= requiredExperience;
-                entry.Level++;
-            }
-
-            if (entry.Level >= definition.MaxCharacterLevel)
-            {
-                entry.Level = definition.MaxCharacterLevel;
-                entry.CurrentExperience = 0;
-            }
-
+            Service.SetProgress(definition.CharacterId, level, currentExperience, definition.InitiallyOwned);
             ProgressChanged?.Invoke(definition.CharacterId);
             return GetSnapshot(definition);
         }
 
-        // (추가) 추후 로컬 또는 BackND 저장 데이터를 주입할 수 있는 복원 API다.
+        // 저장 데이터 복원과 디버그 설정에서 공통으로 사용하는 진행도 진입점이다.
         public static void SetProgress(CharacterDefinition definition, int level, int currentExperience)
         {
             if (definition == null || string.IsNullOrWhiteSpace(definition.CharacterId))
@@ -83,11 +78,44 @@ namespace PH.Core.Characters
                 return;
             }
 
-            ProgressEntry entry = GetOrCreateEntry(definition);
-            entry.Level = Mathf.Clamp(level, 1, definition.MaxCharacterLevel);
-            entry.CurrentExperience = Mathf.Max(0, currentExperience);
-            NormalizeProgress(definition, entry);
+            int normalizedLevel = Mathf.Clamp(level, 1, definition.MaxCharacterLevel);
+            int normalizedExperience = Mathf.Max(0, currentExperience);
+            NormalizeProgress(definition, ref normalizedLevel, ref normalizedExperience);
+            Service.SetProgress(definition.CharacterId, normalizedLevel, normalizedExperience, definition.InitiallyOwned);
             ProgressChanged?.Invoke(definition.CharacterId);
+        }
+
+        public static bool IsOwned(CharacterDefinition definition)
+        {
+            if (definition == null || string.IsNullOrWhiteSpace(definition.CharacterId))
+            {
+                return false;
+            }
+
+            return Service.GetOrCreate(definition.CharacterId, definition.InitiallyOwned).IsOwned;
+        }
+
+        public static void SetOwned(CharacterDefinition definition, bool isOwned)
+        {
+            if (definition == null || string.IsNullOrWhiteSpace(definition.CharacterId))
+            {
+                return;
+            }
+
+            Service.GetOrCreate(definition.CharacterId, definition.InitiallyOwned);
+            Service.SetOwned(definition.CharacterId, isOwned);
+            OwnershipChanged?.Invoke(definition.CharacterId);
+        }
+
+        public static bool TrySelectAndEquip(CharacterDefinition definition)
+        {
+            if (!IsOwned(definition) || !Service.SetSelectedAndEquipped(definition.CharacterId))
+            {
+                return false;
+            }
+
+            SelectionChanged?.Invoke(definition.CharacterId);
+            return true;
         }
 
         public static bool IsSkillUnlocked(CharacterDefinition definition)
@@ -100,45 +128,47 @@ namespace PH.Core.Characters
             return IsSkillUnlocked(definition) ? definition.SkillItemPageSpawnChance : 0f;
         }
 
-        private static ProgressEntry GetOrCreateEntry(CharacterDefinition definition)
+        private static CharacterProgressionRecord GetNormalizedRecord(CharacterDefinition definition)
         {
-            if (!ProgressByCharacterId.TryGetValue(definition.CharacterId, out ProgressEntry entry))
+            CharacterProgressionRecord record = Service.GetOrCreate(definition.CharacterId, definition.InitiallyOwned);
+            int level = record.Level;
+            int currentExperience = record.CurrentExperience;
+            NormalizeProgress(definition, ref level, ref currentExperience);
+            if (level != record.Level || currentExperience != record.CurrentExperience)
             {
-                entry = new ProgressEntry();
-                ProgressByCharacterId.Add(definition.CharacterId, entry);
+                Service.SetProgress(definition.CharacterId, level, currentExperience, definition.InitiallyOwned);
+                return new CharacterProgressionRecord(
+                    record.CharacterId,
+                    level,
+                    currentExperience,
+                    record.IsOwned,
+                    record.IsEquipped);
             }
 
-            NormalizeProgress(definition, entry);
-            return entry;
+            return record;
         }
 
-        private static void NormalizeProgress(CharacterDefinition definition, ProgressEntry entry)
+        private static void NormalizeProgress(CharacterDefinition definition, ref int level, ref int currentExperience)
         {
-            entry.Level = Mathf.Clamp(entry.Level, 1, definition.MaxCharacterLevel);
-            entry.CurrentExperience = Mathf.Max(0, entry.CurrentExperience);
+            level = Mathf.Clamp(level, 1, definition.MaxCharacterLevel);
+            currentExperience = Mathf.Max(0, currentExperience);
 
-            while (entry.Level < definition.MaxCharacterLevel)
+            while (level < definition.MaxCharacterLevel)
             {
-                int requiredExperience = definition.GetRequiredExperienceForLevel(entry.Level);
-                if (requiredExperience <= 0 || entry.CurrentExperience < requiredExperience)
+                int requiredExperience = definition.GetRequiredExperienceForLevel(level);
+                if (requiredExperience <= 0 || currentExperience < requiredExperience)
                 {
                     break;
                 }
 
-                entry.CurrentExperience -= requiredExperience;
-                entry.Level++;
+                currentExperience -= requiredExperience;
+                level++;
             }
 
-            if (entry.Level >= definition.MaxCharacterLevel)
+            if (level >= definition.MaxCharacterLevel)
             {
-                entry.CurrentExperience = 0;
+                currentExperience = 0;
             }
-        }
-
-        private sealed class ProgressEntry
-        {
-            public int Level = 1;
-            public int CurrentExperience;
         }
     }
 }

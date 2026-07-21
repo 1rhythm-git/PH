@@ -43,6 +43,7 @@ MonoBehaviour:
   boosterBuffKey: Undefined
   maxLife: 3
   instantItemAcquireChance: 0
+  initiallyOwned: 1
   requiredExperienceByLevel:
   - 100
   - 150

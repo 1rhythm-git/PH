@@ -2452,27 +2452,70 @@ ________________________________________
 • 기능 구현 공정률과 Google Play 출시 공정률의 기준 분리 확인
 
 남은 확인:
-• 다음 작업 착수 시 캐릭터 저장 데이터 버전과 기존 `PlayerPrefs` 마이그레이션 정책 확정 필요
+• 없음
+
+________________________________________
+
+2.80 캐릭터 진행 및 선택 상태 영구 저장 통합
+
+목표:
+• 캐릭터별 XP/레벨과 선택/보유/장착 상태를 앱 재실행 후 복구 가능한 로컬 데이터로 저장
+• 레벨 디자인 수치는 추후 코드 수정 없이 데이터 에셋에서 조정 가능하게 유지
+
+완료 내용:
+• 버전 1의 `CharacterProgressionSaveData`와 캐릭터별 저장 레코드 추가
+• `ICharacterProgressionService`와 `LocalCharacterProgressionService`를 추가해 저장 구현 분리
+• `PH.CharacterProgression.v1` 키에 캐릭터 ID, 레벨, 잔여 XP, 보유/장착 상태와 선택/장착 ID 저장
+• `CharacterProgressionState`의 기존 공개 진입점을 유지하면서 내부 상태를 영구 저장 서비스로 교체
+• 경험치 지급과 `SetProgress` 호출 시 정규화된 레벨/잔여 XP를 즉시 저장
+• Lobby 진입 시 저장된 장착 캐릭터 ID를 `availableCharacters`에서 복구
+• 미보유 캐릭터는 Lobby 좌우 선택과 캐릭터 수 표기에서 제외
+• 현재 4개 캐릭터는 기존 선택 동작을 보존하도록 `InitiallyOwned`를 활성화
+• 레벨별 필요 XP, 기본 런 XP, 스킬 해금 레벨과 확률은 계속 `CharacterDefinition`에서 관리하고 저장에는 현재 진행값만 기록
+• 기존 프로필/재화/수집 저장 키는 변경하지 않고 별도 캐릭터 저장 키를 추가
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterProgressionData.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/ICharacterProgressionService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/LocalCharacterProgressionService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterProgressionState.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterSelectionState.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Data/Characters/*Character.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 신규 저장 스크립트를 명시적으로 포함한 Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• `git diff --check` 통과
+• 기존 `CharacterProgressionState.AddExperience()`, HUD와 결과 보상 호출 API 유지 확인
+• 기존 프로필/재화/수집 `PlayerPrefs` 키 미변경 확인
+
+남은 확인:
+• 없음
+
+사용자 확인:
+• Play Mode에서 XP 획득 후 에디터 재생 종료/재시작 시 XP와 레벨 복구 정상
+• 다른 캐릭터 선택 후 에디터 재생 종료/재시작 시 선택 및 장착 캐릭터 복구 정상
 
 ________________________________________
 
 3. 다음 작업 후보
 
 우선순위 후보:
-1. 캐릭터별 XP/레벨 및 선택/보유/장착 상태 영구 저장 통합
-2. 캐릭터 강화 시스템 기획 및 구현
-3. PART 14 실제 Artifact / CharacterCoin 콘텐츠와 강화 에셋 구성 및 Play Mode 검증 (`2.62`, 선행 작업 완료 후 재개)
-4. PlayerRespawnController 정식 분리
-5. 피버타임 발동/효과 정책 정의
-6. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
-7. TopUI 디자인 교체 전 구조 정리
-8. 유저 프로필 재화 보상 지급/차감 정책 및 서버 동기화 설계
-9. Google AdMob 보상형 광고 부활 흐름 설계
+1. 캐릭터 강화 시스템 기획 및 구현
+2. PART 14 실제 Artifact / CharacterCoin 콘텐츠와 강화 에셋 구성 및 Play Mode 검증 (`2.62`, 선행 작업 완료 후 재개)
+3. PlayerRespawnController 정식 분리
+4. 피버타임 발동/효과 정책 정의
+5. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
+6. TopUI 디자인 교체 전 구조 정리
+7. 유저 프로필 재화 보상 지급/차감 정책 및 서버 동기화 설계
+8. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• 다음으로 캐릭터별 XP/레벨과 선택/보유/장착 상태를 버전이 있는 로컬 저장 데이터에 통합하고 앱 재실행 후 복구를 검증한다.
-• 기존 저장 데이터가 있는 환경을 위해 기본값 보완 및 마이그레이션 정책을 함께 정의한다.
-• 저장 데이터 계약이 확정되면 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
+• 다음으로 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
 • 캐릭터 강화 시스템이 완료된 뒤 실제 Artifact와 CharacterCoin 콘텐츠 및 강화 에셋을 구성하고 PART 14 Play Mode 검증을 재개한다.
 • 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.
 • 피버타임은 발동 조건과 캐릭터별 효과 정책을 확정한 뒤 구현한다.
