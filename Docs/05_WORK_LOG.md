@@ -2401,21 +2401,78 @@ ________________________________________
 
 ________________________________________
 
+2.78 Loading 씬 대기 시간 50% 단축
+
+작업 기준:
+• Loading 씬의 대기 시간을 기존의 50%로 단축하고 하이라이트 유지 시간은 변경하지 않음
+
+완료 내용:
+• `loadingDuration`을 3초에서 1.5초로 변경
+• Scene 직렬화 값과 `RuntimeBootstrapper` 기본값을 모두 1.5초로 통일
+• `completedHoldDuration` Scene 적용값 0.8초 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Bootstrap/RuntimeBootstrapper.cs`
+• `Assets/_Project/Scenes/Loading.unity`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 코드와 Scene의 `loadingDuration` 1.5초 일치 확인
+• `completedHoldDuration` Scene 적용값 0.8초 유지 확인
+• 변경 대상 `git diff --check` 통과
+
+남은 확인:
+• 없음
+
+사용자 확인:
+• Play Mode에서 단축된 Loading 대기 시간과 기존 하이라이트 유지 시간이 정상임을 확인 완료
+
+________________________________________
+
+2.79 Google Play 출시 공정률 기준 및 다음 우선순위 정리
+
+작업 기준:
+• 전체 공정률 100%의 기준을 핵심 기능 구현 완료가 아닌 Google Play 실제 출시 완료로 통일
+• 현재 구현 상태와 출시 잔여 범위를 분리해 다음 작업 우선순위 재산정
+
+완료 내용:
+• Google Play 출시 기준 현재 공정률을 약 45%로 설정
+• 100% 조건에 영구 저장, 온라인 기능, 수익화, Android 실기기 QA, 배포 및 스토어 준비를 포함
+• 캐릭터 XP/레벨과 선택/보유/장착 상태가 아직 세션 의존적임을 출시 리스크로 명시
+• 캐릭터 강화보다 캐릭터 진행 및 선택 상태의 영구 저장 통합을 최우선 선행 작업으로 변경
+
+변경된 주요 파일:
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 기존 로컬 프로필, 수집 인벤토리, 캐릭터 진행 및 선택 상태 구현 범위 대조
+• 기능 구현 공정률과 Google Play 출시 공정률의 기준 분리 확인
+
+남은 확인:
+• 다음 작업 착수 시 캐릭터 저장 데이터 버전과 기존 `PlayerPrefs` 마이그레이션 정책 확정 필요
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
-1. 캐릭터 강화 시스템 기획 및 구현
-2. PART 14 실제 Artifact / CharacterCoin 콘텐츠와 강화 에셋 구성 및 Play Mode 검증 (`2.62`, 선행 작업 완료 후 재개)
-3. PlayerRespawnController 정식 분리
-4. 피버타임 발동/효과 정책 정의
-5. Lobby 캐릭터 보유/장착 저장값 연결
+1. 캐릭터별 XP/레벨 및 선택/보유/장착 상태 영구 저장 통합
+2. 캐릭터 강화 시스템 기획 및 구현
+3. PART 14 실제 Artifact / CharacterCoin 콘텐츠와 강화 에셋 구성 및 Play Mode 검증 (`2.62`, 선행 작업 완료 후 재개)
+4. PlayerRespawnController 정식 분리
+5. 피버타임 발동/효과 정책 정의
 6. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
 7. TopUI 디자인 교체 전 구조 정리
 8. 유저 프로필 재화 보상 지급/차감 정책 및 서버 동기화 설계
 9. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• 다음으로 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
+• 다음으로 캐릭터별 XP/레벨과 선택/보유/장착 상태를 버전이 있는 로컬 저장 데이터에 통합하고 앱 재실행 후 복구를 검증한다.
+• 기존 저장 데이터가 있는 환경을 위해 기본값 보완 및 마이그레이션 정책을 함께 정의한다.
+• 저장 데이터 계약이 확정되면 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
 • 캐릭터 강화 시스템이 완료된 뒤 실제 Artifact와 CharacterCoin 콘텐츠 및 강화 에셋을 구성하고 PART 14 Play Mode 검증을 재개한다.
 • 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.
 • 피버타임은 발동 조건과 캐릭터별 효과 정책을 확정한 뒤 구현한다.

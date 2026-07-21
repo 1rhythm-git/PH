@@ -165,7 +165,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   loadTitleOnStart: 1
-  loadingDuration: 3
+  loadingDuration: 1.5
   completedHoldDuration: 0.8
   logoAHighlight: {fileID: 101100}
 --- !u!1 &100100

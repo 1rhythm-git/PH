@@ -13,7 +13,7 @@ namespace PH.Core.Bootstrap
         private bool loadTitleOnStart = true;
 
         [SerializeField]
-        private float loadingDuration = 3f;
+        private float loadingDuration = 1.5f;
 
         [SerializeField]
         private float completedHoldDuration = 0.4f;
