@@ -1,11 +1,12 @@
-using PH.Core.Characters;
-using PH.Core.Game;
-using PH.Core.UI;
-using PH.Core.World;
+using LootUp.Core.Characters;
+using LootUp.Core.Characters.Skills;
+using LootUp.Core.Game;
+using LootUp.Core.UI;
+using LootUp.Core.World;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     public sealed class PlayerSpawner : MonoBehaviour
     {
@@ -113,6 +114,12 @@ namespace PH.Core.Player
                 characterRuntime = spawnedPlayer.AddComponent<PlayerCharacterRuntime>();
             }
 
+            CharacterSkillRuntime characterSkillRuntime = spawnedPlayer.GetComponent<CharacterSkillRuntime>();
+            if (characterSkillRuntime == null)
+            {
+                characterSkillRuntime = spawnedPlayer.AddComponent<CharacterSkillRuntime>();
+            }
+
             PlayerController controller = spawnedPlayer.GetComponent<PlayerController>();
             if (controller == null)
             {
@@ -135,11 +142,18 @@ namespace PH.Core.Player
                 spawnedPlayer.AddComponent<PlayerItemPickupFeedback>();
             }
 
+            // (추가) 런타임 생성 플레이어에 일반 이동 및 대시 먼지 연출을 자동 연결한다.
+            if (spawnedPlayer.GetComponent<PlayerMovementDustFeedback>() == null)
+            {
+                spawnedPlayer.AddComponent<PlayerMovementDustFeedback>();
+            }
+
             TopHUDController topHUDController = FindFirstObjectByType<TopHUDController>();
             GameStateController gameStateController = FindFirstObjectByType<GameStateController>();
             ElevatorController elevatorController = FindFirstObjectByType<ElevatorController>();
 
             characterRuntime.Configure(activeCharacterDefinition);
+            characterSkillRuntime.Configure(activeCharacterDefinition);
             ApplyCharacterVisual(spawnedPlayer);
             controller.Configure(motor, touchArea, characterRuntime, characterRuntime.PivotCooldownSeconds);
             motor.SetCharacterRuntime(characterRuntime);
@@ -181,12 +195,10 @@ namespace PH.Core.Player
                 legacyImage.enabled = false;
             }
 
-            CharacterBodyShape shape = activeCharacterDefinition != null ? activeCharacterDefinition.BodyShape : CharacterBodyShape.Square;
             bool useSpriteVisual = HasCharacterSprites(activeCharacterDefinition);
             shapeGraphic.enabled = !useSpriteVisual;
             shapeGraphic.color = activeCharacterDefinition != null ? activeCharacterDefinition.BodyColor : playerColor;
             shapeGraphic.raycastTarget = false;
-            shapeGraphic.SetShape(shape);
 
             Outline outline = playerObject.GetComponent<Outline>();
             if (outline != null)
@@ -206,7 +218,7 @@ namespace PH.Core.Player
                 DisableSpriteVisual(playerObject);
             }
 
-            Debug.Log($"Player character applied: {(activeCharacterDefinition != null ? activeCharacterDefinition.DisplayName : "Fallback")} shape={shape} sprite={useSpriteVisual}", this);
+            Debug.Log($"Player character applied: {(activeCharacterDefinition != null ? activeCharacterDefinition.DisplayName : "Fallback")} sprite={useSpriteVisual}", this);
         }
 
         private Image EnsureSpriteVisual(GameObject playerObject)
@@ -239,10 +251,12 @@ namespace PH.Core.Player
 
             RectTransform visualRect = visualObject.GetComponent<RectTransform>();
             Vector2 visualScale = activeCharacterDefinition != null ? activeCharacterDefinition.SpriteVisualScale : Vector2.one;
+            Vector2 visualSize = new Vector2(playerSize.x * Mathf.Max(0.01f, visualScale.x), playerSize.y * Mathf.Max(0.01f, visualScale.y));
             visualRect.anchorMin = new Vector2(0.5f, 0.5f);
             visualRect.anchorMax = new Vector2(0.5f, 0.5f);
-            visualRect.sizeDelta = new Vector2(playerSize.x * Mathf.Max(0.01f, visualScale.x), playerSize.y * Mathf.Max(0.01f, visualScale.y));
-            visualRect.anchoredPosition = Vector2.zero;
+            visualRect.sizeDelta = visualSize;
+            // (변경) 스프라이트 하단이 플레이어 충돌박스 하단과 일치하도록 위로 보정한다.
+            visualRect.anchoredPosition = new Vector2(0f, (visualSize.y - playerSize.y) * 0.5f);
             visualRect.pivot = new Vector2(0.5f, 0.5f);
 
             Image spriteImage = visualObject.GetComponent<Image>();

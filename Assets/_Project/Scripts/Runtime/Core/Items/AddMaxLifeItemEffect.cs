@@ -1,6 +1,6 @@
-using PH.Core.Player;
+using LootUp.Core.Player;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     public sealed class AddMaxLifeItemEffect : IItemEffect
     {

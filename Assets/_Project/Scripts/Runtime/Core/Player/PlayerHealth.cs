@@ -1,9 +1,10 @@
-using PH.Core.Game;
-using PH.Core.UI;
-using PH.Core.World;
+using LootUp.Core.Game;
+using LootUp.Core.Feedback;
+using LootUp.Core.UI;
+using LootUp.Core.World;
 using UnityEngine;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     public enum PlayerMaxLifeItemResult
     {
@@ -120,7 +121,11 @@ namespace PH.Core.Player
             }
 
             currentLife = Mathf.Max(0, currentLife - damage);
+            // (추가) 생명력이 실제로 차감되면 이동속도 아이템 효과를 즉시 제거한다.
+            playerMotor?.ClearMoveSpeedBuffs();
+            ConsumeItemMaxLifeBonus(damage);
             SyncHUD();
+            HapticFeedback.Play(HapticFeedbackPattern.Damage);
 
             if (currentLife <= 0)
             {
@@ -175,6 +180,20 @@ namespace PH.Core.Player
             }
 
             return PlayerMaxLifeItemResult.ScoreBonus;
+        }
+
+        private void ConsumeItemMaxLifeBonus(int damage)
+        {
+            if (damage <= 0 || maxLifeBonusFromItems <= 0)
+            {
+                return;
+            }
+
+            // (추가) 날개하트로 얻은 추가 슬롯은 피해를 대신 받은 뒤 즉시 제거한다.
+            int consumedBonus = Mathf.Min(damage, maxLifeBonusFromItems);
+            maxLifeBonusFromItems -= consumedBonus;
+            maxLife = Mathf.Max(1, maxLife - consumedBonus);
+            currentLife = Mathf.Min(currentLife, maxLife);
         }
 
         public void Revive(int reviveLife)

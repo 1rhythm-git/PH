@@ -1,10 +1,12 @@
 using System.Collections.Generic;
-using PH.Core.Player;
-using PH.Core.World;
+using LootUp.Core.Characters;
+using LootUp.Core.Player;
+using LootUp.Core.Profile;
+using LootUp.Core.World;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     public sealed class ItemSpawner : MonoBehaviour
     {
@@ -153,7 +155,9 @@ namespace PH.Core.Items
             int pageSeed = unchecked(runtimeSeed + floorManager.CurrentPageIndex * 73856093);
             System.Random random = new System.Random(pageSeed);
             HashSet<int> occupied = new HashSet<int>();
+            HashSet<string> spawnedCollectionIds = new HashSet<string>();
             int spawnedCount = 0;
+            bool needsItemChanceRewardForPage = RollItemChance(random);
 
             for (int guard = 0; guard < buildingGridUI.Rows * buildingGridUI.Columns && spawnedCount < maxItemsPerPage; guard++)
             {
@@ -167,10 +171,24 @@ namespace PH.Core.Items
                 }
 
                 FloorAddress address = pageData.GetAddressByRow(row);
-                ItemDefinition definition = PickItem(address.AbsoluteFloor, random);
+                ItemDefinition definition = TryPickCollectionItem(address.AbsoluteFloor, random, spawnedCollectionIds);
+                definition ??= needsItemChanceRewardForPage
+                    ? PickItemChanceReward(address.AbsoluteFloor, random)
+                    : null;
+                definition ??= PickItem(address.AbsoluteFloor, random);
                 if (definition == null)
                 {
                     continue;
+                }
+
+                if (needsItemChanceRewardForPage && IsItemChanceReward(definition))
+                {
+                    needsItemChanceRewardForPage = false;
+                }
+
+                if (definition.ItemType == ItemType.Collection && !string.IsNullOrWhiteSpace(definition.CollectionId))
+                {
+                    spawnedCollectionIds.Add(definition.CollectionId);
                 }
 
                 CreateItem(definition, address, column, random);
@@ -222,7 +240,7 @@ namespace PH.Core.Items
         {
             if (!string.IsNullOrWhiteSpace(forcedTestItemId) && itemTable.TryGet(forcedTestItemId, out ItemDefinition forcedItem))
             {
-                return forcedItem.CanSpawnAtFloor(absoluteFloor) ? forcedItem : null;
+                return forcedItem.CanSpawnAtFloor(absoluteFloor) && CanSpawnForPlayer(forcedItem) ? forcedItem : null;
             }
 
             List<ItemDefinition> candidates = itemTable.GetSpawnCandidates(absoluteFloor);
@@ -230,7 +248,10 @@ namespace PH.Core.Items
 
             for (int i = 0; i < candidates.Count; i++)
             {
-                totalWeight += Mathf.Max(0, candidates[i].SpawnWeight);
+                if (candidates[i].ItemType != ItemType.Collection && CanSpawnForPlayer(candidates[i]))
+                {
+                    totalWeight += Mathf.Max(0, candidates[i].SpawnWeight);
+                }
             }
 
             if (totalWeight <= 0)
@@ -243,6 +264,11 @@ namespace PH.Core.Items
 
             for (int i = 0; i < candidates.Count; i++)
             {
+                if (candidates[i].ItemType == ItemType.Collection || !CanSpawnForPlayer(candidates[i]))
+                {
+                    continue;
+                }
+
                 cursor += Mathf.Max(0, candidates[i].SpawnWeight);
                 if (roll < cursor)
                 {
@@ -250,7 +276,152 @@ namespace PH.Core.Items
                 }
             }
 
-            return candidates[candidates.Count - 1];
+            return null;
+        }
+
+        private ItemDefinition TryPickCollectionItem(int absoluteFloor, System.Random random, HashSet<string> spawnedCollectionIds)
+        {
+            if (!string.IsNullOrWhiteSpace(forcedTestItemId))
+            {
+                return null;
+            }
+
+            List<ItemDefinition> candidates = itemTable.GetSpawnCandidates(absoluteFloor);
+            float chanceBonusPercent = GetPlayerCollectionChanceBonusPercent();
+            float totalChance = 0f;
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                ItemDefinition candidate = candidates[i];
+                if (candidate.ItemType != ItemType.Collection
+                    || !CanSpawnForPlayer(candidate)
+                    || spawnedCollectionIds.Contains(candidate.CollectionId))
+                {
+                    continue;
+                }
+
+                totalChance += candidate.GetCollectionSpawnChance(absoluteFloor, chanceBonusPercent);
+            }
+
+            if (totalChance <= 0f || random.NextDouble() >= Mathf.Clamp01(totalChance))
+            {
+                return null;
+            }
+
+            double selection = random.NextDouble() * totalChance;
+            float cursor = 0f;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                ItemDefinition candidate = candidates[i];
+                if (candidate.ItemType != ItemType.Collection
+                    || !CanSpawnForPlayer(candidate)
+                    || spawnedCollectionIds.Contains(candidate.CollectionId))
+                {
+                    continue;
+                }
+
+                cursor += candidate.GetCollectionSpawnChance(absoluteFloor, chanceBonusPercent);
+                if (selection < cursor)
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private bool CanSpawnForPlayer(ItemDefinition definition)
+        {
+            if (definition == null || (eventRecorder != null && eventRecorder.HasReachedAcquireLimit(definition)))
+            {
+                return false;
+            }
+
+            return definition.ItemType != ItemType.Collection || !ItemCollectionManager.HasReachedOwnedLimit(definition);
+        }
+
+        private float GetPlayerCollectionChanceBonusPercent()
+        {
+            float userTraitBonusPercent = UserProfileManager.GetCollectionTraitChanceBonusPercent();
+            CharacterDefinition definition = CharacterSelectionState.SelectedCharacter;
+            if (playerSpawner != null && playerSpawner.SpawnedPlayer != null)
+            {
+                PlayerCharacterRuntime runtime = playerSpawner.SpawnedPlayer.GetComponent<PlayerCharacterRuntime>();
+                if (runtime != null)
+                {
+                    return runtime.CollectionItemChanceBonusPercent + userTraitBonusPercent;
+                }
+            }
+
+            if (definition == null)
+            {
+                return userTraitBonusPercent;
+            }
+
+            CharacterUpgradeModifiers modifiers = CharacterUpgradeResolver.Resolve(definition);
+            return definition.CollectionItemChanceBonusPercent + modifiers.CollectionItemChanceBonusPercent + userTraitBonusPercent;
+        }
+
+        private ItemDefinition PickItemChanceReward(int absoluteFloor, System.Random random)
+        {
+            List<ItemDefinition> candidates = itemTable.GetSpawnCandidates(absoluteFloor);
+            int totalWeight = 0;
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (IsItemChanceReward(candidates[i]) && CanSpawnForPlayer(candidates[i]))
+                {
+                    totalWeight += Mathf.Max(0, candidates[i].SpawnWeight);
+                }
+            }
+
+            if (totalWeight <= 0)
+            {
+                return null;
+            }
+
+            int roll = random.Next(0, totalWeight);
+            int cursor = 0;
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                ItemDefinition candidate = candidates[i];
+                if (!IsItemChanceReward(candidate) || !CanSpawnForPlayer(candidate))
+                {
+                    continue;
+                }
+
+                cursor += Mathf.Max(0, candidate.SpawnWeight);
+                if (roll < cursor)
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private bool RollItemChance(System.Random random)
+        {
+            if (!string.IsNullOrWhiteSpace(forcedTestItemId))
+            {
+                return false;
+            }
+
+            CharacterDefinition definition = CharacterSelectionState.SelectedCharacter;
+            if (definition == null && playerSpawner != null && playerSpawner.SpawnedPlayer != null)
+            {
+                PlayerCharacterRuntime runtime = playerSpawner.SpawnedPlayer.GetComponent<PlayerCharacterRuntime>();
+                definition = runtime != null ? runtime.CharacterDefinition : null;
+            }
+
+            float chance = CharacterProgressionState.GetItemChance(definition);
+            return chance > 0f && random.NextDouble() <= chance;
+        }
+
+        private bool IsItemChanceReward(ItemDefinition definition)
+        {
+            return definition != null && (definition.ItemType == ItemType.Time || definition.ItemType == ItemType.Skill);
         }
 
         private void CreateItem(ItemDefinition definition, FloorAddress address, int column, System.Random random)

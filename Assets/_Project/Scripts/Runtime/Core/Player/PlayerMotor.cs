@@ -1,9 +1,9 @@
-using PH.Core.Characters;
-using PH.Core.World;
+using LootUp.Core.Characters;
+using LootUp.Core.World;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class PlayerMotor : MonoBehaviour
@@ -25,6 +25,7 @@ namespace PH.Core.Player
         public float MoveSpeedBonusPercent => GetActiveMoveSpeedBonusPercent();
         public float MoveSpeedBuffRemainingSeconds => GetMaxRemainingMoveSpeedBuffSeconds();
         public bool HasActiveMoveSpeedBuff => moveSpeedBuffs.Count > 0;
+        public bool IsMovementLocked => movementLocked;
         public int ColumnCount => buildingGridUI != null ? Mathf.Max(1, buildingGridUI.Columns) : BuildingGridUI.DefaultColumns;
         public RectTransform RectTransform
         {
@@ -136,10 +137,28 @@ namespace PH.Core.Player
                 return moveSpeedColumnsPerSecond;
             }
 
-            moveSpeedBuffs.Add(new MoveSpeedBuff(clampedPercent, Time.time + clampedDuration));
+            RemoveExpiredMoveSpeedBuffs();
+
+            // (변경) 이동속도 능력치는 더 강한 값만 유지하고 지속시간은 새 아이템 기준으로 갱신한다.
+            float appliedBonusPercent = Mathf.Max(GetActiveMoveSpeedBonusPercent(), clampedPercent);
+            moveSpeedBuffs.Clear();
+            moveSpeedBuffs.Add(new MoveSpeedBuff(appliedBonusPercent, Time.time + clampedDuration));
             RecalculateMoveSpeed();
 
             return moveSpeedColumnsPerSecond;
+        }
+
+        // (추가) 피격 등 외부 조건에서 모든 이동속도 아이템 효과를 제거하고 기본 속도로 복원한다.
+        public bool ClearMoveSpeedBuffs()
+        {
+            if (moveSpeedBuffs.Count <= 0)
+            {
+                return false;
+            }
+
+            moveSpeedBuffs.Clear();
+            RecalculateMoveSpeed();
+            return true;
         }
 
         public void SetManualAnchoredPosition(Vector2 anchoredPosition)
@@ -305,13 +324,14 @@ namespace PH.Core.Player
 
         private float GetActiveMoveSpeedBonusPercent()
         {
-            float totalBonusPercent = 0f;
+            // (변경) 이동속도 버프는 합산하지 않고 활성 효과 중 가장 강한 값만 사용한다.
+            float strongestBonusPercent = 0f;
             for (int i = 0; i < moveSpeedBuffs.Count; i++)
             {
-                totalBonusPercent += Mathf.Max(0f, moveSpeedBuffs[i].BonusPercent);
+                strongestBonusPercent = Mathf.Max(strongestBonusPercent, moveSpeedBuffs[i].BonusPercent);
             }
 
-            return totalBonusPercent;
+            return Mathf.Max(0f, strongestBonusPercent);
         }
 
         private float GetMaxRemainingMoveSpeedBuffSeconds()

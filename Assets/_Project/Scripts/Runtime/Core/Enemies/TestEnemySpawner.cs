@@ -1,11 +1,11 @@
-using PH.Core.Player;
-using PH.Core.Game;
-using PH.Core.World;
+using LootUp.Core.Player;
+using LootUp.Core.Game;
+using LootUp.Core.World;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Enemies
+namespace LootUp.Core.Enemies
 {
     public sealed class TestEnemySpawner : MonoBehaviour, IGameplayPausable
     {

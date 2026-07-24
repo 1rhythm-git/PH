@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d11195ba3e2b4ef3a6bd3ee60539bbc1, type: 3}
+  m_Name: AgentXSkill
+  m_EditorClassIdentifier:
+  skillId: agentx_score_bonus
+  displayName: Score Overclock
+  unlockLevel: 5
+  triggerType: 0
+  effectType: 0
+  description: On score item acquisition, P1% chance to gain P2% additional score.
+  p1: 20
+  p2: 50
+  p3: 0
+  p4: 0
+  p5: 0

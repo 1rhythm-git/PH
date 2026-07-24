@@ -1,6 +1,6 @@
 using System;
 
-namespace PH.Core.World
+namespace LootUp.Core.World
 {
     [Serializable]
     public readonly struct FloorAddress

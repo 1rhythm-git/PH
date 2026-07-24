@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     public sealed class PlayerBuffVisualFeedback : MonoBehaviour
     {
@@ -56,7 +56,8 @@ namespace PH.Core.Player
             }
 
             RefreshGraphics();
-            blinkEndTime = Mathf.Max(blinkEndTime, Time.time + clampedDuration);
+            // (변경) 실제 이동속도 버프와 동일하게 새 아이템의 지속시간으로 점멸 종료 시각을 갱신한다.
+            blinkEndTime = Time.time + clampedDuration;
             nextBlinkTime = Time.time;
             isBlinking = true;
         }

@@ -1,10 +1,10 @@
 using System.Collections;
-using PH.Core.Player;
+using LootUp.Core.Player;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-namespace PH.Core.World
+namespace LootUp.Core.World
 {
     public sealed class ElevatorController : MonoBehaviour
     {
@@ -59,6 +59,7 @@ namespace PH.Core.World
 
         public int CurrentFloorStartColumn { get; private set; }
         public int CurrentAbsoluteFloor => floorManager != null ? floorManager.CurrentAbsoluteFloor : 1;
+        public float PlatformHeight => Mathf.Max(1f, elevatorSize.y);
 
         private void Awake()
         {

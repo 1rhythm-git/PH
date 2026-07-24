@@ -1,14 +1,16 @@
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     public sealed class ItemEffectResolver
     {
         private readonly IItemEffect[] effects =
         {
             new AddScoreItemEffect(),
+            new AddRunGameMoneyItemEffect(),
             new AddTimeItemEffect(),
             new AddMaxLifeItemEffect(),
             new HealHeartItemEffect(),
-            new AddMoveSpeedItemEffect()
+            new AddMoveSpeedItemEffect(),
+            new AddCollectionItemEffect()
         };
 
         public ItemEffectResult Execute(ItemDefinition definition, ItemEffectContext context)

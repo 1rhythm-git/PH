@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
     public sealed class PlayerCharacterRuntime : MonoBehaviour
     {
@@ -14,15 +14,27 @@ namespace PH.Core.Characters
         private float feverGauge;
 
         private bool feverReadyLogged;
+        private CharacterUpgradeModifiers upgradeModifiers;
 
         public event Action<float> FeverGaugeChanged;
         public event Action<float> BoosterGaugeChanged;
 
         public CharacterDefinition CharacterDefinition => characterDefinition;
-        public float MoveSpeedColumnsPerSecond => characterDefinition != null ? characterDefinition.MoveSpeedColumnsPerSecond : 4f;
+        public float MoveSpeedColumnsPerSecond => characterDefinition != null
+            ? characterDefinition.MoveSpeedColumnsPerSecond * (1f + upgradeModifiers.MoveSpeedBonusPercent * 0.01f)
+            : 4f;
         public float PivotCooldownSeconds => characterDefinition != null ? characterDefinition.PivotCooldownSeconds : 0f;
-        public int MaxLife => characterDefinition != null ? characterDefinition.MaxLife : 3;
-        public float InstantItemAcquireChance => characterDefinition != null ? characterDefinition.InstantItemAcquireChance : 0f;
+        public int MaxLife => characterDefinition != null ? characterDefinition.MaxLife + upgradeModifiers.MaxLifeBonus : 3;
+        public float InstantItemAcquireChance => characterDefinition != null
+            ? Mathf.Clamp01(characterDefinition.InstantItemAcquireChance + upgradeModifiers.InstantItemAcquireChanceBonusPercent * 0.01f)
+            : 0f;
+        public float CollectionItemChanceBonusPercent => characterDefinition != null
+            ? characterDefinition.CollectionItemChanceBonusPercent + upgradeModifiers.CollectionItemChanceBonusPercent
+            : 0f;
+        public float ItemChance => CharacterProgressionState.GetItemChance(characterDefinition);
+        public CharacterProgressionSnapshot Progression => CharacterProgressionState.GetSnapshot(characterDefinition);
+        public bool IsLevelSkillUnlocked => CharacterProgressionState.IsSkillUnlocked(characterDefinition);
+        public float SkillItemPageSpawnChance => ItemChance;
         public float FeverGauge => feverGauge;
         public float FeverGaugeMax => characterDefinition != null ? characterDefinition.FeverGaugeMax : 100f;
         public float FeverGaugeNormalized => FeverGaugeMax <= 0f ? 0f : Mathf.Clamp01(feverGauge / FeverGaugeMax);
@@ -33,6 +45,7 @@ namespace PH.Core.Characters
         public void Configure(CharacterDefinition definition)
         {
             characterDefinition = definition;
+            upgradeModifiers = CharacterUpgradeResolver.Resolve(definition);
             feverGauge = 0f;
             feverReadyLogged = false;
             NotifyFeverGaugeChanged();

@@ -1,4 +1,4 @@
-PH Codex Execution Plan
+LootUp Codex Execution Plan
 ________________________________________
 공통 작업 규칙
 모든 파트에서 다음 규칙을 지킨다.
@@ -13,6 +13,13 @@ ________________________________________
 9.	클래스 책임을 분리한다.
 10.	코드 주석은 한국어로 작성한다.
 11.	작업 완료 후 `05_WORK_LOG.md`에 완료 내용, 고려 요소, 리팩터링 타이밍을 기록한다.
+12.	전체 공정률 100%는 Google Play 실제 출시 완료를 기준으로 하며 기능 구현률과 구분한다.
+
+출시 공정률 기준
+•	2026-07-21 현재 Google Play 출시 기준 공정률은 약 45%이다.
+•	핵심 게임 루프와 주요 UI 흐름 이후에도 영구 저장, 온라인 기능, 수익화, Android 실기기 QA, 배포 및 스토어 심사가 완료되어야 100%로 판단한다.
+•	캐릭터별 XP/레벨과 선택/보유/장착 상태의 로컬 저장 통합은 완료되었다.
+•	다음 최우선 작업은 저장 데이터 계약을 기반으로 캐릭터 강화 정책과 레벨 디자인 값을 확정하는 것이다.
 ________________________________________
 PART 1
 프로젝트 베이스 구축
@@ -21,6 +28,7 @@ PART 1
 작업
 •	Assets/_Project 폴더 구조 생성
 •	Loading 씬 생성
+•	Title 씬 생성
 •	Lobby 씬 생성
 •	InGame 씬 생성
 •	기본 Canvas 구조
@@ -30,6 +38,7 @@ PART 1
 •	Main Camera
 •	SceneFlowManager
 •	RuntimeBootstrapper
+•	TitleSceneController
 아직 구현하지 않을 것
 •	플레이어 이동
 •	적
@@ -38,9 +47,17 @@ PART 1
 •	랭킹
 •	상세 UI 연출
 완료 조건
-•	세 씬이 정상적으로 열림
+•	Loading, Title, Lobby, InGame 네 씬이 정상적으로 열림
 •	씬 전환 가능
 •	컴파일 에러 없음
+구현 상태
+•	완료
+현행 메모
+•	시작 흐름은 `Loading → Title → Lobby → InGame` 순서이다.
+•	Loading은 로딩바 없이 기존 대기와 LAF 로고 강조 기능을 유지한다.
+•	Loading 대기 시간은 1.5초이며 LAF 로고 하이라이트 유지 시간은 기존 0.8초를 유지한다.
+•	Title은 `Title.png`를 표시하고 Lobby 비동기 로딩 진행률이 100%가 되면 점멸하는 `TOUCH` 입력을 활성화한다.
+•	Lobby 전체 화면 배경은 `Lobby.png`를 사용한다.
 ________________________________________
 PART 2
 그리드와 무한 층 기반
@@ -96,6 +113,28 @@ Lobby 선택값에 따라 플레이어를 런타임 생성하고 좌우 이동�
 •	런타임 생성
 •	좌우 이동 가능
 •	화면 밖으로 나가지 않음
+현행 및 전환 메모
+•	UI에는 이동/방향전환 피버 획득량을 분리하지 않고 `피버 충전` 단일 스테이터스로 표시한다.
+•	`피버 충전` UI 값은 Agent X 100 기준 상대 지수이며 이동속도는 포함하지 않는다.
+•	`FeverBalanceSettings`에 공통 이동 기본 획득량 0.15와 방향전환 배율 1.5를 둔다.
+•	`CharacterDefinition`에는 `FeverGainMultiplier`만 두고 실제 이동/전환 획득량을 공통 설정에서 계산한다.
+•	기존 결과값은 Agent X 1.0, Alice 1.5, Landy 1.2, Ninja 2.0 배율로 동일하게 유지한다.
+•	Lobby 기본 능력치는 `SPEED`, `REFLEX`, `VITALITY`, `FEVER DRIVE`, `ITEM LUCK`, `AWAKENING`의 6개 항목을 이름/값 정렬 목록으로 표시한다.
+•	`SPEED`, `REFLEX`, `FEVER DRIVE`는 Agent X를 100으로 보는 상대 지수이며, `REFLEX`는 방향전환 대기시간에 역비례한다.
+•	`VITALITY`는 최대 생명력, `ITEM LUCK`은 실제 확률(%), `AWAKENING`은 스킬 해금 레벨을 표시한다.
+•	기본 캐릭터 내부 ID `default`는 유지하고 Lobby 표시명은 `Agent X`를 사용한다.
+•	공통 피버 설정과 캐릭터별 배율 데이터 구조 전환은 캐릭터 강화 능력치 확정 시 진행한다.
+캐릭터 스킬 현행 메모
+•	`CharacterSkillDefinition` 에셋에서 해금 레벨, 발동 조건, 효과 종류, 설명과 P1~P5를 관리한다.
+•	`CharacterSkillRuntime`은 런타임 생성 Player에 자동 부착하고 아이템 기본 효과 이후 스킬을 한 번 판정한다.
+•	스킬 효과는 `ICharacterSkillEffect` 구현체로 분리한다.
+•	스킬 발동 텍스트는 `PlayerItemPickupFeedback`의 공용 상승·페이드 연출을 재사용한다. 아이템 연계 발동은 아이템 텍스트 위쪽, 비아이템 연계 발동은 기본 위치에 표시한다.
+•	Agent X Lv.5, Landy/Alice Lv.15, Ninja Lv.20 해금을 위해 캐릭터별 성장 테이블을 Lv.20까지 확장한다.
+•	Lobby 스킬 설명은 P1~P5를 현재 에셋 값으로 치환해 표시하며 강화/상세 조작은 후속 작업으로 남긴다.
+Lobby 디자인 현행 메모
+•	`concept/Lobby/Lobby_Design.png`의 세로 구성을 기준으로 상단 프로필/재화, BEST, 캐릭터, START, 메뉴, 광고 순서로 배치한다.
+•	하단 메뉴는 `MISSION`, `MAIL BOX`, `UPGRADE`, `ARTIFACT`, `SHOP`, `RANK` 6개이며 현재 기능을 연결하지 않는다.
+•	설정 버튼도 아이콘과 입력 상태만 구성하고 기능은 후속 작업으로 연결한다.
 ________________________________________
 PART 5
 엘리베이터와 층 상승
@@ -153,13 +192,12 @@ PART 7
 •	광고 부활 사용 여부 필드 확장 준비
 •	Game Over 시 runHighestFloor 확정
 •	RunScoreResult에 runHighestFloor 포함
+•	Gameplay Score 반영
 •	Floor Score 계산: floorMoveCount × floorScoreValue
-•	도달 층수 기반 minimumRequiredVLinePassCount 계산
-•	PlayerLinePassTracker
-•	passedVLineCount 누적 기록
-•	lineEfficiencyRatio 계산: minimumRequiredVLinePassCount / max(passedVLineCount, minimumRequiredVLinePassCount)
-•	Line Bonus 계산: floor(lineEfficiencyRatio, 1) × lineScoreBonusValue
-•	Game Over 총점 계산: Floor Score + Line Bonus
+•	Life Score 계산: remainingHearts × lifeScorePerHeart
+•	Game Over 총점 계산: Gameplay Score + Floor Score + Life Score
+•	캐릭터 레벨 기본 XP, 층 XP, Total Score 보너스 XP 계산
+•	런 획득 게임머니와 Total Score 보너스 게임머니 계산
 •	ScoreBalanceData 또는 Inspector 설정으로 점수 계수 관리
 •	RunScoreResult 데이터 구조
 완료 조건
@@ -170,18 +208,20 @@ PART 7
 •	Game Over 기준 총점이 생성됨
 •	추후 AdMob 보상형 광고 부활 사용 여부를 저장/랭킹 데이터에 포함 가능
 •	보너스별 점수 breakdown을 UI와 저장 데이터에 전달 가능
-•	Line Bonus 계산에 필요한 최소 통과 수와 실제 통과 수가 분리됨
-•	Line Bonus가 비활성 상태여도 Floor Score 계산 구조가 깨지지 않음
+•	게임머니와 캐릭터 XP를 결과 확정 시 한 번만 지급
+•	결과창에 점수, XP, 게임머니 breakdown을 순서대로 표시
+•	결과창 글꼴은 `GAME OVER` 111, 결과 상세 48, `CONFIRM` 51 적용
 검토 메모
-•	Time Bonus와 Life Bonus는 기본 점수 공식에서 제외한다.
+•	Time Bonus는 기본 점수 공식에서 제외하고 Life Score는 포함한다.
 •	캐릭터별 이동속도, 방향전환 쿨타임, 아이템 즉시 획득 확률은 점수/랭킹 검증에 영향을 줄 수 있으므로 결과 데이터에 캐릭터 ID를 포함할 수 있어야 한다.
 •	무한 상승 구조라도 Game Over 시 해당 런의 최고 도달 층인 runHighestFloor를 확정한다.
-•	돌파 보너스는 Game Over 시 확정된 runHighestFloor를 기준으로 산정한다.
-•	minimumRequiredVLinePassCount는 runHighestFloor까지 진행하는 데 필요한 최소 세로 경계 통과 수이다.
-•	8컬럼 고정 좌측 시작 → 우측 도착 구조에서는 내부 경계 기준 minVLinePassPerFloor 기본값을 7로 둘 수 있다.
-•	향후 층별 시작/목표 컬럼이 달라지면 층 데이터에서 최소 통과 수를 계산한다.
-•	passedVLineCount는 최소 조작 플레이를 유도하기 위해 "런 중 실제 통과한 누적 세로 경계 횟수"로 정의한다.
-•	같은 경계 위에서 머무름, 떨림, 리스폰, 페이지 전환, 엘리베이터 위치 보정으로 인한 중복 카운트를 방지해야 한다.
+•	Line Bonus와 세로 경계 통과 기반 점수는 사용하지 않는다.
+구현 상태
+•	완료
+현행 메모
+•	`RunRewardSettings`에서 층 점수, 생명력 점수, 층 XP, 점수 XP 배율, 보너스 게임머니 배율을 조정한다.
+•	TopUI는 보유 게임머니, 보유 Ruby, 현재 런 획득 게임머니를 분리해 표시한다.
+•	Lobby XP 게이지는 현재 XP 비율을 RectTransform 폭으로 반영하며 XP 0에서는 비어 있다.
 ________________________________________
 PART 8
 적 기본 시스템
@@ -312,6 +352,7 @@ PART 13
 •	현재 구현된 스킬형 아이템은 `Red Sneaker`, `Winged Shoe`, `Winged Heart`이다.
 •	이동속도 증가는 `AddMoveSpeedItemEffect`로 처리한다.
 •	이동속도 증가는 영구 적용하지 않으며, 기본 5초에 스폰 시 부여된 1~3 카운트를 곱해 5초, 10초, 15초 동안 적용한다.
+•	생명력이 실제로 차감되면 활성 이동속도 효과를 즉시 제거하고 캐릭터 기본 이동속도로 복원한다.
 •	효과 지속 중 `PlayerBuffVisualFeedback`으로 캐릭터 점멸을 표시한다.
 •	활성 이동속도 버프는 현재 퍼센트 합산 방식으로 계산한다.
 •	Max Life 증가는 `AddMaxLifeItemEffect`로 처리하며, 현재 런에서 최대 +1까지만 허용한다.
@@ -377,7 +418,17 @@ PART 16
 •	최고 점수 저장
 •	수집형 아이템 저장
 •	선택 캐릭터와 게임 모드 저장
+•	캐릭터별 레벨, 경험치, 보유 및 장착 상태 저장
 •	게임 코드가 구체 저장 클래스를 직접 호출하지 않음
+구현 상태
+•	프로필 재화와 수집/강화 데이터의 로컬 저장 기반은 구현됨
+•	캐릭터별 레벨/경험치와 선택/보유/장착 상태를 `ICharacterProgressionService` 뒤에 분리해 로컬 저장 완료
+•	캐릭터 진행 저장 키 `LootUp.CharacterProgression.v1`과 데이터 버전 2 적용
+•	Ninja의 과거 ID `triangle_low_spec`는 로드 시 `ninja`로 변환하고 진행/선택/장착/강화 데이터를 병합
+•	프로필/인증/캐릭터 진행/수집 저장 키는 `LootUp.*` 형식을 사용하고 구 프로젝트 키는 최초 로드 시 자동 이전
+•	최초 캐릭터 데이터는 캐릭터 에셋의 `InitiallyOwned` 기준으로 생성
+•	레벨별 필요 XP와 기본 런 XP는 `CharacterDefinition` 에셋에서 계속 관리하여 추후 레벨 디자인 변경 가능
+•	선택 게임 모드, 최고 기록과 직전 런 기록의 통합 저장은 후속 작업
 ________________________________________
 PART 17
 뒤끝 서버 연결 준비
@@ -390,6 +441,14 @@ SDK 연결 전 어댑터 위치와 데이터 흐름을 준비한다.
 •	보류 데이터
 •	오프라인 동기화 큐
 •	로그인 전 Guest 모드
+구현 상태
+•	`IAuthenticationService`에 세션 복원, Guest 로그인, 계정 로그인, 로그아웃 계약 구현
+•	`AuthenticationManager`에 `SignedOut`, `Authenticating`, `Authenticated`, `Failed` 상태와 변경 이벤트 구현
+•	`LocalAuthenticationService`가 기존 Guest 프로필 ID를 유지하고 `LootUp.Authentication.v1` 세션 복원 지원
+•	Title에서 Lobby 사전 로드와 저장 세션 복원을 함께 진행하고, 저장 세션 복원 성공/실패 여부와 관계없이 로그인 UI 표시
+•	Title 로그인 UI에 ID/password 입력, 계정 로그인 버튼, Guest 진입 또는 저장 세션 `CONTINUE` 버튼 구성
+•	Lobby 로그인 상태를 실제 인증 세션 기준 `GUEST`, `ONLINE`, `CONNECTING`, `OFFLINE`으로 표시
+•	BackND 어댑터, 실제 계정 인증 구현체, 토큰 갱신, 오프라인 동기화 큐는 미구현
 아직 하지 않을 것
 •	실제 뒤끝 콘솔 설정
 •	실제 서버 테이블 생성
@@ -401,25 +460,30 @@ ________________________________________
 PART 18
 최종 통합 테스트
 테스트 흐름
-1.	Lobby 진입
-2.	캐릭터 선택
-3.	모드 선택
-4.	InGame 시작
-5.	좌우 이동
-6.	아이템 여러 번 통과
-7.	아이템 획득
-8.	적 충돌
-9.	리스폰
-10.	10층 이상 진행
-11.	페이지 전환
-12.	스킬 효과
-13.	수집 아이템 저장
-14.	Game Over
-15.	결과창 표시
-16.	광고보기 선택 시 보상형 광고 시청 후 부활
-17.	확인 선택 시 최고 층과 점수 저장
-18.	Lobby 복귀
-19.	저장 데이터 확인
+1.	Loading 진입 및 로딩바 미표시 확인
+2.	Title 진입 및 로딩 진행률 확인
+3.	Title 로그인 UI가 표시되는지 확인
+4.	저장 세션이 있으면 `CONTINUE`, 없으면 `GUEST` 진입 또는 계정 로그인 실패 메시지 확인
+5.	인증 성공 후 하단 점멸 `TOUCH` 입력으로 Lobby 진입
+6.	Lobby 배경 및 캐릭터 UI 확인
+7.	캐릭터 선택
+8.	모드 선택
+9.	InGame 시작
+10.	좌우 이동
+11.	아이템 여러 번 통과
+12.	아이템 획득
+13.	적 충돌
+14.	리스폰
+15.	10층 이상 진행
+16.	페이지 전환
+17.	스킬 효과
+18.	수집 아이템 저장
+19.	Game Over
+20.	결과창 표시
+21.	광고보기 선택 시 보상형 광고 시청 후 부활
+22.	확인 선택 시 최고 층과 점수 저장
+23.	Lobby 복귀
+24.	저장 데이터 확인
 완료 조건
 •	컴파일 에러 없음
 •	Missing Reference 없음

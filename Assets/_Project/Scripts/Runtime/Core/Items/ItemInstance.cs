@@ -1,12 +1,14 @@
-using PH.Core.Audio;
-using PH.Core.Characters;
-using PH.Core.Player;
-using PH.Core.UI;
-using PH.Core.World;
+using System;
+using LootUp.Core.Audio;
+using LootUp.Core.Characters;
+using LootUp.Core.Characters.Skills;
+using LootUp.Core.Player;
+using LootUp.Core.UI;
+using LootUp.Core.World;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class ItemInstance : MonoBehaviour
@@ -24,6 +26,7 @@ namespace PH.Core.Items
         private InfiniteFloorManager floorManager;
         private PlayerMotor playerMotor;
         private PlayerCharacterRuntime playerCharacterRuntime;
+        private CharacterSkillRuntime characterSkillRuntime;
         private PlayerHealth playerHealth;
         private PlayerBuffVisualFeedback playerBuffVisualFeedback;
         private PlayerItemPickupFeedback playerItemPickupFeedback;
@@ -198,8 +201,10 @@ namespace PH.Core.Items
                 itemImage.color = acquiredColor;
             }
 
-            eventRecorder?.Record(new ItemRunEvent(definition, absoluteFloor, pageIndex, pageFloorIndex, columnIndex, Time.time));
-            ItemEffectResult effectResult = ApplyHUDItemEffect();
+            string eventId = Guid.NewGuid().ToString("N");
+            ItemEffectResult effectResult = ApplyHUDItemEffect(eventId);
+            characterSkillRuntime?.TryActivate(definition, effectResult, topHUDController, playerMotor);
+            eventRecorder?.Record(new ItemRunEvent(eventId, definition, absoluteFloor, pageIndex, pageFloorIndex, columnIndex, Time.time, effectResult));
             ShowPickupFeedback(effectResult);
             gameObject.SetActive(false);
         }
@@ -249,6 +254,11 @@ namespace PH.Core.Items
             if (playerCharacterRuntime == null)
             {
                 playerCharacterRuntime = playerMotor.GetComponent<PlayerCharacterRuntime>();
+            }
+
+            if (characterSkillRuntime == null)
+            {
+                characterSkillRuntime = playerMotor.GetComponent<CharacterSkillRuntime>();
             }
 
             if (playerHealth == null)
@@ -306,6 +316,18 @@ namespace PH.Core.Items
                     return "MAX LIFE";
                 case ItemEffectOutcome.MoveSpeedIncreased:
                     return "SPEED UP";
+                case ItemEffectOutcome.CollectionAdded:
+                    return $"GET {definition.DisplayName}";
+                case ItemEffectOutcome.CollectionAlreadyOwned:
+                    return "ALREADY OWNED";
+                case ItemEffectOutcome.CollectionOwnedLimitReached:
+                    return "OWNED LIMIT";
+                case ItemEffectOutcome.CollectionRunLimitReached:
+                    return "RUN LIMIT";
+                case ItemEffectOutcome.CollectionDuplicateEvent:
+                    return "ALREADY PROCESSED";
+                case ItemEffectOutcome.RunGameMoneyAdded:
+                    return $"+{effectResult.Value} MONEY";
             }
 
             switch (definition.ItemType)
@@ -316,6 +338,8 @@ namespace PH.Core.Items
                     return "GET Life";
                 case ItemType.Score:
                     return "+SCORE";
+                case ItemType.Currency:
+                    return "+MONEY";
                 default:
                     return definition.AffectsScore ? "+SCORE" : definition.DisplayName;
             }
@@ -334,6 +358,15 @@ namespace PH.Core.Items
                     return new Color(1f, 0.18f, 0.16f, 1f);
                 case ItemEffectOutcome.MoveSpeedIncreased:
                     return new Color(1f, 0.86f, 0.16f, 1f);
+                case ItemEffectOutcome.CollectionAdded:
+                    return new Color(0.35f, 1f, 0.72f, 1f);
+                case ItemEffectOutcome.CollectionAlreadyOwned:
+                case ItemEffectOutcome.CollectionOwnedLimitReached:
+                case ItemEffectOutcome.CollectionRunLimitReached:
+                case ItemEffectOutcome.CollectionDuplicateEvent:
+                    return new Color(0.72f, 0.72f, 0.72f, 1f);
+                case ItemEffectOutcome.RunGameMoneyAdded:
+                    return new Color(1f, 0.78f, 0.12f, 1f);
             }
 
             switch (definition.ItemType)
@@ -344,19 +377,21 @@ namespace PH.Core.Items
                     return new Color(1f, 0.18f, 0.16f, 1f);
                 case ItemType.Score:
                     return Color.white;
+                case ItemType.Currency:
+                    return new Color(1f, 0.78f, 0.12f, 1f);
                 default:
                     return definition.AffectsScore ? Color.white : new Color(1f, 0.86f, 0.16f, 1f);
             }
         }
 
-        private ItemEffectResult ApplyHUDItemEffect()
+        private ItemEffectResult ApplyHUDItemEffect(string eventId)
         {
             if (topHUDController == null)
             {
                 topHUDController = FindFirstObjectByType<TopHUDController>();
             }
 
-            if (topHUDController == null || definition == null)
+            if (definition == null)
             {
                 return ItemEffectResult.None;
             }
@@ -366,7 +401,17 @@ namespace PH.Core.Items
                 effectResolver = new ItemEffectResolver();
             }
 
-            return effectResolver.Execute(definition, new ItemEffectContext(topHUDController, playerHealth, playerMotor, playerBuffVisualFeedback, requiredPassCount, scoreBonusPercent));
+            return effectResolver.Execute(
+                definition,
+                new ItemEffectContext(
+                    topHUDController,
+                    playerHealth,
+                    playerMotor,
+                    playerBuffVisualFeedback,
+                    requiredPassCount,
+                    scoreBonusPercent,
+                    eventRecorder,
+                    eventId));
         }
 
         private void Expire()

@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class PlayerItemPickupFeedback : MonoBehaviour
@@ -20,6 +20,15 @@ namespace PH.Core.Player
         private int fontSize = 28;
 
         [SerializeField]
+        private Vector2 skillStackOffset = new Vector2(0f, 52f);
+
+        [SerializeField]
+        private float skillSizeMultiplier = 1.35f;
+
+        [SerializeField]
+        private Color skillColor = new Color(1f, 0.86f, 0.18f, 1f);
+
+        [SerializeField]
         private Color outlineColor = new Color(0f, 0f, 0f, 0.82f);
 
         [SerializeField]
@@ -27,10 +36,21 @@ namespace PH.Core.Player
 
         public void Show(string message, Color color)
         {
-            Show(message, color, 1f);
+            Show(message, color, 1f, Vector2.zero);
         }
 
         public void Show(string message, Color color, float sizeMultiplier)
+        {
+            Show(message, color, sizeMultiplier, Vector2.zero);
+        }
+
+        public void ShowSkillActivation(bool stackAboveItemFeedback)
+        {
+            Vector2 additionalOffset = stackAboveItemFeedback ? skillStackOffset : Vector2.zero;
+            Show("SKILL ON!", skillColor, skillSizeMultiplier, additionalOffset);
+        }
+
+        private void Show(string message, Color color, float sizeMultiplier, Vector2 additionalOffset)
         {
             if (string.IsNullOrWhiteSpace(message))
             {
@@ -46,7 +66,8 @@ namespace PH.Core.Player
             textRect.anchorMin = new Vector2(0.5f, 0.5f);
             textRect.anchorMax = new Vector2(0.5f, 0.5f);
             textRect.pivot = new Vector2(0.5f, 0.5f);
-            textRect.anchoredPosition = startOffset;
+            Vector2 animationStartOffset = startOffset + additionalOffset;
+            textRect.anchoredPosition = animationStartOffset;
             textRect.sizeDelta = new Vector2(220f, 44f);
             textRect.localScale = Vector3.one;
 
@@ -72,15 +93,15 @@ namespace PH.Core.Player
             shadow.effectDistance = new Vector2(0f, -3f);
             shadow.useGraphicAlpha = true;
 
-            StartCoroutine(AnimateAndDestroy(textObject, textRect, feedbackText));
+            StartCoroutine(AnimateAndDestroy(textObject, textRect, feedbackText, animationStartOffset));
         }
 
-        private IEnumerator AnimateAndDestroy(GameObject textObject, RectTransform textRect, Text feedbackText)
+        private IEnumerator AnimateAndDestroy(GameObject textObject, RectTransform textRect, Text feedbackText, Vector2 animationStartOffset)
         {
             float elapsed = 0f;
             float duration = Mathf.Max(0.01f, durationSeconds);
-            Vector2 from = startOffset;
-            Vector2 to = startOffset + new Vector2(0f, Mathf.Max(0f, riseDistance));
+            Vector2 from = animationStartOffset;
+            Vector2 to = animationStartOffset + new Vector2(0f, Mathf.Max(0f, riseDistance));
             Color startColor = feedbackText.color;
 
             while (elapsed < duration)
@@ -116,6 +137,7 @@ namespace PH.Core.Player
             durationSeconds = Mathf.Max(0.01f, durationSeconds);
             riseDistance = Mathf.Max(0f, riseDistance);
             fontSize = Mathf.Max(1, fontSize);
+            skillSizeMultiplier = Mathf.Max(0.1f, skillSizeMultiplier);
         }
 #endif
     }

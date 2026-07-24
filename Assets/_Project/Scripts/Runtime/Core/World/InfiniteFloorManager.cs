@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace PH.Core.World
+namespace LootUp.Core.World
 {
     public sealed class InfiniteFloorManager : MonoBehaviour
     {
@@ -39,6 +39,7 @@ namespace PH.Core.World
         public int CurrentPageIndex => currentPageIndex;
         public int CurrentPageFloorIndex => currentPageFloorIndex;
         public int RunHighestFloor => runHighestFloor;
+        public int StartAbsoluteFloor => Mathf.Max(1, startAbsoluteFloor);
 
         private void Awake()
         {

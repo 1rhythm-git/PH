@@ -1,11 +1,12 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace PH.Core.SceneFlow
+namespace LootUp.Core.SceneFlow
 {
     public sealed class SceneFlowManager : MonoBehaviour
     {
         public const string LoadingSceneName = "Loading";
+        public const string TitleSceneName = "Title";
         public const string LobbySceneName = "Lobby";
         public const string InGameSceneName = "InGame";
 
@@ -43,6 +44,11 @@ namespace PH.Core.SceneFlow
         public void LoadLobby()
         {
             LoadScene(LobbySceneName);
+        }
+
+        public void LoadTitle()
+        {
+            LoadScene(TitleSceneName);
         }
 
         public void LoadInGame()

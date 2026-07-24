@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.World
+namespace LootUp.Core.World
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class FloorVisibilityController : MonoBehaviour

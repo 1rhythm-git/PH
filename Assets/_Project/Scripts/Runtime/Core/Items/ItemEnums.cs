@@ -1,4 +1,4 @@
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     public enum ItemType
     {
@@ -6,7 +6,8 @@ namespace PH.Core.Items
         Time,
         Heal,
         Skill,
-        Collection
+        Collection,
+        Currency
     }
 
     public enum ItemPassDirection

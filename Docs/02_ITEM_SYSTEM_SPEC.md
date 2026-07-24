@@ -1,4 +1,4 @@
-PH Item System Specification
+LootUp Item System Specification
 ________________________________________
 1. 시스템 목적
 아이템 시스템은 플레이어가 각 층의 셀 내부에 배치된 아이템을 통과하여 획득하는 구조이다.
@@ -89,24 +89,35 @@ GameState
 •	Winged Heart
 	- EffectKey: add_max_life
 	- EffectValue: 1
-	- 효과: 현재 생명력이 Max일 때 런 중 1회에 한해 Max Life +1
+	- 효과: 현재 생명력이 Max이고 추가 슬롯이 없을 때 Max Life +1
 	- 차감 상태에서는 Max Life 증가 없이 생명력만 회복
-	- 이미 Max Life 증가를 받은 상태에서 재획득하면 SCORE로 환산
+	- 추가된 생명력 슬롯이 피해로 소모되면 Max Life는 캐릭터의 원래 수치로 복귀
+	- 추가 슬롯 활성 중 재획득하면 SCORE로 환산하며 Max Life는 중첩 증가하지 않음
+	- 추가 슬롯 소모 후 Max 상태에서 재획득하면 다시 Max Life +1 적용
 
 이동속도 증가 아이템은 영구 강화가 아니다.
 효과 지속시간 동안만 `PlayerMotor`의 이동속도에 반영하고, 시간이 끝나면 자동으로 제거한다.
-효과 지속 중에는 `PlayerBuffVisualFeedback`을 통해 캐릭터 점멸을 표시한다.
+효과 지속 중에는 `PlayerBuffVisualFeedback` 점멸, 기존 Run 스프라이트 대시 애니메이션, 강화된 대시 먼지를 표시한다.
 최종 이동속도 버프 지속시간은 `EffectDurationSeconds × RequiredPassCount`로 계산한다.
 현재 설정에서는 카운트에 따라 5초, 10초, 15초가 적용된다.
 
 Collection
 장기 저장되는 수집 데이터에 반영한다.
-필수 데이터 예시:
-•	Collection ID
-•	Amount
-•	Achievement Progress
-•	Passive Upgrade Category
-•	Unlock Target
+수집형은 다음 두 종류로 구분한다.
+•	Artifact: `MaxOwnedAmount=1`인 고유 수집품이며, 획득 후 스폰 후보에서 제외한다.
+•	CharacterCoin: 중복 보유할 수 있으며 로비의 캐릭터 능력치 강화 비용으로 사용한다.
+
+수집형 필수 데이터:
+•	CollectionItemType
+•	CollectionId
+•	CollectionTargetId
+•	AcquireAmount
+•	MaxOwnedAmount
+•	CollectionBaseSpawnChance
+•	CollectionSpawnChancePerFloor
+
+`MaxAcquirePerRun`은 현재 런의 획득 횟수 제한이고, `MaxOwnedAmount`는 모든 런을 합친 영구 보유량 제한이다.
+캐릭터 강화 비용은 `CollectionCost[]`로 관리해 한 종류 또는 여러 종류의 캐릭터 코인을 조합할 수 있다.
 ________________________________________
 7. 효과 구조
 아이템 데이터와 아이템 효과 실행을 분리한다.
@@ -183,11 +194,12 @@ StackValue
 ReplaceWithStronger
 예시:
 •	무적 아이템 재획득: 지속 시간 갱신
-•	이동 속도 증가: 최대 3중첩
+•	이동 속도 증가: 능력치 중첩 없이 지속 시간 갱신
 •	약한 버프 획득 후 강한 버프 획득: 강한 효과로 교체
 
-현재 이동속도 증가 구현은 동일 런 안에서 복수 버프가 동시에 존재할 수 있다.
-각 버프는 독립적인 만료 시간을 가지며, 활성 버프의 퍼센트 값을 합산해 최종 이동속도 배율을 계산한다.
+현재 이동속도 증가 구현은 하나의 활성 능력치와 지속시간만 유지한다.
+동일하거나 하위 이동속도 아이템을 연속 획득하면 현재 능력치는 유지하고 지속시간만 새 아이템 기준으로 갱신한다.
+상위 이동속도 아이템을 획득하면 능력치와 지속시간을 모두 새 아이템 기준으로 갱신한다.
 정식 밸런스 단계에서 Stack Policy와 Stack Limit을 데이터화할 수 있다.
 Enemy 일시 정지 아이템은 현재 및 향후 필수 구현 범위에서 제외한다.
 추가 스킬 효과와 중첩 세부 정책은 레벨 디자인 단계에서 필요성이 확인된 항목만 확장한다.
@@ -236,20 +248,42 @@ ________________________________________
 •	실행마다 `runtimeSeed`를 생성하고, 페이지 인덱스를 섞어 배치 난수를 만든다.
 •	`randomizeSeedOnStart`가 켜져 있으면 새 실행마다 배치가 달라진다.
 •	`randomizeSeedOnStart`가 꺼져 있으면 `randomSeed` 기반으로 재현 가능한 배치를 만든다.
+•	캐릭터 기본 스테이터스인 Item Chance 판정에 성공하면 해당 페이지의 아이템 중 1개를 Time 또는 Skill 타입으로 보장한다.
+•	Item Chance는 레벨 또는 캐릭터 스킬 해금 여부와 관계없이 페이지 생성 시 항상 판정한다.
+•	Item Chance는 기존 아이템 가중치 추첨을 제거하지 않으며, 보장 대상 외 아이템은 기존 규칙으로 선택한다.
+•	캐릭터 스킬은 아이템 기본 효과 적용 이후 아이템 획득 1회당 한 번 판정한다.
+•	스킬 발동 조건은 원본 `ItemType`을 기준으로 하므로, 하트가 최대 상태에서 스코어로 전환되어도 하트 획득 스킬 조건으로 처리한다.
+•	스킬로 발생한 추가 Score 또는 Time은 아이템 획득 이벤트를 다시 발생시키지 않는다.
+•	캐릭터 스킬 발동 확률과 효과 수치는 `CharacterSkillDefinition`의 P1~P5에서 관리한다.
+•	Collection 아이템은 일반 아이템의 상대 가중치와 분리된 절대 확률을 사용한다.
+•	최종 확률은 `(CollectionBaseSpawnChance + CollectionSpawnChancePerFloor × (현재 층 - MinFloor)) × (1 + PlayerChanceBonusPercent / 100)`으로 계산한다.
+•	Artifact는 이미 보유했거나 `MaxOwnedAmount`에 도달하면 스폰 후보에서 제외한다.
+•	Collection 아이템은 한 페이지에 동일한 `CollectionId`가 중복 생성되지 않는다.
 ________________________________________
 11. 저장 규칙
 Score 아이템:
 •	런 종료 결과에 포함
 •	개별 아이템 획득 이력은 필수 저장하지 않음
+Game Money 아이템:
+•	런 중 획득량을 보유 게임머니와 분리해 누적
+•	소액, 중액, 고액 항목별 가중치로 배치하며 고액일수록 낮은 확률 적용
+•	정상 런 결과 확정 시 점수 기반 보너스 게임머니와 합산해 한 번만 지급
+•	비정상 종료 시 미확정 게임머니는 지급하지 않음
 Skill 아이템:
 •	기본적으로 런 종료 시 효과 소멸
 •	영구 스킬인 경우 Collection 또는 Progress 데이터로 처리
 •	이동속도 아이템은 현재 런의 지정 지속시간 동안만 적용하고, 저장 대상이 아니다.
+•	이동속도 아이템 효과는 생명력이 실제로 차감되는 순간 즉시 제거하고 캐릭터 기본 이동속도로 복원한다.
 Collection 아이템:
 •	획득 즉시 로컬 저장
 •	서버 연결 시 동기화 대상
-•	고유 아이템은 중복 여부 확인
-•	재료형 아이템은 수량 누적
+•	Artifact는 중복 여부를 확인하고 획득 후 재등장하지 않음
+•	CharacterCoin은 `MaxOwnedAmount`까지 수량 누적
+•	획득 `EventId`를 서버 멱등 키로 사용하고 미전송 이벤트를 로컬에 보관
+•	서버 응답은 충돌 및 획득 판정을 대기시키지 않음
+•	비정상 종료 시 Collection은 유지하고 완료되지 않은 런의 점수 보상은 정산하지 않음
+•	캐릭터 강화는 로비에서 코인 차감과 강화 단계 증가를 하나의 저장 작업으로 처리
+•	강화 능력치는 다음 InGame 진입 시 `PlayerCharacterRuntime` 초기값에 반영
 ________________________________________
 12. 예외 상황
 다음 상황을 방어한다.

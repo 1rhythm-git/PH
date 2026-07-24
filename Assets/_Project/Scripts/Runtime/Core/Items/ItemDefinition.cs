@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     [Serializable]
     public sealed class ItemDefinition
@@ -69,6 +69,27 @@ namespace PH.Core.Items
         [SerializeField]
         private string rarity;
 
+        [SerializeField]
+        private CollectionItemType collectionItemType;
+
+        [SerializeField]
+        private string collectionId;
+
+        [SerializeField]
+        private string collectionTargetId;
+
+        [SerializeField]
+        private int acquireAmount;
+
+        [SerializeField]
+        private int maxOwnedAmount;
+
+        [SerializeField]
+        private float collectionBaseSpawnChance;
+
+        [SerializeField]
+        private float collectionSpawnChancePerFloor;
+
         public string ItemId => itemId;
         public string ServerItemId => serverItemId;
         public string TableVersion => tableVersion;
@@ -91,10 +112,29 @@ namespace PH.Core.Items
         public bool ServerValidated => serverValidated;
         public int MaxAcquirePerRun => maxAcquirePerRun;
         public string Rarity => rarity;
+        public CollectionItemType CollectionItemType => collectionItemType;
+        public string CollectionId => collectionId;
+        public string CollectionTargetId => collectionTargetId;
+        public int AcquireAmount => acquireAmount;
+        public int MaxOwnedAmount => maxOwnedAmount;
+        public float CollectionBaseSpawnChance => collectionBaseSpawnChance;
+        public float CollectionSpawnChancePerFloor => collectionSpawnChancePerFloor;
 
         public bool CanSpawnAtFloor(int absoluteFloor)
         {
-            if (!enabled || spawnWeight <= 0)
+            if (!enabled)
+            {
+                return false;
+            }
+
+            if (itemType == ItemType.Collection)
+            {
+                if (collectionBaseSpawnChance <= 0f && collectionSpawnChancePerFloor <= 0f)
+                {
+                    return false;
+                }
+            }
+            else if (spawnWeight <= 0)
             {
                 return false;
             }
@@ -128,7 +168,14 @@ namespace PH.Core.Items
             bool affectsProgression,
             bool serverValidated,
             int maxAcquirePerRun,
-            string rarity)
+            string rarity,
+            CollectionItemType collectionItemType,
+            string collectionId,
+            string collectionTargetId,
+            int acquireAmount,
+            int maxOwnedAmount,
+            float collectionBaseSpawnChance,
+            float collectionSpawnChancePerFloor)
         {
             return new ItemDefinition
             {
@@ -152,8 +199,29 @@ namespace PH.Core.Items
                 affectsProgression = affectsProgression,
                 serverValidated = serverValidated,
                 maxAcquirePerRun = Mathf.Max(0, maxAcquirePerRun),
-                rarity = rarity
+                rarity = rarity,
+                collectionItemType = collectionItemType,
+                collectionId = collectionId,
+                collectionTargetId = collectionTargetId,
+                acquireAmount = Mathf.Max(1, acquireAmount),
+                maxOwnedAmount = collectionItemType == CollectionItemType.Artifact ? 1 : Mathf.Max(0, maxOwnedAmount),
+                collectionBaseSpawnChance = Mathf.Clamp01(collectionBaseSpawnChance),
+                collectionSpawnChancePerFloor = Mathf.Max(0f, collectionSpawnChancePerFloor)
             };
+        }
+
+        // (추가) 수집형 아이템의 절대 출현 확률에 층 상승분과 플레이어 Chance 보정을 적용한다.
+        public float GetCollectionSpawnChance(int absoluteFloor, float playerChanceBonusPercent)
+        {
+            if (itemType != ItemType.Collection || !CanSpawnAtFloor(absoluteFloor))
+            {
+                return 0f;
+            }
+
+            int floorOffset = Mathf.Max(0, absoluteFloor - minFloor);
+            float floorAdjustedChance = collectionBaseSpawnChance + collectionSpawnChancePerFloor * floorOffset;
+            float chanceMultiplier = 1f + Mathf.Max(0f, playerChanceBonusPercent) * 0.01f;
+            return Mathf.Clamp01(floorAdjustedChance * chanceMultiplier);
         }
     }
 }

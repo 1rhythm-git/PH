@@ -1,8 +1,9 @@
-using PH.Core.Characters;
+using LootUp.Core.Characters;
+using LootUp.Core.Feedback;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     [RequireComponent(typeof(PlayerMotor))]
     public sealed class PlayerController : MonoBehaviour
@@ -163,6 +164,7 @@ namespace PH.Core.Player
             {
                 lastPivotTime = Time.time;
                 characterRuntime?.AddPivotCharge();
+                HapticFeedback.Play(HapticFeedbackPattern.Pivot);
             }
         }
 
