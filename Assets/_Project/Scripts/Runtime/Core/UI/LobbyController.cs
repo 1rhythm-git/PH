@@ -1,6 +1,7 @@
 using LootUp.Core.Authentication;
 using LootUp.Core.Characters;
 using LootUp.Core.Characters.Skills;
+using LootUp.Core.Items;
 using LootUp.Core.Profile;
 using LootUp.Core.SceneFlow;
 using UnityEngine;
@@ -18,6 +19,7 @@ namespace LootUp.Core.UI
         private const float AgentXBaseFeverGainPerColumn = 0.15f;
 
         private static readonly string[] FooterMenuLabels = { "MISSION", "MAIL BOX", "UPGRADE", "ARTIFACT", "SHOP", "RANK" };
+        private static readonly string[] FooterMenuIconKeys = { "mission", "mailbox", "upgrade", "artifact", "shop", "rank" };
         private static readonly Vector2 HeaderBandMin = new Vector2(0f, 0.87f);
         private static readonly Vector2 HeaderBandMax = Vector2.one;
         private static readonly Vector2 ContentBandMin = new Vector2(0f, 0.18f);
@@ -94,6 +96,13 @@ namespace LootUp.Core.UI
         private static Sprite leftArrowSprite;
         private static Sprite rightArrowSprite;
         private static Sprite settingsSprite;
+        private static Sprite playSprite;
+
+        private readonly Color sampleNavy = new Color(0.025f, 0.105f, 0.22f, 0.97f);
+        private readonly Color samplePurple = new Color(0.55f, 0.12f, 0.88f, 0.98f);
+        private readonly Color sampleYellow = new Color(1f, 0.78f, 0.04f, 1f);
+        private readonly Color sampleOrange = new Color(1f, 0.48f, 0.02f, 1f);
+        private readonly Color sampleOutline = new Color(0.015f, 0.08f, 0.2f, 0.96f);
 
         private void Awake()
         {
@@ -108,6 +117,7 @@ namespace LootUp.Core.UI
             CharacterProgressionState.ProgressChanged += HandleCharacterProgressChanged;
             UserProfileManager.ProfileChanged += HandleUserProfileChanged;
             AuthenticationManager.AuthenticationStateChanged += HandleAuthenticationStateChanged;
+            ItemCollectionManager.CollectionChanged += HandleCollectionChanged;
         }
 
         private void OnDisable()
@@ -115,6 +125,7 @@ namespace LootUp.Core.UI
             CharacterProgressionState.ProgressChanged -= HandleCharacterProgressChanged;
             UserProfileManager.ProfileChanged -= HandleUserProfileChanged;
             AuthenticationManager.AuthenticationStateChanged -= HandleAuthenticationStateChanged;
+            ItemCollectionManager.CollectionChanged -= HandleCollectionChanged;
         }
 
         private void Update()
@@ -200,7 +211,17 @@ namespace LootUp.Core.UI
 
             BuildRecordStrip(root);
             BuildCharacterStage(root);
-            CreateButton(root, "StartButton", "START", new Vector2(0.055f, 0.025f), new Vector2(0.945f, 0.137f), startButtonColor, primaryTextColor, StartGame, true);
+            Button startButton = CreateButton(root, "StartButton", "START", new Vector2(0.055f, 0.025f), new Vector2(0.945f, 0.137f), sampleYellow, primaryTextColor, StartGame, true);
+            RectTransform startRect = startButton.transform as RectTransform;
+            Transform labelTransform = startRect != null ? startRect.Find("StartButtonText") : null;
+            if (labelTransform is RectTransform labelRect)
+            {
+                ConfigureRect(labelRect, new Vector2(0.24f, 0f), new Vector2(0.95f, 1f));
+            }
+
+            Image playIcon = CreateImage(startRect, "PlayIcon", new Vector2(0.08f, 0.2f), new Vector2(0.23f, 0.8f), Color.white);
+            playIcon.sprite = GetPlaySprite();
+            playIcon.preserveAspect = true;
         }
 
         private void BuildRecordStrip(RectTransform parent)
@@ -275,7 +296,16 @@ namespace LootUp.Core.UI
             for (int i = 0; i < FooterMenuLabels.Length; i++)
             {
                 float minX = leftMargin + i * (buttonWidth + gap);
-                CreateTemporaryMenuButton(root, FooterMenuLabels[i], minX, minX + buttonWidth);
+                bool isArtifactButton = i == 3;
+                bool interactable = isArtifactButton && ArtifactCatalog.Instance.IsSystemUnlocked();
+                CreateFooterMenuButton(
+                    root,
+                    FooterMenuLabels[i],
+                    FooterMenuIconKeys[i],
+                    minX,
+                    minX + buttonWidth,
+                    interactable,
+                    isArtifactButton ? OpenArtifactPanel : null);
             }
 
             RectTransform adArea = CreatePanel(root, "BannerAdArea", new Vector2(0f, 0f), new Vector2(1f, 0.31f), disabledButtonColor, false);
@@ -581,6 +611,12 @@ namespace LootUp.Core.UI
             RefreshLobbyData();
         }
 
+        private void HandleCollectionChanged(CollectionChangeResult result)
+        {
+            ClearRuntimeRoot(footerRoot);
+            BuildFooter();
+        }
+
         private static string GetAuthenticationStateLabel()
         {
             if (AuthenticationManager.IsAuthenticated)
@@ -726,19 +762,22 @@ namespace LootUp.Core.UI
 
         private Button CreateIconButton(RectTransform parent, string objectName, Sprite icon, Vector2 anchorMin, Vector2 anchorMax, UnityEngine.Events.UnityAction onClick, bool interactable, string accessibleName)
         {
-            GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
+            GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(Shadow), typeof(Outline));
             buttonObject.layer = parent.gameObject.layer;
             buttonObject.transform.SetParent(parent, false);
-            ConfigureRect(buttonObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            RectTransform rectTransform = ConfigureRect(buttonObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
 
-            Image image = buttonObject.GetComponent<Image>();
-            image.sprite = icon;
-            image.preserveAspect = true;
-            image.color = interactable ? primaryTextColor : secondaryTextColor * 0.45f;
+            Image background = buttonObject.GetComponent<Image>();
+            background.color = interactable ? sampleNavy : new Color(0.08f, 0.1f, 0.14f, 0.88f);
+            ConfigureButtonDepth(buttonObject, interactable);
+
+            Image iconImage = CreateImage(rectTransform, "Icon", new Vector2(0.2f, 0.2f), new Vector2(0.8f, 0.8f), interactable ? primaryTextColor : secondaryTextColor * 0.45f);
+            iconImage.sprite = icon;
+            iconImage.preserveAspect = true;
 
             Button button = buttonObject.GetComponent<Button>();
             button.transition = Selectable.Transition.ColorTint;
-            button.targetGraphic = image;
+            button.targetGraphic = background;
             button.interactable = interactable;
             if (onClick != null)
             {
@@ -752,13 +791,14 @@ namespace LootUp.Core.UI
 
         private Button CreateButton(RectTransform parent, string objectName, string label, Vector2 anchorMin, Vector2 anchorMax, Color backgroundColor, Color textColor, UnityEngine.Events.UnityAction onClick, bool interactable)
         {
-            GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
+            GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(Shadow), typeof(Outline));
             buttonObject.layer = parent.gameObject.layer;
             buttonObject.transform.SetParent(parent, false);
             RectTransform rectTransform = ConfigureRect(buttonObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
 
             Image image = buttonObject.GetComponent<Image>();
             image.color = backgroundColor;
+            ConfigureButtonDepth(buttonObject, interactable);
 
             Button button = buttonObject.GetComponent<Button>();
             button.transition = Selectable.Transition.ColorTint;
@@ -769,9 +809,14 @@ namespace LootUp.Core.UI
                 button.onClick.AddListener(onClick);
             }
 
+            Color edgeColor = objectName == "StartButton"
+                ? sampleOrange
+                : new Color(backgroundColor.r * 0.58f, backgroundColor.g * 0.58f, backgroundColor.b * 0.58f, backgroundColor.a);
+            CreateImage(rectTransform, "BottomEdge", new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.12f), edgeColor);
             Text buttonText = CreateText(rectTransform, $"{objectName}Text", label, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 38, textColor);
             buttonText.fontStyle = FontStyle.Bold;
             buttonText.verticalOverflow = VerticalWrapMode.Overflow;
+            AddStrongTextOutline(buttonText);
             return button;
         }
 
@@ -802,6 +847,93 @@ namespace LootUp.Core.UI
             Text labelText = CreateText(rectTransform, "Label", label, new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.34f), TextAnchor.MiddleCenter, 16, primaryTextColor);
             labelText.fontStyle = FontStyle.Bold;
             return button;
+        }
+
+        private Button CreateFooterMenuButton(
+            RectTransform parent,
+            string label,
+            string iconKey,
+            float minX,
+            float maxX,
+            bool interactable,
+            UnityEngine.Events.UnityAction onClick)
+        {
+            string objectName = label.Replace(" ", string.Empty) + "Button";
+            GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(Shadow), typeof(Outline));
+            buttonObject.layer = parent.gameObject.layer;
+            buttonObject.transform.SetParent(parent, false);
+            RectTransform rectTransform = ConfigureRect(
+                buttonObject.GetComponent<RectTransform>(),
+                new Vector2(minX, 0.39f),
+                new Vector2(maxX, 0.95f));
+
+            Image image = buttonObject.GetComponent<Image>();
+            image.color = interactable
+                ? samplePurple
+                : sampleNavy;
+            ConfigureButtonDepth(buttonObject, interactable);
+
+            Button button = buttonObject.GetComponent<Button>();
+            button.targetGraphic = image;
+            button.transition = Selectable.Transition.ColorTint;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            button.interactable = interactable;
+            if (onClick != null)
+            {
+                button.onClick.AddListener(onClick);
+            }
+
+            Image icon = CreateResourceImage(
+                rectTransform,
+                "Icon",
+                $"UI/Lobby/Menu/{iconKey}",
+                new Vector2(0.2f, 0.33f),
+                new Vector2(0.8f, 0.92f));
+            if (icon != null)
+            {
+                icon.preserveAspect = true;
+                icon.color = interactable ? Color.white : new Color(0.72f, 0.78f, 0.86f, 0.78f);
+            }
+
+            CreateImage(rectTransform, "TopHighlight", new Vector2(0.06f, 0.9f), new Vector2(0.94f, 0.95f), new Color(1f, 1f, 1f, interactable ? 0.34f : 0.14f));
+            Text labelText = CreateText(rectTransform, "Label", label, new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.3f), TextAnchor.MiddleCenter, 15, primaryTextColor);
+            labelText.fontStyle = FontStyle.Bold;
+            labelText.resizeTextForBestFit = true;
+            labelText.resizeTextMinSize = 10;
+            labelText.resizeTextMaxSize = 15;
+            AddStrongTextOutline(labelText);
+            return button;
+        }
+
+        private void ConfigureButtonDepth(GameObject buttonObject, bool interactable)
+        {
+            Shadow shadow = buttonObject.GetComponent<Shadow>();
+            shadow.effectColor = new Color(sampleOutline.r, sampleOutline.g, sampleOutline.b, interactable ? 0.9f : 0.68f);
+            shadow.effectDistance = new Vector2(0f, -7f);
+            shadow.useGraphicAlpha = true;
+
+            Outline outline = buttonObject.GetComponent<Outline>();
+            outline.effectColor = sampleOutline;
+            outline.effectDistance = new Vector2(4f, -4f);
+            outline.useGraphicAlpha = true;
+        }
+
+        private void AddStrongTextOutline(Text text)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            Outline outline = text.gameObject.AddComponent<Outline>();
+            outline.effectColor = sampleOutline;
+            outline.effectDistance = new Vector2(2f, -2f);
+            outline.useGraphicAlpha = true;
+        }
+
+        private void OpenArtifactPanel()
+        {
+            ArtifactLobbyPanel.Show(contentRoot, lobbyFont, accentTextColor, primaryTextColor, panelColor);
         }
 
         private static RectTransform ConfigureRect(RectTransform rectTransform, Vector2 anchorMin, Vector2 anchorMax)
@@ -910,6 +1042,42 @@ namespace LootUp.Core.UI
             settingsSprite.name = "LobbySettings";
             settingsSprite.hideFlags = HideFlags.HideAndDontSave;
             return settingsSprite;
+        }
+
+        private static Sprite GetPlaySprite()
+        {
+            if (playSprite != null)
+            {
+                return playSprite;
+            }
+
+            const int textureSize = 64;
+            Texture2D texture = new Texture2D(textureSize, textureSize, TextureFormat.RGBA32, false)
+            {
+                name = "LobbyPlayTexture",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave
+            };
+
+            Color32[] pixels = new Color32[textureSize * textureSize];
+            Color32 iconColor = new Color32(255, 255, 255, 255);
+            for (int x = 14; x <= 50; x++)
+            {
+                float progress = (x - 14f) / 36f;
+                int halfHeight = Mathf.RoundToInt((1f - progress) * 22f + 2f);
+                for (int y = 32 - halfHeight; y <= 32 + halfHeight; y++)
+                {
+                    pixels[y * textureSize + x] = iconColor;
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            playSprite = Sprite.Create(texture, new Rect(0f, 0f, textureSize, textureSize), new Vector2(0.5f, 0.5f), textureSize);
+            playSprite.name = "LobbyPlay";
+            playSprite.hideFlags = HideFlags.HideAndDontSave;
+            return playSprite;
         }
 
         private static void SetArrowPixel(Color32[] pixels, int textureSize, int x, int y, bool mirrorHorizontally, Color32 color)

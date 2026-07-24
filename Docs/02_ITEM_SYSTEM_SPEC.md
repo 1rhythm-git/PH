@@ -109,7 +109,7 @@ GameState
 이동속도 증가 아이템은 영구 강화가 아니다.
 효과 지속시간 동안만 `PlayerMotor`의 이동속도에 반영하고, 시간이 끝나면 자동으로 제거한다.
 효과 지속 중에는 `PlayerBuffVisualFeedback` 점멸, 기존 Run 스프라이트 대시 애니메이션, 강화된 대시 먼지를 표시한다.
-최종 이동속도 버프 지속시간은 `EffectDurationSeconds × RequiredPassCount`로 계산한다.
+최종 이동속도 버프 지속시간은 `EffectDurationSeconds × RequiredPassCount × Artifact 지속시간 보정`으로 계산한다.
 현재 설정에서는 카운트에 따라 5초, 10초, 15초가 적용된다.
 
 Collection
@@ -129,6 +129,32 @@ Collection
 
 `MaxAcquirePerRun`은 현재 런의 획득 횟수 제한이고, `MaxOwnedAmount`는 모든 런을 합친 영구 보유량 제한이다.
 캐릭터 강화 비용은 `CollectionCost[]`로 관리해 한 종류 또는 여러 종류의 캐릭터 코인을 조합할 수 있다.
+
+Artifact 확장 구조:
+• `Resources/Data/Artifacts.csv`: 수집품 ID, 표시명, 테마, 아이콘 경로를 등록한다.
+• `Resources/Data/ArtifactEffects.csv`: 효과 타입, 효과값, 요구 수량, 후보 Artifact ID와 UI 설명을 등록한다.
+• 신규 Artifact는 두 CSV와 `Items.csv`, `ItemIcons.csv`에 행을 추가해 등록한다.
+• 기존 효과 타입의 신규 조합은 코드 변경 없이 `ArtifactEffects.csv` 행 추가로 확장한다.
+• 완전히 새로운 효과 동작은 `ArtifactEffectType`, `ArtifactEffectResolver`, 실제 적용 지점만 확장하며 저장 구조와 Lobby UI는 유지한다.
+• Artifact 효과 활성 상태는 별도 저장하지 않고 현재 보유 수집품으로 매번 계산해 데이터 변경과 저장 마이그레이션을 분리한다.
+
+Artifact 초기 드랍 정책:
+• 수집형 드랍은 셀마다가 아니라 `CollectionItemType`별 Page 1회 확률 판정을 수행한다.
+• Artifact 기본 Page 확률은 0.1%, 층당 0.0002% 증가, 최대 0.5%이다.
+• 당첨 후 미보유 Artifact 중 하나를 선택하며 한 Page에는 수집형 아이템을 최대 1개 배치한다.
+• 모든 Artifact의 기본 Required Pass Count는 10이다.
+• Golden Cup 미보유 상태에서 3번째 Page에 도달하면 유효한 빈 셀 한 곳에 반드시 배치한다.
+• Golden Cup 확정 배치는 최초 Artifact 확인과 Lobby 메뉴 해금을 유도하는 온보딩 장치로 사용한다.
+• Artifact는 전용 최상위 레이어에 배치해 층별 시야 가림과 다른 인게임 레이어의 영향을 받지 않는다.
+• 최초 Artifact 획득 후 Lobby의 `ARTIFACT` 메뉴를 활성화한다.
+
+Artifact Lobby UI:
+• `COLLECTION`은 4×4 목록에서 보유 여부와 관계없이 Artifact 이름을 표시한다.
+• 보유 Artifact는 원색 아이콘과 활성 상태색, 미보유 Artifact는 저채도 아이콘과 비활성 상태색으로 구분한다.
+• `EFFECTS`는 기본 진입 탭인 세로 스크롤 목록이며 효과명, 상세 설명, 효과값, 활성 상태, 요구 수량을 표시한다.
+• 효과 표시 순서는 `ArtifactEffects.csv` 행 순서를 따르며 `CHAMPION RECORD`를 첫 번째로 노출한다.
+• 각 효과 카드에는 조합 후보 Artifact의 아이콘과 이름을 모두 표시한다.
+• 조합 후보의 획득 여부는 활성/비활성 색상으로 구분하며, 요구 후보가 늘어나면 카드 높이를 자동 확장한다.
 ________________________________________
 7. 효과 구조
 아이템 데이터와 아이템 효과 실행을 분리한다.

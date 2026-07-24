@@ -1,0 +1,17 @@
+ArtifactId,DisplayName,Theme,IconPath
+artifact_golden_cup,Golden Cup,Trophy,Artifacts/Icons/golden_cup
+artifact_silver_medal,Silver Medal,Trophy,Artifacts/Icons/silver_medal
+artifact_champion_belt,Champion Belt,Trophy,Artifacts/Icons/champion_belt
+artifact_record_plaque,Record Plaque,Trophy,Artifacts/Icons/record_plaque
+artifact_blue_floppy,Blue Floppy,Retro Data,Artifacts/Icons/blue_floppy
+artifact_red_usb,Red USB,Retro Data,Artifacts/Icons/red_usb
+artifact_data_cartridge,Data Cartridge,Retro Data,Artifacts/Icons/data_cartridge
+artifact_cipher_disk,Cipher Disk,Retro Data,Artifacts/Icons/cipher_disk
+artifact_pocket_watch,Pocket Watch,Time Relic,Artifacts/Icons/pocket_watch
+artifact_hourglass,Hourglass,Time Relic,Artifacts/Icons/hourglass
+artifact_metronome,Metronome,Time Relic,Artifacts/Icons/metronome
+artifact_chronometer,Chronometer,Time Relic,Artifacts/Icons/chronometer
+artifact_mini_masterpiece,Mini Masterpiece,Art Treasure,Artifacts/Icons/mini_masterpiece
+artifact_jade_statuette,Jade Statuette,Art Treasure,Artifacts/Icons/jade_statuette
+artifact_ruby_crown,Ruby Crown,Art Treasure,Artifacts/Icons/ruby_crown
+artifact_antique_compass,Antique Compass,Art Treasure,Artifacts/Icons/antique_compass

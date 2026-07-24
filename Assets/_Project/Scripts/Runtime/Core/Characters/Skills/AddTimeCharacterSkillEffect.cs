@@ -1,4 +1,5 @@
 using UnityEngine;
+using LootUp.Core.Items;
 
 namespace LootUp.Core.Characters.Skills
 {
@@ -13,7 +14,8 @@ namespace LootUp.Core.Characters.Skills
                 return false;
             }
 
-            float addedSeconds = Mathf.Max(0f, context.Skill.P2);
+            float powerMultiplier = 1f + ArtifactEffectResolver.Resolve().CharacterSkillPowerBonusPercent * 0.01f;
+            float addedSeconds = Mathf.Max(0f, context.Skill.P2 * powerMultiplier);
             if (addedSeconds <= 0f)
             {
                 return false;

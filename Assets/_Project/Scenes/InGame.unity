@@ -310,6 +310,8 @@ MonoBehaviour:
   randomSeed: 30415
   randomizeSeedOnStart: 1
   forcedTestItemId:
+  guaranteedGoldenCupPageNumber: 3
+  guaranteedGoldenCupItemId: artifact_golden_cup_01
   itemSize: {x: 76.8, y: 76.8}
   passCountFontSize: 32
   randomPassCountMin: 1

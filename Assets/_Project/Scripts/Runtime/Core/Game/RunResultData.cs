@@ -27,6 +27,9 @@ namespace LootUp.Core.Game
         private int lifeScore;
 
         [SerializeField]
+        private int artifactBonusScore;
+
+        [SerializeField]
         private string characterId;
 
         [SerializeField]
@@ -40,6 +43,9 @@ namespace LootUp.Core.Game
 
         [SerializeField]
         private int scoreExperience;
+
+        [SerializeField]
+        private int artifactBonusExperience;
 
         [SerializeField]
         private int totalExperience;
@@ -65,12 +71,14 @@ namespace LootUp.Core.Game
         public int GameplayScore => gameplayScore;
         public int FloorScore => floorScore;
         public int LifeScore => lifeScore;
+        public int ArtifactBonusScore => artifactBonusScore;
         public string CharacterId => characterId;
         public int CharacterLevel => characterLevel;
         public int LevelExperience => levelExperience;
         public int FloorExperience => floorExperience;
         public int ScoreExperience => scoreExperience;
-        public int BonusExperience => scoreExperience;
+        public int ArtifactBonusExperience => artifactBonusExperience;
+        public int BonusExperience => scoreExperience + artifactBonusExperience;
         public int TotalExperience => totalExperience;
         public int AcquiredGameMoney => acquiredGameMoney;
         public int BonusGameMoney => bonusGameMoney;
@@ -94,12 +102,14 @@ namespace LootUp.Core.Game
             gameplayScore = rewards.GameplayScore;
             floorScore = rewards.FloorScore;
             lifeScore = rewards.LifeScore;
+            artifactBonusScore = rewards.ArtifactBonusScore;
             score = rewards.TotalScore;
             this.characterId = characterId ?? string.Empty;
             this.characterLevel = Mathf.Max(1, characterLevel);
             levelExperience = rewards.LevelExperience;
             floorExperience = rewards.FloorExperience;
             scoreExperience = rewards.ScoreExperience;
+            artifactBonusExperience = rewards.ArtifactBonusExperience;
             totalExperience = rewards.TotalExperience;
             acquiredGameMoney = rewards.AcquiredGameMoney;
             bonusGameMoney = rewards.BonusGameMoney;

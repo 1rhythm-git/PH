@@ -58,5 +58,15 @@ namespace LootUp.Core.Profile
         {
             return Service.GetTraitBonusPercent(UserTraitEffectType.CollectionItemChanceBonusPercent);
         }
+
+        public static float GetArtifactChanceBonusPercent()
+        {
+            return Service.GetTraitBonusPercent(UserTraitEffectType.ArtifactChanceBonusPercent);
+        }
+
+        public static float GetCharacterCoinChanceBonusPercent()
+        {
+            return Service.GetTraitBonusPercent(UserTraitEffectType.CharacterCoinChanceBonusPercent);
+        }
     }
 }

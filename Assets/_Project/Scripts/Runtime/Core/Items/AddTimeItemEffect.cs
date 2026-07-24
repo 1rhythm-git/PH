@@ -18,6 +18,11 @@ namespace LootUp.Core.Items
 
             int passCount = Mathf.Max(1, context.RequiredPassCount);
             int timeAmount = Mathf.Max(0, definition.EffectValue * passCount);
+            if (ArtifactEffectResolver.RollPercent(ArtifactEffectResolver.Resolve().TimeItemDoubleChancePercent))
+            {
+                timeAmount *= 2;
+            }
+
             context.TopHUDController.AddTime(timeAmount);
             context.TopHUDController.SetItemStatus($"+{timeAmount}s TIME");
             return new ItemEffectResult(ItemEffectOutcome.TimeAdded, timeAmount);

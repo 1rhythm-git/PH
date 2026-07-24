@@ -324,6 +324,13 @@ Enemy 일시 정지는 플레이 흐름을 끊는 효과로 판단해 기획 범
 •	캐릭터 스탯 강화
 •	신규 캐릭터 또는 외형 해금
 수집형 아이템은 로컬 저장 및 추후 뒤끝 서버 저장 대상이다.
+현재 Artifact 구현:
+•	Trophy, Retro Data, Time Relic, Art Treasure 테마의 Artifact 16종을 사용한다.
+•	모든 Artifact는 기본 Pass Count 10이며, 미보유 Golden Cup은 3번째 Page에 확정 등장한다.
+•	Artifact는 Page 단위 저확률로 등장하고 층별 시야 가림보다 높은 전용 레이어에 표시한다.
+•	최초 Artifact 획득 후 Lobby의 `ARTIFACT` 메뉴를 해금한다.
+•	보유 Artifact 조합으로 결과 XP/점수, 이동속도 아이템, 두 배 획득 확률, 캐릭터 스킬과 Character Coin 등장 확률을 강화한다.
+•	Artifact 정의와 효과 조합은 `Artifacts.csv`, `ArtifactEffects.csv`로 관리한다.
 ________________________________________
 14. 아이템 데이터 구조
 아이템 데이터는 ScriptableObject 기반으로 관리하는 것을 권장한다.
@@ -631,7 +638,8 @@ InGame
 •	Start Button
 •	하단 `MISSION`, `MAIL BOX`, `UPGRADE`, `ARTIFACT`, `SHOP`, `RANK` 메뉴 버튼
 •	최하단 배너 광고 영역
-현재 하단 6개 메뉴와 설정 버튼은 레이아웃 및 입력 상태만 구성하며 각 기능 연결은 별도 작업으로 진행한다.
+현재 `ARTIFACT` 메뉴는 최초 Artifact 획득 후 활성화하며 수집 목록과 조합 효과 화면을 제공한다.
+`MISSION`, `MAIL BOX`, `UPGRADE`, `SHOP`, `RANK`와 설정 버튼은 디자인 및 입력 상태만 구성하고 기능 연결은 별도 작업으로 진행한다.
 캐릭터 초상화 기본 규격:
 •	캔버스는 1024×1536 RGBA PNG와 투명 배경을 사용한다.
 •	캐릭터는 2등신 전신 픽셀아트로 제작하고 원본 비율을 유지한다.

@@ -1,4 +1,5 @@
 using LootUp.Core.Characters;
+using LootUp.Core.Items;
 using UnityEngine;
 
 namespace LootUp.Core.Game
@@ -34,10 +35,12 @@ namespace LootUp.Core.Game
             int gameplayScore,
             int floorScore,
             int lifeScore,
+            int artifactBonusScore,
             int totalScore,
             int levelExperience,
             int floorExperience,
             int scoreExperience,
+            int artifactBonusExperience,
             int totalExperience,
             int acquiredGameMoney,
             int bonusGameMoney)
@@ -45,10 +48,12 @@ namespace LootUp.Core.Game
             GameplayScore = Mathf.Max(0, gameplayScore);
             FloorScore = Mathf.Max(0, floorScore);
             LifeScore = Mathf.Max(0, lifeScore);
+            ArtifactBonusScore = Mathf.Max(0, artifactBonusScore);
             TotalScore = Mathf.Max(0, totalScore);
             LevelExperience = Mathf.Max(0, levelExperience);
             FloorExperience = Mathf.Max(0, floorExperience);
             ScoreExperience = Mathf.Max(0, scoreExperience);
+            ArtifactBonusExperience = Mathf.Max(0, artifactBonusExperience);
             TotalExperience = Mathf.Max(0, totalExperience);
             AcquiredGameMoney = Mathf.Max(0, acquiredGameMoney);
             BonusGameMoney = Mathf.Max(0, bonusGameMoney);
@@ -57,11 +62,13 @@ namespace LootUp.Core.Game
         public int GameplayScore { get; }
         public int FloorScore { get; }
         public int LifeScore { get; }
+        public int ArtifactBonusScore { get; }
         public int TotalScore { get; }
         public int LevelExperience { get; }
         public int FloorExperience { get; }
         public int ScoreExperience { get; }
-        public int BonusExperience => ScoreExperience;
+        public int ArtifactBonusExperience { get; }
+        public int BonusExperience => ScoreExperience + ArtifactBonusExperience;
         public int TotalExperience { get; }
         public int AcquiredGameMoney { get; }
         public int BonusGameMoney { get; }
@@ -85,24 +92,31 @@ namespace LootUp.Core.Game
             int floorMoveCount = Mathf.Max(0, highestFloor - Mathf.Max(1, startFloor));
             int floorScore = floorMoveCount * settings.FloorScorePerFloor;
             int lifeScore = Mathf.Max(0, remainingHearts) * settings.LifeScorePerHeart;
-            int totalScore = Mathf.Max(0, gameplayScore) + floorScore + lifeScore;
+            int baseTotalScore = Mathf.Max(0, gameplayScore) + floorScore + lifeScore;
+            ArtifactModifiers artifactModifiers = ArtifactEffectResolver.Resolve();
+            int artifactBonusScore = Mathf.FloorToInt(baseTotalScore * artifactModifiers.ResultScoreBonusPercent * 0.01f);
+            int totalScore = baseTotalScore + artifactBonusScore;
 
             int levelExperience = characterDefinition != null
                 ? characterDefinition.GetRunExperienceRewardForLevel(characterLevel)
                 : 0;
             int floorExperience = floorMoveCount * settings.FloorExperiencePerFloor;
-            int scoreExperience = Mathf.FloorToInt(totalScore * settings.ScoreExperienceMultiplier);
-            int totalExperience = levelExperience + floorExperience + scoreExperience;
-            int bonusGameMoney = Mathf.FloorToInt(totalScore * settings.BonusGameMoneyMultiplier);
+            int scoreExperience = Mathf.FloorToInt(baseTotalScore * settings.ScoreExperienceMultiplier);
+            int baseTotalExperience = levelExperience + floorExperience + scoreExperience;
+            int artifactBonusExperience = Mathf.FloorToInt(baseTotalExperience * artifactModifiers.ResultExperienceBonusPercent * 0.01f);
+            int totalExperience = baseTotalExperience + artifactBonusExperience;
+            int bonusGameMoney = Mathf.FloorToInt(baseTotalScore * settings.BonusGameMoneyMultiplier);
 
             return new RunRewardBreakdown(
                 gameplayScore,
                 floorScore,
                 lifeScore,
+                artifactBonusScore,
                 totalScore,
                 levelExperience,
                 floorExperience,
                 scoreExperience,
+                artifactBonusExperience,
                 totalExperience,
                 acquiredGameMoney,
                 bonusGameMoney);

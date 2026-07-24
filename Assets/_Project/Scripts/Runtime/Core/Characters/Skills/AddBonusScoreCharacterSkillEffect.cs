@@ -1,4 +1,5 @@
 using UnityEngine;
+using LootUp.Core.Items;
 
 namespace LootUp.Core.Characters.Skills
 {
@@ -14,7 +15,8 @@ namespace LootUp.Core.Characters.Skills
             }
 
             int acquiredScore = Mathf.Max(0, context.ItemEffectResult.Value);
-            int bonusScore = Mathf.FloorToInt(acquiredScore * context.Skill.P2 * 0.01f);
+            float powerMultiplier = 1f + ArtifactEffectResolver.Resolve().CharacterSkillPowerBonusPercent * 0.01f;
+            int bonusScore = Mathf.FloorToInt(acquiredScore * context.Skill.P2 * powerMultiplier * 0.01f);
             if (bonusScore <= 0)
             {
                 return false;

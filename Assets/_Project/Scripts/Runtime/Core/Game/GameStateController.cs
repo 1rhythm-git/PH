@@ -455,7 +455,7 @@ namespace LootUp.Core.Game
                 return "RUN RESULT\nReason: Unknown\nHighest Floor: 1F\nAcquired Score: 0\nFloor Bonus Score: 0\nLife Bonus Score: 0\nTotal Score: 0\nLevel XP: 0\nFloor XP: 0\nBonus XP: 0\nTotal XP: 0\nMoney: 0\nItems: 0";
             }
 
-            return $"RUN RESULT\nReason: {FormatGameOverReason(resultData.GameOverReason)}\nHighest Floor: {resultData.HighestFloor}F\nAcquired Score: {resultData.GameplayScore:N0}\nFloor Bonus Score: +{resultData.FloorScore:N0}\nLife Bonus Score: +{resultData.LifeScore:N0}\nTotal Score: {resultData.Score:N0}\nLevel XP: +{resultData.LevelExperience:N0}\nFloor XP: +{resultData.FloorExperience:N0}\nBonus XP: +{resultData.BonusExperience:N0}\nTotal XP: +{resultData.TotalExperience:N0}\nMoney: +{resultData.TotalGameMoney:N0} ({resultData.AcquiredGameMoney:N0}+{resultData.BonusGameMoney:N0})\nItems: {resultData.AcquiredItemEvents.Count}";
+            return $"RUN RESULT\nReason: {FormatGameOverReason(resultData.GameOverReason)}\nHighest Floor: {resultData.HighestFloor}F\nAcquired Score: {resultData.GameplayScore:N0}\nFloor Bonus Score: +{resultData.FloorScore:N0}\nLife Bonus Score: +{resultData.LifeScore:N0}\nArtifact Score: +{resultData.ArtifactBonusScore:N0}\nTotal Score: {resultData.Score:N0}\nLevel XP: +{resultData.LevelExperience:N0}\nFloor XP: +{resultData.FloorExperience:N0}\nScore XP: +{resultData.ScoreExperience:N0}\nArtifact XP: +{resultData.ArtifactBonusExperience:N0}\nTotal XP: +{resultData.TotalExperience:N0}\nMoney: +{resultData.TotalGameMoney:N0} ({resultData.AcquiredGameMoney:N0}+{resultData.BonusGameMoney:N0})\nItems: {resultData.AcquiredItemEvents.Count}";
         }
 
         private static string FormatGameOverReason(GameOverReason reason)

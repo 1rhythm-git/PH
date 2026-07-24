@@ -1,4 +1,5 @@
 using UnityEngine;
+using LootUp.Core.Items;
 
 namespace LootUp.Core.Characters.Skills
 {
@@ -13,8 +14,10 @@ namespace LootUp.Core.Characters.Skills
                 return false;
             }
 
-            float currentSpeed = context.PlayerMotor.AddTimedMoveSpeedPercentBonus(context.Skill.P3, context.Skill.P2);
-            context.TopHUDController?.SetItemStatus($"SKILL +{context.Skill.P3:0.#}% SPEED  {context.Skill.P2:0.#}s  {currentSpeed:0.##}");
+            float powerMultiplier = 1f + ArtifactEffectResolver.Resolve().CharacterSkillPowerBonusPercent * 0.01f;
+            float speedBonusPercent = context.Skill.P3 * powerMultiplier;
+            float currentSpeed = context.PlayerMotor.AddTimedMoveSpeedPercentBonus(speedBonusPercent, context.Skill.P2);
+            context.TopHUDController?.SetItemStatus($"SKILL +{speedBonusPercent:0.#}% SPEED  {context.Skill.P2:0.#}s  {currentSpeed:0.##}");
             return true;
         }
     }

@@ -22,18 +22,23 @@ namespace LootUp.Core.Items
                 ? definition.EffectDurationSeconds
                 : definition.LifetimeSeconds;
             int passCount = Mathf.Max(1, context.RequiredPassCount);
-            float durationSeconds = baseDurationSeconds * passCount;
+            ArtifactModifiers artifactModifiers = ArtifactEffectResolver.Resolve();
+            float durationSeconds = baseDurationSeconds
+                * passCount
+                * (1f + artifactModifiers.MoveSpeedDurationBonusPercent * 0.01f);
+            float speedBonusPercent = definition.EffectValue
+                * (1f + artifactModifiers.MoveSpeedPowerBonusPercent * 0.01f);
             if (playerMotor == null)
             {
                 context.TopHUDController?.SetItemStatus(definition.DisplayName);
                 return ItemEffectResult.None;
             }
 
-            float currentSpeed = playerMotor.AddTimedMoveSpeedPercentBonus(definition.EffectValue, durationSeconds);
+            float currentSpeed = playerMotor.AddTimedMoveSpeedPercentBonus(speedBonusPercent, durationSeconds);
             float activeBonusPercent = playerMotor.MoveSpeedBonusPercent;
             // (변경) 하위 아이템으로 지속시간만 갱신한 경우에도 실제 유지 중인 능력치를 표시한다.
             context.TopHUDController?.SetItemStatus($"+{activeBonusPercent:0}% SPEED  {durationSeconds:0.#}s  {currentSpeed:0.##}");
-            return new ItemEffectResult(ItemEffectOutcome.MoveSpeedIncreased, definition.EffectValue);
+            return new ItemEffectResult(ItemEffectOutcome.MoveSpeedIncreased, Mathf.RoundToInt(speedBonusPercent));
         }
     }
 }

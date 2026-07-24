@@ -3965,26 +3965,267 @@ ________________________________________
 
 ________________________________________
 
+2.121 Artifact 16종 / 조합 효과 / Lobby Archive 기반 구현
+
+목표:
+• 최초 Artifact 획득 후 Lobby 메뉴 해금
+• Page 단위 저확률 드랍과 8종 조합 효과 적용
+• 신규 Artifact, 효과, 수집 아이템을 추가할 수 있는 데이터 기반 확장 구조 확보
+
+완료 내용:
+• Trophy, Retro Data, Time Relic, Art Treasure 4개 테마의 Artifact 16종과 전용 픽셀 아이콘 추가
+• `Artifacts.csv`, `ArtifactEffects.csv` 기반 카탈로그와 효과 조합 계산기 추가
+• 수집형 드랍을 슬롯 단위에서 `CollectionItemType`별 Page 1회 판정으로 변경
+• Artifact 기본 Page 확률 0.1%, 층당 0.0002% 증가, 최대 0.5% 적용
+• 결과 XP/Score, 이동속도 능력/지속시간, Score/Time 2배 확률, 캐릭터 스킬 위력, CharacterCoin 확률 효과 연결
+• Lobby 하단 6개 메뉴 아이콘 디자인 적용
+• 최초 Artifact 미획득 시 `ARTIFACT` 비활성화, 획득 후 활성화
+• Lobby `ARTIFACT ARCHIVE`에 4×4 수집 화면과 8종 효과 진행도 화면 추가
+• MISSION, MAIL BOX, UPGRADE, SHOP, RANK는 디자인만 적용하고 비활성 상태 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Items/ArtifactCatalog.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ArtifactEffectResolver.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/ArtifactLobbyPanel.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Resources/Data/Artifacts.csv`
+• `Assets/_Project/Resources/Data/ArtifactEffects.csv`
+• `Assets/_Project/Resources/Artifacts/Icons/*`
+• `Assets/_Project/Resources/UI/Lobby/Menu/*`
+
+검증 상태:
+• Artifact 16종, 효과 8종 데이터 행 수 확인
+• 전용 PNG 22개 RGBA 및 Unity Sprite import 확인
+• Point Filter, Mipmap Off, Alpha Is Transparency 적용 확인
+• Unity 6000.3.17f1 Batchmode import 및 프로젝트 컴파일 성공
+• Unity 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+
+남은 확인:
+• Unity Play Mode에서 강제 획득 또는 확률 상향 후 최초 획득과 Lobby 해금 확인
+• Page당 Artifact 최대 1개 및 일반 아이템 동시 배치 확인
+• Lobby 9:20 화면에서 6개 하단 아이콘, 4×4 Collection, 8개 Effects 탭 가독성 확인
+• 8종 효과별 실제 수치와 확률은 BM/밸런스 설계에서 재조정
+
+관련 작업 기준:
+• Artifact 조합은 보유 수집품으로 실시간 계산하며 별도 활성 상태를 저장하지 않는다.
+• 신규 Artifact와 기존 효과 조합은 CSV 등록으로 확장한다.
+• 신규 효과 동작은 효과 enum/resolver/적용 지점만 추가하고 저장 및 Lobby 구조는 재사용한다.
+
+________________________________________
+
+2.122 Artifact Pass 10 / Golden Cup 3 Page 온보딩 배치
+
+목표:
+• 모든 Artifact의 기본 Pass Count를 10으로 통일
+• 최초 수집과 Lobby 메뉴 해금을 유도하기 위해 3번째 Page에 Golden Cup 확정 배치
+• Artifact를 층별 시야 가림보다 위에 표시
+
+완료 내용:
+• Artifact 16종의 `RequiredPassCount`를 1에서 10으로 변경
+• Golden Cup 미보유 상태에서 3번째 Page(내부 PageIndex 2, 21F~30F)에 확정 등장하도록 구성
+• 확정 Artifact는 전체 유효 셀 중 임의의 빈 셀을 먼저 예약하고 일반 아이템 배치를 이어가도록 처리
+• 이미 Golden Cup을 보유한 경우 기존 고유 수집품 정책에 따라 확정 재등장하지 않음
+• Golden Cup 외 Artifact의 확률, 효과, 수명과 중복 방지 정책 유지
+• `ArtifactLayer`를 런타임 생성하고 매 프레임 최상위 형제 순서를 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Data/Tables/Items.csv`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemSpawner.cs`
+• `Assets/_Project/Scenes/InGame.unity`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Artifact 16종의 `RequiredPassCount=10` 데이터 확인
+• 3번째 Page를 1-based 값 3, 내부 `PageIndex=2`로 변환하는 경로 확인
+• 확정 배치 셀을 일반 아이템 점유 목록에 먼저 반영하는 흐름 확인
+• Artifact 전용 레이어가 `LateUpdate()`에서 최상위 순서를 유지하는 구조 확인
+• Unity 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+• Unity 6000.3.17f1 Batchmode 프로젝트 컴파일 성공
+
+남은 확인:
+• Unity Play Mode에서 21F 진입 시 Golden Cup이 임의 위치에 반드시 표시되는지 확인
+• 미래층 가림 위에서 Golden Cup 아이콘과 Pass 10 표시가 선명하게 보이는지 확인
+• Golden Cup 획득 후 다음 런 3번째 Page에서 재등장하지 않는지 확인
+• Pass 10과 현재 수명 15초의 실제 획득 난이도 확인
+
+관련 작업 기준:
+• 사용자 확정: 모든 Artifact 기본 Pass 10
+• 사용자 확정: Golden Cup은 최초 해금 유도용으로 3번째 Page에 확정 배치
+• 사용자 확정: Artifact는 시야 가림에 영향받지 않는 최상위 레이어 사용
+
+________________________________________
+
+2.123 Artifact EFFECTS 가독성 / 요구 조합 표시
+
+목표:
+• 압축된 8줄 효과 목록의 가독성 개선
+• 효과별로 필요한 Artifact 종류와 개별 획득 여부 표시
+• 향후 요구 Artifact 수 증가를 수용하는 스크롤 구조 적용
+
+완료 내용:
+• `EFFECTS`를 고정 8줄 목록에서 세로 `ScrollRect` 목록으로 변경
+• 효과 카드 높이를 확대하고 효과명, 효과값, ACTIVE/INACTIVE, 요구 진행도를 분리
+• 각 효과의 후보 Artifact를 3열 아이콘/이름 그리드로 표시
+• 보유 후보는 원색 아이콘, 청록 배경과 상태 표시로 활성화
+• 미보유 후보는 저채도 아이콘, 암색 배경과 상태 표시로 비활성화
+• 요구 후보 수가 6개를 초과하면 카드 높이와 그리드 행 수가 자동 확장
+• `COLLECTION`에서도 잠긴 Artifact 이름을 유지하고 보유 상태 표시를 추가
+• Artifact ID 기반 정의 조회를 위해 `ArtifactCatalog.TryGetArtifact()` 추가
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Items/ArtifactCatalog.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/ArtifactLobbyPanel.cs`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 현재 8종 효과의 후보 수가 3~6개이며 3열 1~2행으로 표시되는 데이터 확인
+• 후보 수 증가 시 카드 높이와 행 수가 자동 증가하는 계산 경로 확인
+• ScrollRect, Viewport, RectMask2D, Scrollbar 연결 정적 확인
+• Unity 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+
+남은 확인:
+• Unity Play Mode 9:20 화면에서 효과 카드, 이름과 아이콘 크기 확인
+• 터치 드래그와 마우스 휠 스크롤 감도 확인
+• 보유/미보유 Artifact의 활성·비활성 대비 확인
+• 필요 시 카드 높이와 글자 크기를 실제 기기 기준으로 추가 조정
+
+관련 작업 기준:
+• 사용자 요청: EFFECTS 목록 세로 폭 확대와 스크롤 허용
+• 사용자 요청: 효과별 요구 Artifact 종류 및 획득 여부 표시
+• 사용자 요청: 획득 여부는 활성/비활성 시각 효과로 구분
+
+________________________________________
+
+2.124 Lobby 버튼 / 아이콘 디자인 리뉴얼
+
+목표:
+• `concept/UI/UI_Sample.png`의 버튼과 아이콘 표현만 Lobby UI에 반영
+• 기존 Lobby 배경, 패널 구조, 콘텐츠 배치와 기능 유지
+
+완료 내용:
+• START 버튼에 노란색 본체, 주황색 하단 면과 흰색 Play 아이콘 적용
+• 설정 및 캐릭터 이동 아이콘 버튼에 짙은 남색 바탕, 굵은 외곽선과 하단 그림자 적용
+• 하단 메뉴 버튼에 기존 전용 아이콘을 유지하면서 동일한 외곽선과 깊이 표현 적용
+• 활성화된 ARTIFACT 버튼은 보라색, 비활성 메뉴는 남색과 저채도 아이콘으로 구분
+• Artifact UI의 탭과 닫기 버튼에도 동일한 외곽선, 그림자와 텍스트 강조 적용
+• Lobby 배경 이미지, 기록 영역, 캐릭터 영역, 광고 영역과 전체 앵커 구조는 변경하지 않음
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/ArtifactLobbyPanel.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batchmode 프로젝트 컴파일 성공
+• `LobbyController` 변경 범위에서 배경 및 패널 리뉴얼용 오브젝트가 포함되지 않은 것 확인
+• 기존 버튼 클릭 이벤트와 ARTIFACT 해금 조건 유지 확인
+
+남은 확인:
+• Unity Play Mode 9:20 화면에서 버튼 외곽선과 하단 그림자의 실제 두께 확인
+• 작은 하단 메뉴에서 아이콘과 라벨 가독성 확인
+• 비활성 메뉴와 활성 ARTIFACT 버튼의 상태 대비 확인
+
+관련 작업 기준:
+• 사용자 요청: UI 샘플은 버튼 및 아이콘 디자인만 참고
+• 사용자 확정: Lobby 배경은 샘플을 참고하지 않음
+• 기존 Lobby 구조와 기능은 유지
+
+________________________________________
+
+2.125 Artifact EFFECTS 우선 노출 / 설명 / 텍스트 가독성
+
+목표:
+• Artifact UI 진입 시 효과 정보를 수집 목록보다 먼저 제공
+• 효과의 실제 적용 내용을 설명하고 전체 텍스트 가독성 개선
+• `CHAMPION RECORD` 효과를 목록 첫 번째에 노출
+
+완료 내용:
+• `EFFECTS` 탭을 왼쪽 첫 탭이자 기본 진입 화면으로 변경
+• `COLLECTION` 탭을 오른쪽 두 번째 탭으로 이동
+• `ArtifactEffects.csv`에 `Description` 열을 추가해 효과 설명을 데이터로 관리
+• 결과 점수, 결과 XP, 이동속도 강화/지속시간, 두 배 획득 확률, 스킬 강화와 Character Coin 등장 확률 설명 추가
+• `CHAMPION RECORD`를 효과 데이터 첫 행으로 이동해 목록 첫 카드로 표시
+• 제목, 보유 진행도, 탭, 효과명, 효과값, 상태, 요구 진행도, 요구 Artifact 이름과 COLLECTION 이름의 글자 크기 확대
+• 설명 공간 확보를 위해 효과 카드 기본 높이와 내부 정보 배치를 조정
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Items/ArtifactCatalog.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/ArtifactLobbyPanel.cs`
+• `Assets/_Project/Resources/Data/ArtifactEffects.csv`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• `ArtifactEffects.csv` 첫 데이터가 `CHAMPION RECORD`인 것 확인
+• `Description` CSV 파싱 및 UI 연결 경로 확인
+• Artifact UI 기본 진입이 `BuildEffectsView()`인 것 확인
+• Unity 6000.3.17f1 Batchmode 프로젝트 컴파일 성공
+
+남은 확인:
+• Unity Play Mode 9:20에서 긴 설명의 줄바꿈과 잘림 여부 확인
+• 확대된 탭, 상태와 요구 Artifact 이름의 실제 기기 가독성 확인
+• 효과 카드 스크롤 간격과 한 화면 노출 비율 확인
+
+관련 작업 기준:
+• 사용자 요청: EFFECTS를 COLLECTION보다 먼저 노출
+• 사용자 요청: 효과 설명 보완 및 전반적인 텍스트 크기 확대
+• 사용자 요청: CHAMPION RECORD를 리스트 첫 번째에 노출
+
+________________________________________
+
+2.126 리팩터링 사전 점검 / 다음 작업 기준
+
+목표:
+• 현재 기능 확장 상태에서 책임 과다와 결합도가 높은 영역 확인
+• 다음 세션에서 기능 변경 없이 진행할 리팩터링 순서 확정
+
+점검 결과:
+• `GameStateController`가 게임 종료, 시스템 정지, 결과 계산, 보상 지급, 결과 UI와 Lobby 이동을 함께 담당
+• `PlayerSpawner`가 치트키 입력, Player 생성, 컴포넌트 조립, 의존성 탐색, HUD와 Fever 연결을 함께 담당
+• `ItemSpawner`가 일반/수집형 드랍 정책, Golden Cup 확정 배치, 셀 점유, 아이템 UI 생성을 함께 담당
+• `LobbyController`와 `TopHUDController`는 런타임 UI 생성과 상태 갱신 책임이 집중됨
+• Artifact 정의가 전역 수집 상태를 직접 조회하며 로컬 저장 서비스에 `PlayerPrefs` 직렬화 코드가 반복됨
+• 자동화 테스트와 Assembly Definition이 없어 순수 계산 로직부터 Edit Mode 테스트 기반이 필요
+• `.gitattributes`가 없어 실제 변경과 줄바꿈 차이가 대량으로 섞이는 저장소 관리 위험 확인
+
+다음 작업 순서:
+• 1차: `GameStateController`에서 런 정산과 결과 UI 분리
+• 2차: `PlayerSpawner`에서 치트 입력, Player 생성과 런타임 연결 분리
+• 3차: `ItemSpawner`에서 Page 배치 계획, 수집형 드랍 정책과 View 생성 분리
+• 후속: Artifact 상태 평가 순수화, Lobby/TopHUD UI 빌더 공통화, 로컬 저장소 추상화
+
+남은 확인:
+• 리팩터링 시작 전 현재 Artifact/Lobby Play Mode 회귀 기준 확보
+• 줄바꿈 정책은 기능 리팩터링과 분리된 별도 커밋으로 처리
+• 각 분리 단계에서 기존 Inspector 연결과 런타임 자동 참조 동작 유지
+
+관련 작업 기준:
+• 사용자 확정: 리팩터링은 다음 작업에서 재개
+• 재시작 최우선: `GameStateController` 런 정산/결과 UI 책임 분리
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
-1. 캐릭터 강화 시스템 기획 및 구현
-2. PART 14 실제 Artifact / CharacterCoin 콘텐츠와 강화 에셋 구성 및 Play Mode 검증 (`2.62`, 선행 작업 완료 후 재개)
-3. PlayerRespawnController 정식 분리
-4. 피버타임 Play Mode 검증 및 지속시간/점수 밸런스 조정
-5. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
-6. TopUI 디자인 교체 전 구조 정리
-7. 유저 프로필 재화 보상 지급/차감 정책 및 서버 동기화 설계
+1. 재시작 최우선: `GameStateController` 런 정산 / 결과 UI 책임 분리
+2. `PlayerSpawner` 치트 입력 / Player 생성 / 런타임 연결 책임 분리
+3. `ItemSpawner` Page 배치 / 수집형 드랍 / View 생성 책임 분리
+4. PlayerRespawnController 정식 분리
+5. 캐릭터 강화 시스템 기획 및 CharacterCoin 콘텐츠 구현
+6. 피버타임 및 Artifact Play Mode 회귀 검증
+7. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
 8. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• Fever Battery 드랍/충전/피버 중 보존, 붉은 라인 면역, 치트키 `2`/`3`을 Play Mode에서 함께 회귀 테스트하고 현재 미커밋 작업을 정리해 커밋한다.
-• 다음으로 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
-• 캐릭터 강화 시스템이 완료된 뒤 실제 Artifact와 CharacterCoin 콘텐츠 및 강화 에셋을 구성하고 PART 14 Play Mode 검증을 재개한다.
-• 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.
-• 피버타임은 Play Mode에서 즉시 발동, 페이지 전환 유지, 종료 제거를 확인한 뒤 지속시간과 점수를 조정한다.
-• Normal / Hard 선택은 실제 모드별 리스폰 정책을 정의한 뒤 Lobby에 활성 기능으로 연결한다.
-• 광고 부활은 리스폰 정책이 확정된 뒤 결과창 확장 작업으로 연결한다.
+• 다음 세션 시작 시 `GameStateController`의 런 결과 생성/정산과 결과 UI 생성을 분리한다.
+• 이후 `PlayerSpawner`, `ItemSpawner` 순으로 책임을 분리하며 기존 게임 동작은 변경하지 않는다.
+• 리팩터링 후 Artifact 강제 획득, Lobby 해금, 효과 적용과 피버타임 회귀 테스트를 수행한다.
+• 구조 안정화 후 캐릭터 강화 정책과 실제 CharacterCoin 콘텐츠를 진행한다.
+• 광고 부활은 `PlayerRespawnController`와 결과 정산 책임 분리가 끝난 뒤 연결한다.
 
 ________________________________________
 

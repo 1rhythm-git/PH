@@ -46,6 +46,12 @@ namespace LootUp.Core.Items
         [SerializeField]
         private string forcedTestItemId;
 
+        [SerializeField, Min(1)]
+        private int guaranteedGoldenCupPageNumber = 3;
+
+        [SerializeField]
+        private string guaranteedGoldenCupItemId = "artifact_golden_cup_01";
+
         [SerializeField]
         private Vector2 itemSize = new Vector2(76.8f, 76.8f);
 
@@ -75,6 +81,7 @@ namespace LootUp.Core.Items
         private ItemIconTable itemIconTable;
         private IItemIconProvider iconProvider;
         private PlayerMotor playerMotor;
+        private RectTransform artifactLayer;
         private int lastSpawnedPageIndex = int.MinValue;
         private int runtimeSeed;
         private bool hasRuntimeSeed;
@@ -89,8 +96,15 @@ namespace LootUp.Core.Items
             ReloadTable();
             ReloadIconTable();
             EnsureItemLayer();
+            EnsureArtifactLayer();
             EnsureIconProvider();
             EnsureRuntimeSeed();
+        }
+
+        private void LateUpdate()
+        {
+            // 아티팩트는 층별 시야 가림과 다른 인게임 레이어보다 항상 위에 표시한다.
+            artifactLayer?.SetAsLastSibling();
         }
 
         private void OnEnable()
@@ -136,6 +150,7 @@ namespace LootUp.Core.Items
         {
             EnsureReferences();
             EnsureItemLayer();
+            EnsureArtifactLayer();
             EnsureIconProvider();
             TryResolvePlayerMotor();
 
@@ -160,6 +175,15 @@ namespace LootUp.Core.Items
             HashSet<string> spawnedCollectionIds = new HashSet<string>();
             int spawnedCount = 0;
             bool needsItemChanceRewardForPage = RollItemChance(random);
+            int pageReferenceFloor = pageData.GetAddressByRow(0).AbsoluteFloor;
+            ItemDefinition pageCollectionItem = GetGuaranteedGoldenCup(pageData)
+                ?? TryPickCollectionItem(pageReferenceFloor, random, spawnedCollectionIds);
+            if (pageCollectionItem != null
+                && TrySpawnPageCollectionItem(pageCollectionItem, pageData, random, occupied))
+            {
+                spawnedCollectionIds.Add(pageCollectionItem.CollectionId);
+                spawnedCount++;
+            }
 
             for (int guard = 0; guard < buildingGridUI.Rows * buildingGridUI.Columns && spawnedCount < maxItemsPerPage; guard++)
             {
@@ -173,8 +197,7 @@ namespace LootUp.Core.Items
                 }
 
                 FloorAddress address = pageData.GetAddressByRow(row);
-                ItemDefinition definition = TryPickCollectionItem(address.AbsoluteFloor, random, spawnedCollectionIds);
-                definition ??= needsItemChanceRewardForPage
+                ItemDefinition definition = needsItemChanceRewardForPage
                     ? PickItemChanceReward(address.AbsoluteFloor, random)
                     : null;
                 definition ??= PickItem(address.AbsoluteFloor, random);
@@ -200,6 +223,57 @@ namespace LootUp.Core.Items
 
             lastSpawnedPageIndex = floorManager.CurrentPageIndex;
             CurrentPageItemsSpawned?.Invoke(lastSpawnedPageIndex);
+        }
+
+        private ItemDefinition GetGuaranteedGoldenCup(FloorPageData pageData)
+        {
+            if (pageData == null
+                || pageData.PageIndex + 1 != Mathf.Max(1, guaranteedGoldenCupPageNumber)
+                || string.IsNullOrWhiteSpace(guaranteedGoldenCupItemId)
+                || !itemTable.TryGet(guaranteedGoldenCupItemId, out ItemDefinition goldenCup)
+                || !CanSpawnForPlayer(goldenCup))
+            {
+                return null;
+            }
+
+            return goldenCup;
+        }
+
+        private bool TrySpawnPageCollectionItem(
+            ItemDefinition definition,
+            FloorPageData pageData,
+            System.Random random,
+            HashSet<int> occupied)
+        {
+            if (definition == null || pageData == null || random == null || occupied == null)
+            {
+                return false;
+            }
+
+            List<int> availableCellKeys = new List<int>();
+            for (int row = 0; row < buildingGridUI.Rows; row++)
+            {
+                for (int column = 0; column < buildingGridUI.Columns; column++)
+                {
+                    int key = row * buildingGridUI.Columns + column;
+                    if (!occupied.Contains(key) && !IsExcludedCell(column, row))
+                    {
+                        availableCellKeys.Add(key);
+                    }
+                }
+            }
+
+            if (availableCellKeys.Count == 0)
+            {
+                return false;
+            }
+
+            int selectedKey = availableCellKeys[random.Next(0, availableCellKeys.Count)];
+            int selectedRow = selectedKey / buildingGridUI.Columns;
+            int selectedColumn = selectedKey % buildingGridUI.Columns;
+            CreateItem(definition, pageData.GetAddressByRow(selectedRow), selectedColumn, random);
+            occupied.Add(selectedKey);
+            return true;
         }
 
         public bool IsCurrentPageCellOccupied(int column, int row)
@@ -318,7 +392,10 @@ namespace LootUp.Core.Items
             }
 
             List<ItemDefinition> candidates = itemTable.GetSpawnCandidates(absoluteFloor);
-            float chanceBonusPercent = GetPlayerCollectionChanceBonusPercent();
+            Dictionary<CollectionItemType, List<ItemDefinition>> candidatesByType =
+                new Dictionary<CollectionItemType, List<ItemDefinition>>();
+            Dictionary<CollectionItemType, float> chanceByType =
+                new Dictionary<CollectionItemType, float>();
             float totalChance = 0f;
 
             for (int i = 0; i < candidates.Count; i++)
@@ -331,7 +408,33 @@ namespace LootUp.Core.Items
                     continue;
                 }
 
-                totalChance += candidate.GetCollectionSpawnChance(absoluteFloor, chanceBonusPercent);
+                float candidateChance = candidate.GetCollectionSpawnChance(
+                    absoluteFloor,
+                    GetPlayerCollectionChanceBonusPercent(candidate.CollectionItemType));
+                if (candidateChance <= 0f)
+                {
+                    continue;
+                }
+
+                if (!candidatesByType.TryGetValue(candidate.CollectionItemType, out List<ItemDefinition> typedCandidates))
+                {
+                    typedCandidates = new List<ItemDefinition>();
+                    candidatesByType.Add(candidate.CollectionItemType, typedCandidates);
+                }
+
+                typedCandidates.Add(candidate);
+                if (!chanceByType.TryGetValue(candidate.CollectionItemType, out float currentChance)
+                    || candidateChance > currentChance)
+                {
+                    chanceByType[candidate.CollectionItemType] = candidateChance;
+                }
+            }
+
+            foreach (KeyValuePair<CollectionItemType, float> chanceEntry in chanceByType)
+            {
+                totalChance += Mathf.Min(
+                    chanceEntry.Value,
+                    GetCollectionPageChanceCap(chanceEntry.Key));
             }
 
             if (totalChance <= 0f || random.NextDouble() >= Mathf.Clamp01(totalChance))
@@ -341,24 +444,27 @@ namespace LootUp.Core.Items
 
             double selection = random.NextDouble() * totalChance;
             float cursor = 0f;
-            for (int i = 0; i < candidates.Count; i++)
+            foreach (KeyValuePair<CollectionItemType, float> chanceEntry in chanceByType)
             {
-                ItemDefinition candidate = candidates[i];
-                if (candidate.ItemType != ItemType.Collection
-                    || !CanSpawnForPlayer(candidate)
-                    || spawnedCollectionIds.Contains(candidate.CollectionId))
+                cursor += Mathf.Min(
+                    chanceEntry.Value,
+                    GetCollectionPageChanceCap(chanceEntry.Key));
+                if (selection >= cursor
+                    || !candidatesByType.TryGetValue(chanceEntry.Key, out List<ItemDefinition> typedCandidates)
+                    || typedCandidates.Count == 0)
                 {
                     continue;
                 }
 
-                cursor += candidate.GetCollectionSpawnChance(absoluteFloor, chanceBonusPercent);
-                if (selection < cursor)
-                {
-                    return candidate;
-                }
+                return typedCandidates[random.Next(0, typedCandidates.Count)];
             }
 
             return null;
+        }
+
+        private static float GetCollectionPageChanceCap(CollectionItemType collectionItemType)
+        {
+            return collectionItemType == CollectionItemType.Artifact ? 0.005f : 1f;
         }
 
         private bool CanSpawnForPlayer(ItemDefinition definition)
@@ -371,9 +477,19 @@ namespace LootUp.Core.Items
             return definition.ItemType != ItemType.Collection || !ItemCollectionManager.HasReachedOwnedLimit(definition);
         }
 
-        private float GetPlayerCollectionChanceBonusPercent()
+        private float GetPlayerCollectionChanceBonusPercent(CollectionItemType collectionItemType)
         {
             float userTraitBonusPercent = UserProfileManager.GetCollectionTraitChanceBonusPercent();
+            if (collectionItemType == CollectionItemType.Artifact)
+            {
+                userTraitBonusPercent += UserProfileManager.GetArtifactChanceBonusPercent();
+            }
+            else if (collectionItemType == CollectionItemType.CharacterCoin)
+            {
+                userTraitBonusPercent += UserProfileManager.GetCharacterCoinChanceBonusPercent();
+                userTraitBonusPercent += ArtifactEffectResolver.Resolve().CharacterCoinChanceBonusPercent;
+            }
+
             CharacterDefinition definition = CharacterSelectionState.SelectedCharacter;
             if (playerSpawner != null && playerSpawner.SpawnedPlayer != null)
             {
@@ -458,8 +574,12 @@ namespace LootUp.Core.Items
         private void CreateItem(ItemDefinition definition, FloorAddress address, int column, System.Random random)
         {
             GameObject itemObject = new GameObject($"Item_{definition.ItemId}_{address.AbsoluteFloor}_{column}", typeof(RectTransform), typeof(Image), typeof(ItemInstance));
-            itemObject.layer = itemLayer.gameObject.layer;
-            itemObject.transform.SetParent(itemLayer, false);
+            RectTransform targetLayer = definition.CollectionItemType == CollectionItemType.Artifact
+                ? artifactLayer
+                : itemLayer;
+            targetLayer ??= itemLayer;
+            itemObject.layer = targetLayer.gameObject.layer;
+            itemObject.transform.SetParent(targetLayer, false);
 
             RectTransform itemRect = itemObject.GetComponent<RectTransform>();
             itemRect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -698,6 +818,34 @@ namespace LootUp.Core.Items
             itemLayer.offsetMax = Vector2.zero;
             itemLayer.pivot = new Vector2(0.5f, 0.5f);
             itemLayer.SetSiblingIndex(buildingGridUI.transform.GetSiblingIndex() + 1);
+        }
+
+        private void EnsureArtifactLayer()
+        {
+            if (artifactLayer != null || buildingGridUI == null || buildingGridUI.transform.parent == null)
+            {
+                return;
+            }
+
+            Transform existing = buildingGridUI.transform.parent.Find("ArtifactLayer");
+            if (existing != null)
+            {
+                artifactLayer = existing as RectTransform;
+            }
+            else
+            {
+                GameObject layerObject = new GameObject("ArtifactLayer", typeof(RectTransform));
+                layerObject.layer = buildingGridUI.gameObject.layer;
+                layerObject.transform.SetParent(buildingGridUI.transform.parent, false);
+                artifactLayer = layerObject.GetComponent<RectTransform>();
+                artifactLayer.anchorMin = Vector2.zero;
+                artifactLayer.anchorMax = Vector2.one;
+                artifactLayer.offsetMin = Vector2.zero;
+                artifactLayer.offsetMax = Vector2.zero;
+                artifactLayer.pivot = new Vector2(0.5f, 0.5f);
+            }
+
+            artifactLayer.SetAsLastSibling();
         }
 
         private void TryResolvePlayerMotor()

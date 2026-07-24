@@ -1,0 +1,9 @@
+EffectId,DisplayName,EffectType,ValuePercent,RequiredCount,CandidateArtifactIds,Description
+artifact_effect_result_score,CHAMPION RECORD,ResultScoreBonusPercent,10,4,artifact_golden_cup|artifact_silver_medal|artifact_champion_belt|artifact_record_plaque,Increases the final score awarded in the game result.
+artifact_effect_xp,ARCHIVE WISDOM,ResultExperienceBonusPercent,10,3,artifact_blue_floppy|artifact_data_cartridge|artifact_cipher_disk|artifact_record_plaque,Increases the experience awarded in the game result.
+artifact_effect_speed_power,MOMENTUM,MoveSpeedPowerBonusPercent,15,2,artifact_champion_belt|artifact_metronome|artifact_antique_compass,Increases the speed boost gained from Move Speed items.
+artifact_effect_speed_duration,ENDURANCE,MoveSpeedDurationBonusPercent,20,3,artifact_pocket_watch|artifact_hourglass|artifact_metronome|artifact_chronometer,Extends the duration of Move Speed item effects.
+artifact_effect_score_double,GILDED CHANCE,ScoreItemDoubleChancePercent,10,4,artifact_golden_cup|artifact_record_plaque|artifact_mini_masterpiece|artifact_ruby_crown|artifact_jade_statuette,Gives Score items a chance to award double score.
+artifact_effect_time_double,TIME ECHO,TimeItemDoubleChancePercent,12,3,artifact_pocket_watch|artifact_hourglass|artifact_chronometer|artifact_cipher_disk,Gives Clock items a chance to extend time by double.
+artifact_effect_skill_power,MASTERWORK,CharacterSkillPowerBonusPercent,10,5,artifact_golden_cup|artifact_red_usb|artifact_cipher_disk|artifact_chronometer|artifact_ruby_crown|artifact_antique_compass,Increases the power of the selected character's skill effect.
+artifact_effect_coin_chance,TREASURE SIGNAL,CharacterCoinChanceBonusPercent,25,2,artifact_red_usb|artifact_data_cartridge|artifact_jade_statuette,Increases the chance for Character Coins to appear.
