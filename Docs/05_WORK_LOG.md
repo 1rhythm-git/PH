@@ -3652,6 +3652,120 @@ README 적용 기준:
 
 ________________________________________
 
+2.113 캐릭터별 스킬 해금 상태 점검
+
+목표:
+• Spy(Agent X)와 Ninja를 포함한 네 캐릭터의 Lobby 스킬 활성 조건 점검
+• 캐릭터 스킬 에셋, 성장 레벨, Lobby 표시와 인게임 발동 조건의 일치 여부 확인
+
+확인 내용:
+• Agent X(Spy)는 `AgentXSkill`의 Lv.5 해금 설정과 캐릭터 에셋 연결이 일치
+• Landy는 `LandySkill`의 Lv.15 해금 설정과 캐릭터 에셋 연결이 일치
+• Alice는 `AliceSkill`의 Lv.15 해금 설정과 캐릭터 에셋 연결이 일치
+• Ninja는 `NinjaSkill`의 Lv.20 해금 설정과 캐릭터 에셋 연결이 일치
+• 네 캐릭터 모두 Lv.20까지 성장 가능한 경험치 테이블을 보유
+• Lobby와 인게임은 모두 `CharacterProgressionState.IsSkillUnlocked()`를 사용해 저장된 캐릭터 레벨과 스킬 에셋의 `UnlockLevel`을 비교
+• Ninja Lv.5 비활성은 현재 기획값인 Lv.20 해금 기준에 따른 정상 동작
+
+변경된 주요 파일:
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 네 캐릭터의 `CharacterDefinition.characterSkill` GUID와 대응 스킬 에셋 GUID 일치 확인
+• 스킬 에셋과 캐릭터 에셋의 보조 `skillUnlockLevel` 값 일치 확인
+• Lobby 설명 색상과 인게임 스킬 발동이 동일한 공통 해금 판정을 사용하는 경로 확인
+• 사용자 확인으로 기존 캐릭터별 차등 해금 기획 유지
+
+남은 확인:
+• 없음
+
+관련 작업 기준:
+• 사용자 확인: Spy는 Lv.5에서 활성화되지만 Ninja는 Lv.5에서 비활성
+• 사용자 요청: 나머지 캐릭터를 포함한 전체 스킬 해금 상태 점검
+
+________________________________________
+
+2.114 붉은 Enemy Line 공격 판정 및 Page 난이도
+
+목표:
+• 일부 Enemy Line을 붉은 공격 라인으로 구분
+• 플레이어가 붉은 라인에 접촉하면 기존 Enemy 충돌과 동일하게 생명력 감소
+• 공격 라인의 등장 Page와 적용 Enemy 수를 Inspector에서 난이도로 설정
+
+완료 내용:
+• `TestEnemyHazard`에 공격 라인 활성 여부와 라인 충돌 여유값 추가
+• 공격 라인의 실제 `RectTransform` 표시 영역과 Player 영역이 겹칠 때 `PlayerHealth.TakeDamage()` 호출
+• 기존 피해 사운드, 피격 텍스트, 무적시간, 리스폰 및 게임오버 흐름 재사용
+• 일반 흰색 가이드 라인은 기존처럼 비공격 판정 유지
+• `TestEnemySpawner`에 시작 Page, 첫 적용 수, 증가 주기, 주기당 증가 수와 최대 적용 수 추가
+• 현재 기본값은 Page 2부터 1개, 2 Page마다 1개 증가, Page당 최대 4개
+• 각 Page에 생성된 Enemy 중 설정 수만큼 기존 Page 난수 순서로 공격 라인 대상 선택
+• 공격 대상 라인은 불투명도가 높은 붉은 색으로 표시
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Enemies/TestEnemyHazard.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Enemies/TestEnemySpawner.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 공격 라인과 Enemy 본체가 동일한 피해 API 및 쿨다운을 공유하는 경로 정적 확인
+• Page 번호는 사용자 기준 1부터 시작하고 내부 `CurrentPageIndex + 1`로 변환
+• 공격 라인 적용 수가 현재 Enemy 수와 설정된 최대 수를 넘지 않도록 Clamp
+• `pagesPerDangerousLineIncrease`가 0이면 첫 적용 수를 유지하도록 처리
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+• 실제 내용 diff의 추가 줄 기준 후행 공백 없음 확인
+
+남은 확인:
+• Unity Play Mode에서 Page 1 일반 라인 비공격 확인
+• Page 2 붉은 라인 1개 등장과 접촉 피해 확인
+• Page 4에서 붉은 라인 2개로 증가하는지 확인
+• 피격 후 무적시간 동안 붉은 라인에 계속 닿아도 중복 피해가 없는지 확인
+• Game Over 결과창 이후 공격 라인 판정과 Enemy 이동 정지 확인
+
+관련 작업 기준:
+• 사용자 요청: Enemy Line 붉은 색 표시, 붉은 라인 충돌 피해, 등장 Page와 적용 Enemy 수 난이도 설정
+
+________________________________________
+
+2.115 Enemy Line 천장 충돌 색상·공격 상태 순환
+
+목표:
+• 상시 붉은 라인이 10층 이동 경로를 계속 차단하는 문제 완화
+• 위험 대상 Enemy Line을 통과 가능한 흰색 구간과 공격 가능한 붉은 구간으로 반복 전환
+
+완료 내용:
+• 위험 대상으로 선정된 Enemy Line도 생성 시 흰색 비공격 상태로 시작
+• Enemy가 천장에 도달할 때마다 `흰색 → 빨간색 → 흰색` 순서로 반복
+• 색상과 실제 라인 피해 활성 상태를 같은 시점에 전환
+• 바닥 충돌 시에는 현재 라인 상태 유지
+• 붉은 상태에서만 라인 `RectTransform` 접촉 피해 적용
+• Page별 위험 대상 시작 시점과 Enemy 적용 수 난이도 설정은 기존 값 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Enemies/TestEnemyHazard.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Enemies/TestEnemySpawner.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 최초 생성 상태가 항상 흰색 비공격 상태로 초기화되는 경로 확인
+• 천장 충돌 분기에서만 공격 상태를 토글하고 바닥 충돌 분기는 기존 동작 유지
+• 라인 표시 색상과 충돌 피해 조건이 동일한 `isDangerousGuideLineActive` 값을 사용하는 경로 확인
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+• 사용자 Play Mode 확인으로 10층 통과, 흰색·빨간색 순환과 상태별 피해 판정 확인 완료
+
+남은 확인:
+• Page 전환 후 새 Enemy Line이 흰색부터 다시 시작하는지 확인
+
+관련 작업 기준:
+• 사용자 확인: 10층에서 상시 붉은 라인 때문에 통과 불가
+• 사용자 요청: Enemy 천장 충돌마다 흰색과 빨간색 상태 반복
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:

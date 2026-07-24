@@ -23,6 +23,18 @@ namespace LootUp.Core.Enemies
         private Color guideLineColor = new Color(1f, 1f, 1f, 0.68f);
 
         [SerializeField]
+        private Color dangerousGuideLineColor = new Color(1f, 0.08f, 0.05f, 0.92f);
+
+        [SerializeField]
+        private bool canCycleDangerousGuideLine;
+
+        [SerializeField]
+        private bool isDangerousGuideLineActive;
+
+        [SerializeField]
+        private float guideLineCollisionPadding = 2f;
+
+        [SerializeField]
         private float collisionSweepPadding = 4f;
 
         [SerializeField]
@@ -69,7 +81,9 @@ namespace LootUp.Core.Enemies
                 return;
             }
 
-            if (!IsPlayerOverlapping(playerHealth))
+            bool overlapsEnemy = IsPlayerOverlapping(playerHealth);
+            bool overlapsDangerousGuideLine = isDangerousGuideLineActive && IsPlayerOverlappingGuideLine(playerHealth);
+            if (!overlapsEnemy && !overlapsDangerousGuideLine)
             {
                 return;
             }
@@ -136,7 +150,10 @@ namespace LootUp.Core.Enemies
             float maxSpeed,
             float lineThickness,
             Color lineColor,
-            RectTransform lineLayer)
+            Color dangerousLineColor,
+            RectTransform lineLayer,
+            bool canCycleDangerousLine,
+            float lineCollisionPadding)
         {
             buildingGridUI = gridUI;
             playerSpawner = spawner;
@@ -145,7 +162,11 @@ namespace LootUp.Core.Enemies
             hitCooldownSeconds = Mathf.Max(0f, hitCooldown);
             guideLineThickness = Mathf.Max(1f, lineThickness);
             guideLineColor = lineColor;
+            dangerousGuideLineColor = dangerousLineColor;
             guideLineLayer = lineLayer;
+            canCycleDangerousGuideLine = canCycleDangerousLine;
+            isDangerousGuideLineActive = false;
+            guideLineCollisionPadding = Mathf.Max(0f, lineCollisionPadding);
             minVerticalSpeed = Mathf.Max(0f, Mathf.Min(minSpeed, maxSpeed));
             maxVerticalSpeed = Mathf.Max(minVerticalSpeed, Mathf.Max(minSpeed, maxSpeed));
             currentVerticalSpeed = RollVerticalSpeed();
@@ -208,6 +229,7 @@ namespace LootUp.Core.Enemies
                 position.y = maxY;
                 verticalDirection = -1;
                 currentVerticalSpeed = RollVerticalSpeed();
+                ToggleDangerousGuideLine();
                 GameSfxPlayer.Play(GameSfxId.Enemy);
             }
 
@@ -215,6 +237,22 @@ namespace LootUp.Core.Enemies
             lastMoveDistance = Mathf.Abs(position.y - previousY);
             UpdateGuideLine();
             UpdateHitboxDebug();
+        }
+
+        private void ToggleDangerousGuideLine()
+        {
+            if (!canCycleDangerousGuideLine)
+            {
+                return;
+            }
+
+            isDangerousGuideLineActive = !isDangerousGuideLineActive;
+            if (guideLineImage != null)
+            {
+                guideLineImage.color = isDangerousGuideLineActive
+                    ? dangerousGuideLineColor
+                    : guideLineColor;
+            }
         }
 
         private void EnsureGuideLine()
@@ -269,7 +307,9 @@ namespace LootUp.Core.Enemies
 
             if (guideLineImage != null)
             {
-                guideLineImage.color = guideLineColor;
+                guideLineImage.color = isDangerousGuideLineActive
+                    ? dangerousGuideLineColor
+                    : guideLineColor;
             }
         }
 
@@ -346,6 +386,28 @@ namespace LootUp.Core.Enemies
             enemyLocalRect.yMax += verticalSweep;
 
             return enemyLocalRect.Overlaps(playerLocalRect, true);
+        }
+
+        private bool IsPlayerOverlappingGuideLine(PlayerHealth playerHealth)
+        {
+            RectTransform playerRect = playerHealth != null ? playerHealth.transform as RectTransform : null;
+            if (playerRect == null
+                || guideLineRectTransform == null
+                || parentRectTransform == null
+                || guideLineRectTransform.rect.height <= 0f)
+            {
+                return false;
+            }
+
+            Rect lineLocalRect = GetRectInEnemyParentLocal(guideLineRectTransform);
+            Rect playerLocalRect = GetRectInEnemyParentLocal(playerRect);
+            float padding = Mathf.Max(0f, guideLineCollisionPadding);
+            lineLocalRect.xMin -= padding;
+            lineLocalRect.xMax += padding;
+            lineLocalRect.yMin -= padding;
+            lineLocalRect.yMax += padding;
+
+            return lineLocalRect.Overlaps(playerLocalRect, true);
         }
 
         private Rect GetRectInEnemyParentLocal(RectTransform target)

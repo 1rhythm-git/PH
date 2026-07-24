@@ -75,6 +75,33 @@ namespace LootUp.Core.Enemies
         [SerializeField]
         private Color guideLineColor = new Color(1f, 1f, 1f, 0.68f);
 
+        [Header("Dangerous Enemy Line Difficulty")]
+        [SerializeField, Min(1)]
+        [Tooltip("붉은 공격 라인이 처음 등장하는 Page 번호입니다. Page는 1부터 시작합니다.")]
+        private int dangerousLineStartPage = 2;
+
+        [SerializeField, Min(0)]
+        [Tooltip("첫 등장 Page에 붉은 공격 라인이 적용되는 Enemy 수입니다.")]
+        private int baseDangerousLineEnemiesPerPage = 1;
+
+        [SerializeField, Min(0)]
+        [Tooltip("공격 라인 수가 증가하는 Page 간격입니다. 0이면 자동 증가하지 않습니다.")]
+        private int pagesPerDangerousLineIncrease = 2;
+
+        [SerializeField, Min(0)]
+        [Tooltip("증가 주기마다 추가되는 공격 라인 Enemy 수입니다.")]
+        private int dangerousLineIncreasePerStep = 1;
+
+        [SerializeField, Min(0)]
+        [Tooltip("한 Page에서 공격 라인을 가질 수 있는 최대 Enemy 수입니다.")]
+        private int maxDangerousLineEnemiesPerPage = 4;
+
+        [SerializeField]
+        private Color dangerousGuideLineColor = new Color(1f, 0.08f, 0.05f, 0.92f);
+
+        [SerializeField, Min(0f)]
+        private float dangerousLineCollisionPadding = 2f;
+
         [SerializeField]
         private Vector2 enemySize = new Vector2(48f, 76f);
 
@@ -101,6 +128,7 @@ namespace LootUp.Core.Enemies
 
         private readonly System.Collections.Generic.List<TestEnemyHazard> spawnedEnemies = new System.Collections.Generic.List<TestEnemyHazard>();
         private readonly List<int> availableLineIndices = new List<int>();
+        private readonly HashSet<int> dangerousLineIndices = new HashSet<int>();
         private int lastPageIndex = -1;
         private int runtimeEnemyLineRandomSeed;
         private bool hasRuntimeEnemyLineRandomSeed;
@@ -159,11 +187,14 @@ namespace LootUp.Core.Enemies
 
             int difficultyStep = GetDifficultyStep();
             int enemyCount = GetEnemyCountForDifficulty(difficultyStep);
-            BuildLineSelection(enemyCount);
+            int pageNumber = floorManager != null ? floorManager.CurrentPageIndex + 1 : 1;
+            int dangerousLineEnemyCount = GetDangerousLineEnemyCount(pageNumber, enemyCount);
+            BuildLineSelection(enemyCount, dangerousLineEnemyCount);
 
             for (int i = 0; i < availableLineIndices.Count; i++)
             {
-                SpawnEnemyAtLine(availableLineIndices[i], i, difficultyStep);
+                int lineIndex = availableLineIndices[i];
+                SpawnEnemyAtLine(lineIndex, i, difficultyStep, dangerousLineIndices.Contains(lineIndex));
             }
         }
 
@@ -172,7 +203,7 @@ namespace LootUp.Core.Enemies
             enabled = !isPaused;
         }
 
-        private void SpawnEnemyAtLine(int lineIndex, int sequenceIndex, int difficultyStep)
+        private void SpawnEnemyAtLine(int lineIndex, int sequenceIndex, int difficultyStep, bool canCycleDangerousLine)
         {
             GameObject enemyObject = new GameObject($"TestEnemy_Line_{lineIndex}", typeof(RectTransform), typeof(TestEnemyHazard));
             enemyObject.layer = enemyLayer.gameObject.layer;
@@ -187,7 +218,20 @@ namespace LootUp.Core.Enemies
             float lineMinSpeed = Mathf.Max(0f, minVerticalSpeed + difficultySpeedBonus + speedStepPerLine * sequenceIndex);
             float lineMaxSpeed = Mathf.Max(lineMinSpeed, maxVerticalSpeed + difficultySpeedBonus + speedStepPerLine * sequenceIndex);
             TestEnemyHazard enemy = enemyObject.GetComponent<TestEnemyHazard>();
-            enemy.Configure(buildingGridUI, playerSpawner, lineIndex, damage, hitCooldownSeconds, lineMinSpeed, lineMaxSpeed, guideLineThickness, guideLineColor, guideLineLayer);
+            enemy.Configure(
+                buildingGridUI,
+                playerSpawner,
+                lineIndex,
+                damage,
+                hitCooldownSeconds,
+                lineMinSpeed,
+                lineMaxSpeed,
+                guideLineThickness,
+                guideLineColor,
+                dangerousGuideLineColor,
+                guideLineLayer,
+                canCycleDangerousLine,
+                dangerousLineCollisionPadding);
             spawnedEnemies.Add(enemy);
         }
 
@@ -254,9 +298,29 @@ namespace LootUp.Core.Enemies
             return Mathf.Max(1, columns - 1);
         }
 
-        private void BuildLineSelection(int enemyCount)
+        private int GetDangerousLineEnemyCount(int pageNumber, int enemyCount)
+        {
+            int currentPage = Mathf.Max(1, pageNumber);
+            int startPage = Mathf.Max(1, dangerousLineStartPage);
+            if (currentPage < startPage || enemyCount <= 0)
+            {
+                return 0;
+            }
+
+            int increaseStep = pagesPerDangerousLineIncrease > 0
+                ? (currentPage - startPage) / pagesPerDangerousLineIncrease
+                : 0;
+            int requestedCount = Mathf.Max(0, baseDangerousLineEnemiesPerPage)
+                + increaseStep * Mathf.Max(0, dangerousLineIncreasePerStep);
+            int maxCount = Mathf.Clamp(maxDangerousLineEnemiesPerPage, 0, enemyCount);
+
+            return Mathf.Clamp(requestedCount, 0, maxCount);
+        }
+
+        private void BuildLineSelection(int enemyCount, int dangerousLineEnemyCount)
         {
             availableLineIndices.Clear();
+            dangerousLineIndices.Clear();
 
             int internalLineCount = GetInternalLineCount();
             for (int i = 0; i < internalLineCount; i++)
@@ -282,6 +346,12 @@ namespace LootUp.Core.Enemies
             if (availableLineIndices.Count > clampedEnemyCount)
             {
                 availableLineIndices.RemoveRange(clampedEnemyCount, availableLineIndices.Count - clampedEnemyCount);
+            }
+
+            int clampedDangerousCount = Mathf.Clamp(dangerousLineEnemyCount, 0, availableLineIndices.Count);
+            for (int i = 0; i < clampedDangerousCount; i++)
+            {
+                dangerousLineIndices.Add(availableLineIndices[i]);
             }
 
             availableLineIndices.Sort();
@@ -455,6 +525,12 @@ namespace LootUp.Core.Enemies
             speedStepPerLine = Mathf.Max(0f, speedStepPerLine);
             speedStepPerDifficulty = Mathf.Max(0f, speedStepPerDifficulty);
             guideLineThickness = Mathf.Max(1f, guideLineThickness);
+            dangerousLineStartPage = Mathf.Max(1, dangerousLineStartPage);
+            baseDangerousLineEnemiesPerPage = Mathf.Max(0, baseDangerousLineEnemiesPerPage);
+            pagesPerDangerousLineIncrease = Mathf.Max(0, pagesPerDangerousLineIncrease);
+            dangerousLineIncreasePerStep = Mathf.Max(0, dangerousLineIncreasePerStep);
+            maxDangerousLineEnemiesPerPage = Mathf.Max(0, maxDangerousLineEnemiesPerPage);
+            dangerousLineCollisionPadding = Mathf.Max(0f, dangerousLineCollisionPadding);
             enemySize.x = Mathf.Max(1f, enemySize.x);
             enemySize.y = Mathf.Max(1f, enemySize.y);
             enemyVisualScale.x = Mathf.Max(0.01f, enemyVisualScale.x);
