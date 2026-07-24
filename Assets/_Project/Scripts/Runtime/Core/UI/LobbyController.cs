@@ -1,3 +1,4 @@
+using PH.Core.Authentication;
 using PH.Core.Characters;
 using PH.Core.Characters.Skills;
 using PH.Core.Profile;
@@ -74,6 +75,7 @@ namespace PH.Core.UI
         private Text profileText;
         private Text currencyText;
         private Text rubyCurrencyText;
+        private Text loginStateText;
         private Text bestFloorText;
         private Text bestScoreText;
         private Text selectedCharacterLevelText;
@@ -105,12 +107,14 @@ namespace PH.Core.UI
         {
             CharacterProgressionState.ProgressChanged += HandleCharacterProgressChanged;
             UserProfileManager.ProfileChanged += HandleUserProfileChanged;
+            AuthenticationManager.AuthenticationStateChanged += HandleAuthenticationStateChanged;
         }
 
         private void OnDisable()
         {
             CharacterProgressionState.ProgressChanged -= HandleCharacterProgressChanged;
             UserProfileManager.ProfileChanged -= HandleUserProfileChanged;
+            AuthenticationManager.AuthenticationStateChanged -= HandleAuthenticationStateChanged;
         }
 
         private void Update()
@@ -182,7 +186,7 @@ namespace PH.Core.UI
             currencyText = CreateText(root, "CurrencyText", string.Empty, new Vector2(0.415f, 0.08f), new Vector2(0.515f, 0.43f), TextAnchor.MiddleLeft, 25, accentTextColor);
             CreateResourceImage(root, "RubyCurrencyIcon", "Items/Icons/ruby", new Vector2(0.545f, 0.14f), new Vector2(0.58f, 0.37f));
             rubyCurrencyText = CreateText(root, "RubyCurrencyText", string.Empty, new Vector2(0.59f, 0.08f), new Vector2(0.69f, 0.43f), TextAnchor.MiddleLeft, 25, accentTextColor);
-            Text loginStateText = CreateText(root, "LoginStateText", "GUEST", new Vector2(0.74f, 0.08f), new Vector2(0.945f, 0.43f), TextAnchor.MiddleRight, 27, accentTextColor);
+            loginStateText = CreateText(root, "LoginStateText", string.Empty, new Vector2(0.74f, 0.08f), new Vector2(0.945f, 0.43f), TextAnchor.MiddleRight, 27, accentTextColor);
             loginStateText.fontStyle = FontStyle.Bold;
         }
 
@@ -296,6 +300,11 @@ namespace PH.Core.UI
             if (rubyCurrencyText != null)
             {
                 rubyCurrencyText.text = UserProfileManager.Ruby.ToString("N0");
+            }
+
+            if (loginStateText != null)
+            {
+                loginStateText.text = GetAuthenticationStateLabel();
             }
 
             if (bestFloorText != null)
@@ -565,6 +574,23 @@ namespace PH.Core.UI
         private void HandleUserProfileChanged()
         {
             RefreshLobbyData();
+        }
+
+        private void HandleAuthenticationStateChanged(AuthenticationState state)
+        {
+            RefreshLobbyData();
+        }
+
+        private static string GetAuthenticationStateLabel()
+        {
+            if (AuthenticationManager.IsAuthenticated)
+            {
+                return AuthenticationManager.CurrentSession.IsGuest ? "GUEST" : "ONLINE";
+            }
+
+            return AuthenticationManager.State == AuthenticationState.Authenticating
+                ? "CONNECTING"
+                : "OFFLINE";
         }
 
         private void ApplySafeAreaLayout()

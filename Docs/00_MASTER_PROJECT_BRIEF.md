@@ -592,9 +592,12 @@ InGame
 17.2 Title
 역할:
 •	`Art/Backgrounds/Title.png` 전체 화면 표시
-•	화면 하단 1/4 지점 중앙에 Lobby 비동기 로딩 진행률 표시
-•	100% 완료 후 진행 문구를 `TOUCH`로 전환하고 점멸
+•	화면 하단에 Lobby 비동기 로딩 진행률과 `TOUCH` 상태 표시
+•	저장된 인증 세션 복원 우선, 복원 성공/실패 여부와 관계없이 중앙 로그인 UI 표시
+•	로그인 UI는 ID/password 입력, 계정 로그인 버튼, Guest 진입 또는 저장 세션 `CONTINUE` 버튼을 제공
+•	Lobby 비동기 로딩과 인증 성공이 모두 완료된 뒤 진행 문구를 `TOUCH`로 전환하고 점멸
 •	터치, 마우스 클릭 또는 확인 키 입력 시 준비된 Lobby 씬 활성화
+•	인증 실패 또는 서버 인증 미연결 상태에서는 Lobby 진입을 막고 로그인 UI 메시지로 재시도 제공
 17.3 Lobby
 배경:
 •	`Art/Backgrounds/Lobby.png`를 전체 화면 배경으로 사용한다.
@@ -867,6 +870,15 @@ ________________________________________
 아이템 효과는 인터페이스 또는 효과 클래스를 통해 확장한다.
 인터페이스 분리
 인증, 저장, 랭킹, 업적, 인벤토리를 하나의 거대한 서버 인터페이스로 합치지 않는다.
+
+인증 기반 현행 규칙:
+•	인증 호출은 `IAuthenticationService` 뒤에 두고 게임 및 UI 코드가 BackND SDK를 직접 참조하지 않는다.
+•	`AuthenticationManager`가 세션 복원, 게스트 로그인, 계정 로그인, 로그아웃과 인증 상태를 관리한다.
+•	Title은 `InitializeAsync(false)`로 저장 세션만 복원하고, 저장 세션이 있어도 자동 Lobby 진입 대신 로그인 UI의 `CONTINUE` 확인을 거친다.
+•	저장 세션이 없을 때는 자동 Guest 생성 대신 로그인 UI에서 사용자가 Guest 진입을 선택한다.
+•	현재 `LocalAuthenticationService`는 기존 로컬 프로필의 Guest ID를 유지하고 `PH.Authentication.v1`에 세션만 저장한다.
+•	계정 ID와 비밀번호 로그인은 서버 인증 구현체가 연결되기 전까지 `ProviderUnavailable`을 반환하며 비밀번호를 로컬에 저장하지 않는다.
+•	서버 연결 후 `IAuthenticationService` 구현체만 BackND 어댑터로 교체하고 성공 세션의 ID/닉네임을 `UserProfileManager`에 전달한다.
 의존성 역전
 게임 플레이 클래스가 뒤끝 SDK나 구체 저장 클래스에 직접 의존하지 않는다.
 ________________________________________

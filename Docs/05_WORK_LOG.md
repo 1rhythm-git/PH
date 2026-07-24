@@ -3094,6 +3094,121 @@ ________________________________________
 
 ________________________________________
 
+2.99 로그인 프로세스 기반 구현
+
+목표:
+• BackND SDK 연결 전에 인증 서비스 교체 지점과 로그인 상태 흐름 구성
+• 저장 세션 복원 실패 시 Guest 모드로 안전하게 진입하고 인증 실패 시 Lobby 진입 차단
+
+완료 내용:
+• `IAuthenticationService`에 세션 복원, Guest 로그인, 계정 로그인, 로그아웃 계약 추가
+• 인증 세션, 공급자, 상태와 실패 사유를 SDK 독립 모델로 구성
+• `AuthenticationManager`가 인증 작업 중복 방지, 상태 변경, 세션과 프로필 ID 연결을 담당하도록 구현
+• `LocalAuthenticationService`가 기존 프로필 Guest ID를 유지하고 `PH.Authentication.v1`에 인증 세션 저장
+• 로컬 계정 로그인은 비밀번호를 저장하지 않고 `ProviderUnavailable` 반환
+• Title에서 Lobby 비동기 로드와 인증 초기화를 함께 수행하고 실패 시 터치 재시도 제공
+• Lobby의 고정 `GUEST` 문구를 실제 인증 상태 기반 표시로 변경
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/**`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 저장 세션 복원 성공, 최초 실행 Guest fallback, 인증 실패 상태 전환 경로 정적 확인
+• 인증 완료 전 Lobby 활성화를 요청하지 않는 Title 흐름 확인
+• 기존 `PH.UserProfile.v1` 프로필/재화 저장 키와 캐릭터 저장 로직을 변경하지 않았는지 확인
+• Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
+• 기존 `PlayerSpawner.moveSpeedColumnsPerSecond` 미사용 필드 `CS0414` 경고 외 신규 오류 없음
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 최초 실행과 재실행의 `Loading → Title → Lobby` 흐름 확인 필요
+• 인증 저장 키 삭제 또는 손상 상태에서 Guest 재생성과 오류 문구 확인 필요
+• BackND 연동 시 계정 입력 UI, 토큰 만료/갱신, 서버 점검 및 네트워크 재시도 정책 구현 필요
+
+관련 작업 기준:
+• 사용자 요청: BackND 서버 연동 전에 로그인 프로세스 기반 선행 구현
+
+________________________________________
+
+2.100 Title 로그인 UI 및 하단 로딩 상태 배치
+
+목표:
+• Title 씬의 로딩바와 `TOUCH` 텍스트를 하단으로 이동
+• `LOOTUP` 타이틀 로고 영역을 침범하지 않는 중앙 영역에 로그인 UI 추가
+• BackND SDK 연결 전에도 저장 세션 복원, Guest 진입, 계정 로그인 실패 흐름을 검증할 수 있게 구성
+
+완료 내용:
+• `TitleSceneController` 런타임 UI에 로그인 패널, ID/password 입력 필드, `LOGIN`, `GUEST` 버튼 추가
+• Title 진입 시 `AuthenticationManager.InitializeAsync(false)`로 저장 세션만 복원하도록 변경
+• 저장 세션이 없으면 자동 Guest 생성 대신 로그인 UI를 표시하도록 변경
+• Guest 버튼은 로컬 Guest 세션을 생성하고 성공 후 하단 `TOUCH` 대기 상태로 전환
+• 계정 로그인은 현재 로컬 인증 구현체 기준 `ProviderUnavailable` 실패 메시지를 로그인 UI에 표시
+• 로딩바를 화면 하단으로 내리고 `TOUCH`, `LOGIN REQUIRED`, `SIGNING IN` 상태 문구도 하단에 표시
+• 런타임 생성 UI 버튼과 입력 필드가 동작하도록 Title에서 `EventSystem`과 `InputSystemUIInputModule`을 보장
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batch Mode 스크립트 컴파일 및 Tundra build 성공, 종료 코드 0 확인
+• `Temp/codex_compile.log`에서 `error CS` 및 `Scripts have compiler errors` 없음 확인
+• `git diff --check` 통과
+
+남은 확인:
+• Unity Play Mode에서 저장 세션 없음 상태의 Title 로그인 패널 위치와 버튼 입력 확인 필요
+• Guest 버튼 클릭 후 `TOUCH` 점멸과 Lobby 진입 확인 필요
+• ID/password 입력 후 `SERVER LOGIN IS NOT READY` 메시지 표시 확인 필요
+• 실제 기기 9:20 화면에서 `LOOTUP` 로고, 로그인 패널, 하단 로딩바/상태 문구가 겹치지 않는지 확인 필요
+
+관련 작업 기준:
+• 사용자 요청: 타이틀씬의 로딩바와 `TOUCH` 텍스트를 하단으로 내리고 `LOOTUP` 텍스트 로고 사이에 로그인 UI를 흐름에 맞게 추가
+
+________________________________________
+
+2.101 Title 로그인 패널 표시 흐름 보정
+
+목표:
+• Title 씬에서 로그인 패널이 비활성화되어 보이는 문제 수정
+• 저장 세션이 이미 있어도 사용자가 로그인 패널을 확인한 뒤 Lobby 진입하도록 흐름 보정
+
+원인:
+• `CreateLoginPanel()`에서 로그인 패널을 기본 비활성으로 생성
+• 저장 세션 복원 성공 시 `ShowReadyForTouch()`로 바로 넘어가 로그인 패널이 계속 숨겨지는 구조
+
+완료 내용:
+• 저장 세션 복원 성공 시 즉시 `TOUCH`로 넘기지 않고 로그인 패널을 표시하도록 변경
+• 저장 세션이 있으면 `GUEST` 버튼 라벨을 `CONTINUE`로 바꾸고, 클릭 시 하단 `TOUCH` 대기 상태로 전환
+• 저장 세션이 없으면 기존처럼 `GUEST` 버튼으로 로컬 Guest 세션 생성
+• 하단 상태 문구를 저장 세션 있음 기준 `LOGIN READY`, 저장 세션 없음 기준 `LOGIN REQUIRED`로 구분
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 정적 코드 흐름 확인: 저장 세션 성공 → 로그인 패널 활성화 → `CONTINUE` → `TOUCH`
+• 정적 코드 흐름 확인: 저장 세션 없음 → 로그인 패널 활성화 → `GUEST` → `TOUCH`
+
+남은 확인:
+• Unity Play Mode에서 저장 세션이 있는 상태의 `CONTINUE` 버튼 표시와 Lobby 진입 확인 필요
+• Unity Play Mode에서 저장 세션이 없는 상태의 `GUEST` 버튼 표시와 Lobby 진입 확인 필요
+• Title 로딩 중에는 런타임 생성 직후 패널이 잠시 비활성 상태일 수 있으므로, 로딩 완료 후 표시 여부 확인 필요
+
+관련 작업 기준:
+• 사용자 보고: 타이틀 씬에서 로그인 패널이 비활성화되어 있음
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
