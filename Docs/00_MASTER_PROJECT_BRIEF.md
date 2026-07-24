@@ -1,8 +1,8 @@
-PH / Infinite Climb
+LootUp / Infinite Climb
 Codex Master Project Brief
 ________________________________________
 0. 문서 목적
-이 문서는 Unity 프로젝트 PH의 전체 개발 기준을 정의한다.
+이 문서는 Unity 프로젝트 LootUp의 전체 개발 기준을 정의한다.
 현재 프로젝트는 기존 Unity 콘텐츠를 모두 삭제하고, Codex 설정만 유지한 상태에서 새로 시작한다.
 이전 프로젝트의 코드, 테스트 오브젝트, 임시 로직, 사용하지 않는 시스템은 복구하지 않는다.
 Codex는 이 문서를 프로젝트의 최상위 기획 기준으로 사용한다.
@@ -725,12 +725,13 @@ ________________________________________
 
 20.1 캐릭터 진행 저장 정책
 캐릭터 진행은 `ICharacterProgressionService`를 통해 접근하며 초기 구현은 `LocalCharacterProgressionService`를 사용한다.
-로컬 저장 키는 `PH.CharacterProgression.v1`이며 저장 데이터 자체에도 버전을 기록한다. 현재 캐릭터 진행 데이터 버전은 2이다.
+로컬 저장 키는 `LootUp.CharacterProgression.v1`이며 저장 데이터 자체에도 버전을 기록한다. 현재 캐릭터 진행 데이터 버전은 2이다.
 버전 2 로드 시 `triangle_low_spec` 레벨·XP·보유·선택·장착 데이터를 `ninja`로 이전한다.
-`PH.CollectionProgress.v1`의 Ninja 캐릭터 강화 데이터도 동일하게 `ninja`로 이전하며, 구·신 ID 데이터가 함께 있으면 더 높은 진행도와 강화 레벨을 보존한다.
+`LootUp.CollectionProgress.v1`의 Ninja 캐릭터 강화 데이터도 동일하게 `ninja`로 이전하며, 구·신 ID 데이터가 함께 있으면 더 높은 진행도와 강화 레벨을 보존한다.
 캐릭터별 저장 항목은 캐릭터 ID, 현재 레벨, 잔여 XP, 보유 여부, 장착 여부이다.
 선택 캐릭터 ID와 장착 캐릭터 ID를 별도로 기록하되 현재 Lobby 정책에서는 선택 즉시 장착하여 같은 캐릭터를 가리킨다.
-기존 프로필, 재화, 수집형 데이터의 `PlayerPrefs` 키는 유지하며 캐릭터 진행 저장을 별도 키로 추가한다.
+프로필, 인증, 캐릭터 진행, 수집형 데이터의 `PlayerPrefs` 키는 `LootUp.*` 형식을 사용한다.
+구 프로젝트 키만 존재하면 최초 로드 시 데이터를 새 키로 저장하고 구 키를 제거한다.
 이전 캐릭터 영구 저장 데이터는 존재하지 않으므로 첫 접근 시 `CharacterDefinition.InitiallyOwned`와 Lv.1/XP 0을 기본값으로 생성한다.
 향후 저장 버전이 증가하면 로드 시 버전별 마이그레이션을 수행하고 캐릭터 ID를 데이터 결합 키로 유지한다.
 ________________________________________
@@ -876,7 +877,7 @@ ________________________________________
 •	`AuthenticationManager`가 세션 복원, 게스트 로그인, 계정 로그인, 로그아웃과 인증 상태를 관리한다.
 •	Title은 `InitializeAsync(false)`로 저장 세션만 복원하고, 저장 세션이 있어도 자동 Lobby 진입 대신 로그인 UI의 `CONTINUE` 확인을 거친다.
 •	저장 세션이 없을 때는 자동 Guest 생성 대신 로그인 UI에서 사용자가 Guest 진입을 선택한다.
-•	현재 `LocalAuthenticationService`는 기존 로컬 프로필의 Guest ID를 유지하고 `PH.Authentication.v1`에 세션만 저장한다.
+•	현재 `LocalAuthenticationService`는 기존 로컬 프로필의 Guest ID를 유지하고 `LootUp.Authentication.v1`에 세션만 저장한다.
 •	계정 ID와 비밀번호 로그인은 서버 인증 구현체가 연결되기 전까지 `ProviderUnavailable`을 반환하며 비밀번호를 로컬에 저장하지 않는다.
 •	서버 연결 후 `IAuthenticationService` 구현체만 BackND 어댑터로 교체하고 성공 세션의 ID/닉네임을 `UserProfileManager`에 전달한다.
 의존성 역전

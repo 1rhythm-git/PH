@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     public enum CollectionItemType
     {

@@ -1,7 +1,7 @@
-using PH.Core.Player;
+using LootUp.Core.Player;
 using UnityEngine;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     public sealed class AddMoveSpeedItemEffect : IItemEffect
     {

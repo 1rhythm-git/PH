@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class PlayerItemPickupFeedback : MonoBehaviour

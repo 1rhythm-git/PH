@@ -1,10 +1,10 @@
 using System.Collections;
-using PH.Core.SceneFlow;
+using LootUp.Core.SceneFlow;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 
-namespace PH.Core.Bootstrap
+namespace LootUp.Core.Bootstrap
 {
     public sealed class RuntimeBootstrapper : MonoBehaviour
     {

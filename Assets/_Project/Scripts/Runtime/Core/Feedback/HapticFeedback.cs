@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace PH.Core.Feedback
+namespace LootUp.Core.Feedback
 {
     public enum HapticFeedbackPattern
     {

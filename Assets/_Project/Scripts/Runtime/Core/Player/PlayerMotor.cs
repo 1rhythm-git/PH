@@ -1,9 +1,9 @@
-using PH.Core.Characters;
-using PH.Core.World;
+using LootUp.Core.Characters;
+using LootUp.Core.World;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class PlayerMotor : MonoBehaviour

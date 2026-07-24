@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     [Serializable]
     public sealed class ItemRunEvent

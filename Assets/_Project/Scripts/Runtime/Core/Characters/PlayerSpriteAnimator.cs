@@ -1,8 +1,8 @@
-using PH.Core.Player;
+using LootUp.Core.Player;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
     [RequireComponent(typeof(Image))]
     public sealed class PlayerSpriteAnimator : MonoBehaviour

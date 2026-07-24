@@ -1,7 +1,7 @@
-using PH.Core.Player;
-using PH.Core.UI;
+using LootUp.Core.Player;
+using LootUp.Core.UI;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     public readonly struct ItemEffectContext
     {

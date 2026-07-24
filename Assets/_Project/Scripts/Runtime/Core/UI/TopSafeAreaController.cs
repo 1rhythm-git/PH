@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace PH.Core.UI
+namespace LootUp.Core.UI
 {
     [DisallowMultipleComponent]
     public sealed class TopSafeAreaController : MonoBehaviour

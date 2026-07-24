@@ -1,7 +1,7 @@
-using PH.Core.Characters;
+using LootUp.Core.Characters;
 using UnityEngine;
 
-namespace PH.Core.Game
+namespace LootUp.Core.Game
 {
     [System.Serializable]
     public sealed class RunRewardSettings

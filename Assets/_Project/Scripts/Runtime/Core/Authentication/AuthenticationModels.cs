@@ -1,6 +1,6 @@
 using System;
 
-namespace PH.Core.Authentication
+namespace LootUp.Core.Authentication
 {
     public enum AuthenticationProvider
     {

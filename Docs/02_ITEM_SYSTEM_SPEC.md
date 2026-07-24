@@ -1,4 +1,4 @@
-PH Item System Specification
+LootUp Item System Specification
 ________________________________________
 1. 시스템 목적
 아이템 시스템은 플레이어가 각 층의 셀 내부에 배치된 아이템을 통과하여 획득하는 구조이다.

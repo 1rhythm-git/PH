@@ -2,11 +2,11 @@ using System;
 using System.IO;
 using UnityEditor.Android;
 
-namespace PH.Editor.Android
+namespace LootUp.Editor.Android
 {
     public sealed class HapticPermissionGradlePostprocessor : IPostGenerateGradleAndroidProject
     {
-        private const string PermissionModuleName = "PHHapticPermission.androidlib";
+        private const string PermissionModuleName = "LootUpHapticPermission.androidlib";
         private const string NamespaceLine = "    namespace 'com.lafgames.lootup.haptics'";
 
         public int callbackOrder => 0;

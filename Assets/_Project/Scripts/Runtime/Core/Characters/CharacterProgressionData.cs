@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
     [Serializable]
     public sealed class CharacterProgressionData

@@ -1,6 +1,6 @@
 using System;
 
-namespace PH.Core.Profile
+namespace LootUp.Core.Profile
 {
     public static class UserProfileManager
     {

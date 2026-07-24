@@ -1,14 +1,14 @@
 using System;
-using PH.Core.Audio;
-using PH.Core.Characters;
-using PH.Core.Characters.Skills;
-using PH.Core.Player;
-using PH.Core.UI;
-using PH.Core.World;
+using LootUp.Core.Audio;
+using LootUp.Core.Characters;
+using LootUp.Core.Characters.Skills;
+using LootUp.Core.Player;
+using LootUp.Core.UI;
+using LootUp.Core.World;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class ItemInstance : MonoBehaviour

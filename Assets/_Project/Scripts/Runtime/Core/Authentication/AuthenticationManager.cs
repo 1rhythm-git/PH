@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
-using PH.Core.Profile;
+using LootUp.Core.Profile;
 
-namespace PH.Core.Authentication
+namespace LootUp.Core.Authentication
 {
     public static class AuthenticationManager
     {

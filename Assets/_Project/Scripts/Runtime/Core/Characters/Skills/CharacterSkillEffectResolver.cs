@@ -1,4 +1,4 @@
-namespace PH.Core.Characters.Skills
+namespace LootUp.Core.Characters.Skills
 {
     public sealed class CharacterSkillEffectResolver
     {

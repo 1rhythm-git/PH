@@ -1,6 +1,6 @@
 using System;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
     internal static class CharacterIdMigration
     {

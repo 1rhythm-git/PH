@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
     [RequireComponent(typeof(CanvasRenderer))]
     public sealed class PlayerShapeGraphic : MaskableGraphic

@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
-using PH.Core.Characters;
-using PH.Core.Game;
-using PH.Core.Player;
-using PH.Core.Profile;
-using PH.Core.World;
+using LootUp.Core.Characters;
+using LootUp.Core.Game;
+using LootUp.Core.Player;
+using LootUp.Core.Profile;
+using LootUp.Core.World;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
-namespace PH.Core.UI
+namespace LootUp.Core.UI
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class TopHUDController : MonoBehaviour

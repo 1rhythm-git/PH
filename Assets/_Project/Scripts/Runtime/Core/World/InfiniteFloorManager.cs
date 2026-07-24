@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace PH.Core.World
+namespace LootUp.Core.World
 {
     public sealed class InfiniteFloorManager : MonoBehaviour
     {

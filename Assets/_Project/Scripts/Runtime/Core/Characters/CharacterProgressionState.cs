@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
     public readonly struct CharacterProgressionSnapshot
     {

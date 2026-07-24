@@ -1,9 +1,9 @@
-using PH.Core.Items;
-using PH.Core.Player;
-using PH.Core.UI;
+using LootUp.Core.Items;
+using LootUp.Core.Player;
+using LootUp.Core.UI;
 using UnityEngine;
 
-namespace PH.Core.Characters.Skills
+namespace LootUp.Core.Characters.Skills
 {
     public sealed class CharacterSkillRuntime : MonoBehaviour
     {

@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
-using PH.Core.Characters;
+using LootUp.Core.Characters;
 using UnityEngine;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     public sealed class LocalCollectionInventoryService : ICollectionInventoryService
     {
         private const int CurrentVersion = 2;
-        private const string SaveKey = "PH.CollectionProgress.v1";
+        private const string SaveKey = "LootUp.CollectionProgress.v1";
+        private const string LegacySaveKey = "PH.CollectionProgress.v1";
 
         private readonly CollectionSaveData saveData;
 
@@ -148,6 +149,7 @@ namespace PH.Core.Items
             try
             {
                 PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(saveData));
+                PlayerPrefs.DeleteKey(LegacySaveKey);
                 PlayerPrefs.Save();
                 return true;
             }
@@ -160,7 +162,7 @@ namespace PH.Core.Items
 
         private CollectionSaveData Load()
         {
-            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
+            string json = GetSavedJson();
             if (string.IsNullOrWhiteSpace(json))
             {
                 return new CollectionSaveData();
@@ -179,6 +181,14 @@ namespace PH.Core.Items
                 Debug.LogError($"Collection load failed: {exception.Message}");
                 return new CollectionSaveData();
             }
+        }
+
+        private static string GetSavedJson()
+        {
+            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
+            return string.IsNullOrWhiteSpace(json)
+                ? PlayerPrefs.GetString(LegacySaveKey, string.Empty)
+                : json;
         }
 
         private CollectionData FindCollection(string collectionId)

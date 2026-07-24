@@ -1,13 +1,13 @@
-using PH.Core.Authentication;
-using PH.Core.Characters;
-using PH.Core.Characters.Skills;
-using PH.Core.Profile;
-using PH.Core.SceneFlow;
+using LootUp.Core.Authentication;
+using LootUp.Core.Characters;
+using LootUp.Core.Characters.Skills;
+using LootUp.Core.Profile;
+using LootUp.Core.SceneFlow;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-namespace PH.Core.UI
+namespace LootUp.Core.UI
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class LobbyController : MonoBehaviour
@@ -176,7 +176,7 @@ namespace PH.Core.UI
                 return;
             }
 
-            Text titleText = CreateText(root, "TitleText", "PHANTOM HEIST", new Vector2(0.055f, 0.52f), new Vector2(0.78f, 0.95f), TextAnchor.MiddleLeft, 48, accentTextColor);
+            Text titleText = CreateText(root, "TitleText", "LOOTUP", new Vector2(0.055f, 0.52f), new Vector2(0.78f, 0.95f), TextAnchor.MiddleLeft, 48, accentTextColor);
             titleText.fontStyle = FontStyle.Bold;
             CreateIconButton(root, "SettingsButton", GetSettingsSprite(), new Vector2(0.869f, 0.633f), new Vector2(0.941f, 0.897f), null, true, "Settings");
 

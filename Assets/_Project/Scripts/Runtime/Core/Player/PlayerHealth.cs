@@ -1,10 +1,10 @@
-using PH.Core.Game;
-using PH.Core.Feedback;
-using PH.Core.UI;
-using PH.Core.World;
+using LootUp.Core.Game;
+using LootUp.Core.Feedback;
+using LootUp.Core.UI;
+using LootUp.Core.World;
 using UnityEngine;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     public enum PlayerMaxLifeItemResult
     {

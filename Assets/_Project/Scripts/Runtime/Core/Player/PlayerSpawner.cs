@@ -1,12 +1,12 @@
-using PH.Core.Characters;
-using PH.Core.Characters.Skills;
-using PH.Core.Game;
-using PH.Core.UI;
-using PH.Core.World;
+using LootUp.Core.Characters;
+using LootUp.Core.Characters.Skills;
+using LootUp.Core.Game;
+using LootUp.Core.UI;
+using LootUp.Core.World;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     public sealed class PlayerSpawner : MonoBehaviour
     {

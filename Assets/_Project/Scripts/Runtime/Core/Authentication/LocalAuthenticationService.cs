@@ -2,11 +2,12 @@ using System;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace PH.Core.Authentication
+namespace LootUp.Core.Authentication
 {
     public sealed class LocalAuthenticationService : IAuthenticationService
     {
-        private const string SaveKey = "PH.Authentication.v1";
+        private const string SaveKey = "LootUp.Authentication.v1";
+        private const string LegacySaveKey = "PH.Authentication.v1";
         private const string GuestIdPrefix = "guest-";
         private const string DefaultNickname = "Player";
 
@@ -21,7 +22,7 @@ namespace PH.Core.Authentication
 
         public Task<AuthenticationResult> TryRestoreSessionAsync()
         {
-            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
+            string json = GetSavedSessionJson(out bool loadedFromLegacyKey);
             if (string.IsNullOrWhiteSpace(json))
             {
                 return Task.FromResult(AuthenticationResult.Fail(
@@ -34,11 +35,15 @@ namespace PH.Core.Authentication
                 LocalAuthenticationSaveData saveData = JsonUtility.FromJson<LocalAuthenticationSaveData>(json);
                 if (saveData == null || string.IsNullOrWhiteSpace(saveData.UserId))
                 {
-                    PlayerPrefs.DeleteKey(SaveKey);
-                    PlayerPrefs.Save();
+                    DeleteSavedSession();
                     return Task.FromResult(AuthenticationResult.Fail(
                         AuthenticationFailure.NoSavedSession,
                         "Saved authentication session was invalid."));
+                }
+
+                if (loadedFromLegacyKey)
+                {
+                    SaveSessionJson(json);
                 }
 
                 AuthenticationSession session = new AuthenticationSession(
@@ -51,8 +56,7 @@ namespace PH.Core.Authentication
             catch (Exception exception)
             {
                 Debug.LogWarning($"Authentication session restore failed: {exception.Message}");
-                PlayerPrefs.DeleteKey(SaveKey);
-                PlayerPrefs.Save();
+                DeleteSavedSession();
                 return Task.FromResult(AuthenticationResult.Fail(
                     AuthenticationFailure.NoSavedSession,
                     "Saved authentication session could not be read."));
@@ -77,8 +81,7 @@ namespace PH.Core.Authentication
                     UserId = session.UserId,
                     Nickname = session.Nickname
                 };
-                PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(saveData));
-                PlayerPrefs.Save();
+                SaveSessionJson(JsonUtility.ToJson(saveData));
                 return Task.FromResult(AuthenticationResult.Success(session));
             }
             catch (Exception exception)
@@ -100,9 +103,31 @@ namespace PH.Core.Authentication
 
         public Task SignOutAsync()
         {
-            PlayerPrefs.DeleteKey(SaveKey);
-            PlayerPrefs.Save();
+            DeleteSavedSession();
             return Task.CompletedTask;
+        }
+
+        private static string GetSavedSessionJson(out bool loadedFromLegacyKey)
+        {
+            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
+            loadedFromLegacyKey = string.IsNullOrWhiteSpace(json);
+            return loadedFromLegacyKey
+                ? PlayerPrefs.GetString(LegacySaveKey, string.Empty)
+                : json;
+        }
+
+        private static void SaveSessionJson(string json)
+        {
+            PlayerPrefs.SetString(SaveKey, json);
+            PlayerPrefs.DeleteKey(LegacySaveKey);
+            PlayerPrefs.Save();
+        }
+
+        private static void DeleteSavedSession()
+        {
+            PlayerPrefs.DeleteKey(SaveKey);
+            PlayerPrefs.DeleteKey(LegacySaveKey);
+            PlayerPrefs.Save();
         }
 
         [Serializable]

@@ -1,11 +1,11 @@
-using PH.Core.Audio;
-using PH.Core.Game;
-using PH.Core.Player;
-using PH.Core.World;
+using LootUp.Core.Audio;
+using LootUp.Core.Game;
+using LootUp.Core.Player;
+using LootUp.Core.World;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Enemies
+namespace LootUp.Core.Enemies
 {
     [RequireComponent(typeof(RectTransform))]
     public sealed class TestEnemyHazard : MonoBehaviour, IGameplayPausable

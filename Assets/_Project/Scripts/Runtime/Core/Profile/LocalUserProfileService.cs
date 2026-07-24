@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PH.Core.Profile
+namespace LootUp.Core.Profile
 {
     public sealed class LocalUserProfileService : IUserProfileService
     {
-        private const string SaveKey = "PH.UserProfile.v1";
+        private const string SaveKey = "LootUp.UserProfile.v1";
+        private const string LegacySaveKey = "PH.UserProfile.v1";
         private const string DefaultUserIdPrefix = "guest-";
         private const string DefaultNickname = "Player";
 
@@ -114,6 +115,7 @@ namespace PH.Core.Profile
             try
             {
                 PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(saveData));
+                PlayerPrefs.DeleteKey(LegacySaveKey);
                 PlayerPrefs.Save();
                 return true;
             }
@@ -126,7 +128,7 @@ namespace PH.Core.Profile
 
         private UserProfileSaveData Load()
         {
-            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
+            string json = GetSavedJson();
             if (string.IsNullOrWhiteSpace(json))
             {
                 return new UserProfileSaveData();
@@ -144,6 +146,14 @@ namespace PH.Core.Profile
                 Debug.LogError($"User profile load failed: {exception.Message}");
                 return new UserProfileSaveData();
             }
+        }
+
+        private static string GetSavedJson()
+        {
+            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
+            return string.IsNullOrWhiteSpace(json)
+                ? PlayerPrefs.GetString(LegacySaveKey, string.Empty)
+                : json;
         }
 
         private void EnsureDefaults()

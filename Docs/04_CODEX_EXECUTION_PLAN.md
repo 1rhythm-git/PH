@@ -1,4 +1,4 @@
-PH Codex Execution Plan
+LootUp Codex Execution Plan
 ________________________________________
 공통 작업 규칙
 모든 파트에서 다음 규칙을 지킨다.
@@ -423,9 +423,10 @@ PART 16
 구현 상태
 •	프로필 재화와 수집/강화 데이터의 로컬 저장 기반은 구현됨
 •	캐릭터별 레벨/경험치와 선택/보유/장착 상태를 `ICharacterProgressionService` 뒤에 분리해 로컬 저장 완료
-•	캐릭터 진행 저장 키 `PH.CharacterProgression.v1`과 데이터 버전 2 적용
+•	캐릭터 진행 저장 키 `LootUp.CharacterProgression.v1`과 데이터 버전 2 적용
 •	Ninja의 과거 ID `triangle_low_spec`는 로드 시 `ninja`로 변환하고 진행/선택/장착/강화 데이터를 병합
-•	기존 프로필/재화/수집 저장 키는 유지하고, 최초 캐릭터 데이터는 캐릭터 에셋의 `InitiallyOwned` 기준으로 생성
+•	프로필/인증/캐릭터 진행/수집 저장 키는 `LootUp.*` 형식을 사용하고 구 프로젝트 키는 최초 로드 시 자동 이전
+•	최초 캐릭터 데이터는 캐릭터 에셋의 `InitiallyOwned` 기준으로 생성
 •	레벨별 필요 XP와 기본 런 XP는 `CharacterDefinition` 에셋에서 계속 관리하여 추후 레벨 디자인 변경 가능
 •	선택 게임 모드, 최고 기록과 직전 런 기록의 통합 저장은 후속 작업
 ________________________________________
@@ -443,7 +444,7 @@ SDK 연결 전 어댑터 위치와 데이터 흐름을 준비한다.
 구현 상태
 •	`IAuthenticationService`에 세션 복원, Guest 로그인, 계정 로그인, 로그아웃 계약 구현
 •	`AuthenticationManager`에 `SignedOut`, `Authenticating`, `Authenticated`, `Failed` 상태와 변경 이벤트 구현
-•	`LocalAuthenticationService`가 기존 Guest 프로필 ID를 유지하고 `PH.Authentication.v1` 세션 복원 지원
+•	`LocalAuthenticationService`가 기존 Guest 프로필 ID를 유지하고 `LootUp.Authentication.v1` 세션 복원 지원
 •	Title에서 Lobby 사전 로드와 저장 세션 복원을 함께 진행하고, 저장 세션 복원 성공/실패 여부와 관계없이 로그인 UI 표시
 •	Title 로그인 UI에 ID/password 입력, 계정 로그인 버튼, Guest 진입 또는 저장 세션 `CONTINUE` 버튼 구성
 •	Lobby 로그인 상태를 실제 인증 세션 기준 `GUEST`, `ONLINE`, `CONNECTING`, `OFFLINE`으로 표시

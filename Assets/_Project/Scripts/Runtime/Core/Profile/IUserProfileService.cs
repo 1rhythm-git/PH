@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace PH.Core.Profile
+namespace LootUp.Core.Profile
 {
     public interface IUserProfileService
     {

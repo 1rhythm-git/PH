@@ -1,10 +1,10 @@
 using System.Collections;
-using PH.Core.Player;
+using LootUp.Core.Player;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-namespace PH.Core.World
+namespace LootUp.Core.World
 {
     public sealed class ElevatorController : MonoBehaviour
     {

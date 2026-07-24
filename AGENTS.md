@@ -1,4 +1,4 @@
-# Phantom Heist – Unity Project Agent Instructions
+# LootUp – Unity Project Agent Instructions
 
 ## Codex 필수 작업 지침
 

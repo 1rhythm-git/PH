@@ -1,12 +1,12 @@
 using System.Collections.Generic;
-using PH.Core.Characters;
-using PH.Core.Player;
-using PH.Core.Profile;
-using PH.Core.World;
+using LootUp.Core.Characters;
+using LootUp.Core.Player;
+using LootUp.Core.Profile;
+using LootUp.Core.World;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Items
+namespace LootUp.Core.Items
 {
     public sealed class ItemSpawner : MonoBehaviour
     {

@@ -1,4 +1,4 @@
-PH Work Log
+LootUp Work Log
 ________________________________________
 
 1. 문서 목적
@@ -1850,8 +1850,8 @@ ________________________________________
 • 사용자 요청: 특성은 캐릭터에 종속되지 않아야 함
 
 완료 내용:
-• `PH.Core.Profile` 네임스페이스에 유저 프로필 저장 모델과 서비스 인터페이스 추가
-• `LocalUserProfileService`를 `PlayerPrefs` JSON 저장소 `PH.UserProfile.v1` 뒤에 구성
+• `LootUp.Core.Profile` 네임스페이스에 유저 프로필 저장 모델과 서비스 인터페이스 추가
+• `LocalUserProfileService`를 `PlayerPrefs` JSON 저장소 `LootUp.UserProfile.v1` 뒤에 구성
 • 게스트 유저 ID를 자동 생성하고 닉네임, `GameMoney`, `Ruby`를 유저 단위로 보관
 • `UserTraitData`와 `UserTraitEffectType`을 추가해 수집형 아이템 관련 특성을 캐릭터가 아닌 유저 프로필에 저장
 • `UserProfileManager` 정적 진입점을 추가해 추후 BackND 프로필 서비스로 교체 가능한 구조 마련
@@ -2032,7 +2032,7 @@ ________________________________________
 • 사용자 요청: 피벗은 미세한 짧은 진동, 피격은 조금 더 길고 깊은 진동
 
 완료 내용:
-• `PH.Core.Feedback.HapticFeedback` 공용 정적 API 추가
+• `LootUp.Core.Feedback.HapticFeedback` 공용 정적 API 추가
 • Android 실기기에서 `android.os.VibrationEffect.createOneShot`을 사용해 패턴별 지속시간과 세기를 호출하도록 구현
 • Android API 26 미만은 `Vibrator.vibrate(long)`로 폴백
 • Android 호출 실패 시 `Handheld.Vibrate()` 폴백 처리
@@ -2050,8 +2050,8 @@ ________________________________________
 • `Assets/_Project/Scripts/Runtime/Core/Feedback/HapticFeedback.cs.meta`
 • `Assets/_Project/Scripts/Runtime/Core/Player/PlayerController.cs`
 • `Assets/_Project/Scripts/Runtime/Core/Player/PlayerHealth.cs`
-• `Assets/Plugins/Android/PHHapticPermission.androidlib/AndroidManifest.xml`
-• `Assets/Plugins/Android/PHHapticPermission.androidlib/build.gradle`
+• `Assets/Plugins/Android/LootUpHapticPermission.androidlib/AndroidManifest.xml`
+• `Assets/Plugins/Android/LootUpHapticPermission.androidlib/build.gradle`
 • `Assets/_Project/Scripts/Editor/HapticPermissionGradlePostprocessor.cs`
 • `Docs/05_WORK_LOG.md`
 
@@ -2059,8 +2059,8 @@ ________________________________________
 • `rg` 기준 햅틱 호출 위치가 `PlayerController` 피벗, `PlayerHealth` 피격 두 곳만 남은 것 확인
 • Android 전용 코드는 `UNITY_ANDROID && !UNITY_EDITOR` 조건으로 격리
 • Android 권한은 기존 메인 Manifest를 덮어쓰지 않는 library manifest로 추가
-• 1차 Android 빌드 실패 원인이 `PHHapticPermission.androidlib`의 Gradle `namespace` 누락임을 `Editor.log`에서 확인하고 `build.gradle`로 보정
-• 반복 빌드 로그에서 Unity 생성물 `Library/Bee/.../PHHapticPermission.androidlib/build.gradle`에 소스 `build.gradle`이 반영되지 않는 것을 확인하고 후처리 보정 추가
+• 1차 Android 빌드 실패 원인이 `LootUpHapticPermission.androidlib`의 Gradle `namespace` 누락임을 `Editor.log`에서 확인하고 `build.gradle`로 보정
+• 반복 빌드 로그에서 Unity 생성물 `Library/Bee/.../LootUpHapticPermission.androidlib/build.gradle`에 소스 `build.gradle`이 반영되지 않는 것을 확인하고 후처리 보정 추가
 
 남은 확인:
 • 사용자 확인 기준 Android 빌드 및 실기기 피벗/피격 햅틱 검증 완료
@@ -2465,7 +2465,7 @@ ________________________________________
 완료 내용:
 • 버전 1의 `CharacterProgressionSaveData`와 캐릭터별 저장 레코드 추가
 • `ICharacterProgressionService`와 `LocalCharacterProgressionService`를 추가해 저장 구현 분리
-• `PH.CharacterProgression.v1` 키에 캐릭터 ID, 레벨, 잔여 XP, 보유/장착 상태와 선택/장착 ID 저장
+• `LootUp.CharacterProgression.v1` 키에 캐릭터 ID, 레벨, 잔여 XP, 보유/장착 상태와 선택/장착 ID 저장
 • `CharacterProgressionState`의 기존 공개 진입점을 유지하면서 내부 상태를 영구 저장 서비스로 교체
 • 경험치 지급과 `SetProgress` 호출 시 정규화된 레벨/잔여 XP를 즉시 저장
 • Lobby 진입 시 저장된 장착 캐릭터 ID를 `availableCharacters`에서 복구
@@ -2706,7 +2706,7 @@ ________________________________________
 • 컬렉션/캐릭터 강화 저장 데이터 버전을 2로 상향하고 Ninja 강화 레벨 이전
 • 구 ID와 신 ID 진행 데이터가 동시에 있으면 더 높은 레벨을 우선하고, 같은 레벨이면 더 높은 XP를 보존
 • 구 ID와 신 ID 강화 데이터가 동시에 있으면 각 강화 항목의 더 높은 레벨을 보존
-• 기존 PlayerPrefs 저장 키 `PH.CharacterProgression.v1`, `PH.CollectionProgress.v1`는 유지
+• 기존 PlayerPrefs 저장 키 `LootUp.CharacterProgression.v1`, `LootUp.CollectionProgress.v1`는 유지
 • 에셋 파일명 `TriangleLowSpecCharacter`는 GUID와 씬 참조에 영향을 주지 않도록 이번 작업에서 유지
 
 변경된 주요 파일:
@@ -3104,7 +3104,7 @@ ________________________________________
 • `IAuthenticationService`에 세션 복원, Guest 로그인, 계정 로그인, 로그아웃 계약 추가
 • 인증 세션, 공급자, 상태와 실패 사유를 SDK 독립 모델로 구성
 • `AuthenticationManager`가 인증 작업 중복 방지, 상태 변경, 세션과 프로필 ID 연결을 담당하도록 구현
-• `LocalAuthenticationService`가 기존 프로필 Guest ID를 유지하고 `PH.Authentication.v1`에 인증 세션 저장
+• `LocalAuthenticationService`가 기존 프로필 Guest ID를 유지하고 `LootUp.Authentication.v1`에 인증 세션 저장
 • 로컬 계정 로그인은 비밀번호를 저장하지 않고 `ProviderUnavailable` 반환
 • Title에서 Lobby 비동기 로드와 인증 초기화를 함께 수행하고 실패 시 터치 재시도 제공
 • Lobby의 고정 `GUEST` 문구를 실제 인증 상태 기반 표시로 변경
@@ -3120,7 +3120,7 @@ ________________________________________
 검증 상태:
 • 저장 세션 복원 성공, 최초 실행 Guest fallback, 인증 실패 상태 전환 경로 정적 확인
 • 인증 완료 전 Lobby 활성화를 요청하지 않는 Title 흐름 확인
-• 기존 `PH.UserProfile.v1` 프로필/재화 저장 키와 캐릭터 저장 로직을 변경하지 않았는지 확인
+• 기존 `LootUp.UserProfile.v1` 프로필/재화 저장 키와 캐릭터 저장 로직을 변경하지 않았는지 확인
 • Unity 6000.3.17f1 Roslyn `Assembly-CSharp` 전체 컴파일 종료 코드 0 확인
 • 기존 `PlayerSpawner.moveSpeedColumnsPerSecond` 미사용 필드 `CS0414` 경고 외 신규 오류 없음
 • `git diff --check` 통과
@@ -3206,6 +3206,51 @@ ________________________________________
 
 관련 작업 기준:
 • 사용자 보고: 타이틀 씬에서 로그인 패널이 비활성화되어 있음
+
+________________________________________
+
+2.102 프로젝트 명칭 LootUp 통합
+
+목표:
+• 프로젝트의 이전 명칭을 `LootUp`으로 통일
+• 문서, 플랫폼 설정, 런타임 표시, C# 네임스페이스와 저장 키의 불일치 제거
+• 기존 설치의 로컬 인증/프로필/캐릭터/수집 데이터를 보존
+
+완료 내용:
+• `AGENTS.md`, 기획서, 실행 계획, 아이템 명세, 작업 로그의 프로젝트명을 `LootUp`으로 변경
+• C# 네임스페이스를 `LootUp.Core.*`, `LootUp.Editor.*`로 변경하고 전체 using 참조 동기화
+• ScriptableObject 생성 메뉴와 Lobby 런타임 타이틀을 `LootUp`/`LOOTUP`으로 변경
+• Windows Store 패키지명과 설명을 `LootUp`으로 변경
+• Android 진동 권한 모듈을 `LootUpHapticPermission.androidlib`로 변경하고 후처리 참조 동기화
+• DOCX 3종의 파일명과 내부 제목/본문/북마크 명칭을 `LootUp`으로 변경
+• 로컬 저장 키를 `LootUp.*` 형식으로 변경하고 구 프로젝트 키 자동 이전 로직 추가
+
+변경된 주요 파일:
+• `AGENTS.md`
+• `Assets/_Project/Scripts/Runtime/Core/**`
+• `Assets/_Project/Scripts/Editor/HapticPermissionGradlePostprocessor.cs`
+• `Assets/Plugins/Android/LootUpHapticPermission.androidlib/**`
+• `ProjectSettings/ProjectSettings.asset`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+• `Docs/LootUp *.docx`
+
+검증 상태:
+• 추적 텍스트와 파일명에서 이전 프로젝트 표시 명칭 제거 확인
+• 구 저장 키 문자열은 기존 사용자 데이터 자동 이전을 위한 `LegacySaveKey` 4개에만 유지
+• 네임스페이스와 using 참조 전체 동기화 확인
+• DOCX 3종 정상 열기 및 내부 이전 명칭 검색 0건 확인
+• Unity 6000.3.17f1 Batch Mode 스크립트 컴파일 및 Tundra build 성공, 종료 코드 0 확인
+• `git diff --check` 통과
+
+남은 확인:
+• 기존 저장 데이터가 있는 환경에서 최초 실행 시 새 `LootUp.*` 키로 이전되는지 Play Mode 확인
+• Android 빌드 시 이름이 변경된 권한 모듈이 Gradle 프로젝트에 포함되는지 확인
+
+관련 작업 기준:
+• 사용자 요청: 프로젝트 내 변경 가능한 모든 이전 명칭을 `LootUp`으로 변경하고 커밋
 
 ________________________________________
 

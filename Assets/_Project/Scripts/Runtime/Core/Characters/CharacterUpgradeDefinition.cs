@@ -1,7 +1,7 @@
-using PH.Core.Items;
+using LootUp.Core.Items;
 using UnityEngine;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
     [System.Serializable]
     public sealed class CharacterUpgradeLevelDefinition
@@ -55,7 +55,7 @@ namespace PH.Core.Characters
         }
     }
 
-    [CreateAssetMenu(fileName = "CharacterUpgradeDefinition", menuName = "PH/Characters/Character Upgrade Definition")]
+    [CreateAssetMenu(fileName = "CharacterUpgradeDefinition", menuName = "LootUp/Characters/Character Upgrade Definition")]
     public sealed class CharacterUpgradeDefinition : ScriptableObject
     {
         [SerializeField]

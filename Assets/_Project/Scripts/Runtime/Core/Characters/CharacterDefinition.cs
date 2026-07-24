@@ -1,10 +1,10 @@
-using PH.Core.Characters.Skills;
+using LootUp.Core.Characters.Skills;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
-    [CreateAssetMenu(fileName = "CharacterDefinition", menuName = "PH/Characters/Character Definition")]
+    [CreateAssetMenu(fileName = "CharacterDefinition", menuName = "LootUp/Characters/Character Definition")]
     public sealed class CharacterDefinition : ScriptableObject
     {
         [SerializeField]

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace PH.Core.Audio
+namespace LootUp.Core.Audio
 {
     public enum GameSfxId
     {

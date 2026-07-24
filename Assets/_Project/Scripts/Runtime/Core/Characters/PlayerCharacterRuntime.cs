@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
     public sealed class PlayerCharacterRuntime : MonoBehaviour
     {

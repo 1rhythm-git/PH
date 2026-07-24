@@ -1,16 +1,16 @@
 using System.Collections.Generic;
-using PH.Core.Characters;
-using PH.Core.Items;
-using PH.Core.Player;
-using PH.Core.Profile;
-using PH.Core.SceneFlow;
-using PH.Core.UI;
-using PH.Core.World;
+using LootUp.Core.Characters;
+using LootUp.Core.Items;
+using LootUp.Core.Player;
+using LootUp.Core.Profile;
+using LootUp.Core.SceneFlow;
+using LootUp.Core.UI;
+using LootUp.Core.World;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-namespace PH.Core.Game
+namespace LootUp.Core.Game
 {
     public sealed class GameStateController : MonoBehaviour
     {

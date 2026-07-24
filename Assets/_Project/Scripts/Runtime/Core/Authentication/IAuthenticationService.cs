@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace PH.Core.Authentication
+namespace LootUp.Core.Authentication
 {
     public interface IAuthenticationService
     {

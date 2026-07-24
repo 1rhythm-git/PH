@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     public sealed class PlayerBuffVisualFeedback : MonoBehaviour
     {

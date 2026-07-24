@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace PH.Core.Player
+namespace LootUp.Core.Player
 {
     [DisallowMultipleComponent]
     [RequireComponent(typeof(RectTransform), typeof(PlayerController), typeof(PlayerMotor))]

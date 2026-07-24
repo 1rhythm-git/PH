@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace PH.Core.SceneFlow
+namespace LootUp.Core.SceneFlow
 {
     public sealed class SceneFlowManager : MonoBehaviour
     {

@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PH.Core.Characters
+namespace LootUp.Core.Characters
 {
     public sealed class LocalCharacterProgressionService : ICharacterProgressionService
     {
         private const int CurrentVersion = 2;
-        private const string SaveKey = "PH.CharacterProgression.v1";
+        private const string SaveKey = "LootUp.CharacterProgression.v1";
+        private const string LegacySaveKey = "PH.CharacterProgression.v1";
 
         private readonly CharacterProgressionSaveData saveData;
 
@@ -104,6 +105,7 @@ namespace PH.Core.Characters
             try
             {
                 PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(saveData));
+                PlayerPrefs.DeleteKey(LegacySaveKey);
                 PlayerPrefs.Save();
                 return true;
             }
@@ -116,7 +118,7 @@ namespace PH.Core.Characters
 
         private CharacterProgressionSaveData Load()
         {
-            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
+            string json = GetSavedJson();
             if (string.IsNullOrWhiteSpace(json))
             {
                 return new CharacterProgressionSaveData();
@@ -131,6 +133,14 @@ namespace PH.Core.Characters
                 Debug.LogError($"Character progression load failed: {exception.Message}");
                 return new CharacterProgressionSaveData();
             }
+        }
+
+        private static string GetSavedJson()
+        {
+            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
+            return string.IsNullOrWhiteSpace(json)
+                ? PlayerPrefs.GetString(LegacySaveKey, string.Empty)
+                : json;
         }
 
         private void NormalizeSaveData()

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace PH.Core.Characters.Skills
+namespace LootUp.Core.Characters.Skills
 {
     public enum CharacterSkillTriggerType
     {
@@ -16,7 +16,7 @@ namespace PH.Core.Characters.Skills
         AddTime
     }
 
-    [CreateAssetMenu(fileName = "CharacterSkillDefinition", menuName = "PH/Characters/Character Skill Definition")]
+    [CreateAssetMenu(fileName = "CharacterSkillDefinition", menuName = "LootUp/Characters/Character Skill Definition")]
     public sealed class CharacterSkillDefinition : ScriptableObject
     {
         [SerializeField]

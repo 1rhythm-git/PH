@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Threading.Tasks;
-using PH.Core.Authentication;
+using LootUp.Core.Authentication;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -8,7 +8,7 @@ using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-namespace PH.Core.SceneFlow
+namespace LootUp.Core.SceneFlow
 {
     public sealed class TitleSceneController : MonoBehaviour
     {

@@ -1,4 +1,4 @@
-namespace PH.Core.Game
+namespace LootUp.Core.Game
 {
     public interface IGameplayPausable
     {

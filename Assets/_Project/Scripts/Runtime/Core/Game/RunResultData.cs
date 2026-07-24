@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using PH.Core.Items;
+using LootUp.Core.Items;
 using UnityEngine;
 
-namespace PH.Core.Game
+namespace LootUp.Core.Game
 {
     [Serializable]
     public sealed class RunResultData
