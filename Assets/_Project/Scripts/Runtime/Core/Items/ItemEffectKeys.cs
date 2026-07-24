@@ -9,5 +9,6 @@ namespace LootUp.Core.Items
         public const string AddMoveSpeedPercent = "add_move_speed_percent";
         public const string AddCollection = "add_collection";
         public const string AddRunGameMoney = "add_run_game_money";
+        public const string AddFeverGauge = "add_fever_gauge";
     }
 }

@@ -7,7 +7,8 @@ namespace LootUp.Core.Items
         Heal,
         Skill,
         Collection,
-        Currency
+        Currency,
+        Fever
     }
 
     public enum ItemPassDirection

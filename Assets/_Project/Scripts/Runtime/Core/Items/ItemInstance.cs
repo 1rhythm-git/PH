@@ -86,13 +86,25 @@ namespace LootUp.Core.Items
                 spawnedAtTime = Time.time;
             }
 
+            bool inside = IsPlayerInside();
+            if (ShouldPauseFeverBattery())
+            {
+                spawnedAtTime += Time.deltaTime;
+                if (inside && !isPlayerInside)
+                {
+                    ShowFeverBatteryPausedFeedback();
+                }
+
+                isPlayerInside = inside;
+                return;
+            }
+
             if (lifetimeSeconds > 0f && Time.time - spawnedAtTime >= lifetimeSeconds)
             {
                 Expire();
                 return;
             }
 
-            bool inside = IsPlayerInside();
             if (inside && !isPlayerInside)
             {
                 TryAddPass();
@@ -244,6 +256,24 @@ namespace LootUp.Core.Items
             playerItemPickupFeedback.Show("PASS", new Color(1f, 0.92f, 0.35f, 1f));
         }
 
+        private bool ShouldPauseFeverBattery()
+        {
+            return definition != null
+                && playerCharacterRuntime != null
+                && playerCharacterRuntime.IsFeverActive
+                && (definition.ItemType == ItemType.Fever
+                    || definition.EffectKey == ItemEffectKeys.AddFeverGauge);
+        }
+
+        private void ShowFeverBatteryPausedFeedback()
+        {
+            topHUDController?.SetItemStatus("FEVER ACTIVE");
+            if (EnsurePickupFeedback())
+            {
+                playerItemPickupFeedback.Show("FEVER ACTIVE", new Color(0.7f, 0.76f, 0.7f, 1f), 1.5f);
+            }
+        }
+
         private void ResolvePlayerRuntimeComponents()
         {
             if (playerMotor == null)
@@ -333,6 +363,10 @@ namespace LootUp.Core.Items
                     return "ALREADY PROCESSED";
                 case ItemEffectOutcome.RunGameMoneyAdded:
                     return $"+{effectResult.Value} MONEY";
+                case ItemEffectOutcome.FeverGaugeAdded:
+                    return $"+{effectResult.Value} FEVER";
+                case ItemEffectOutcome.FeverGaugeUnavailable:
+                    return "FEVER ACTIVE";
             }
 
             switch (definition.ItemType)
@@ -345,6 +379,8 @@ namespace LootUp.Core.Items
                     return "+SCORE";
                 case ItemType.Currency:
                     return "+MONEY";
+                case ItemType.Fever:
+                    return "FEVER CHARGE";
                 default:
                     return definition.AffectsScore ? "+SCORE" : definition.DisplayName;
             }
@@ -372,6 +408,10 @@ namespace LootUp.Core.Items
                     return new Color(0.72f, 0.72f, 0.72f, 1f);
                 case ItemEffectOutcome.RunGameMoneyAdded:
                     return new Color(1f, 0.78f, 0.12f, 1f);
+                case ItemEffectOutcome.FeverGaugeAdded:
+                    return new Color(0.42f, 1f, 0.18f, 1f);
+                case ItemEffectOutcome.FeverGaugeUnavailable:
+                    return new Color(0.7f, 0.76f, 0.7f, 1f);
             }
 
             switch (definition.ItemType)
@@ -384,6 +424,8 @@ namespace LootUp.Core.Items
                     return Color.white;
                 case ItemType.Currency:
                     return new Color(1f, 0.78f, 0.12f, 1f);
+                case ItemType.Fever:
+                    return new Color(0.42f, 1f, 0.18f, 1f);
                 default:
                     return definition.AffectsScore ? Color.white : new Color(1f, 0.86f, 0.16f, 1f);
             }
@@ -416,7 +458,8 @@ namespace LootUp.Core.Items
                     requiredPassCount,
                     scoreBonusPercent,
                     eventRecorder,
-                    eventId));
+                    eventId,
+                    playerCharacterRuntime));
         }
 
         private void Expire()

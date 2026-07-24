@@ -13,7 +13,9 @@ namespace LootUp.Core.Items
         CollectionOwnedLimitReached = 8,
         CollectionRunLimitReached = 9,
         CollectionDuplicateEvent = 10,
-        RunGameMoneyAdded = 11
+        RunGameMoneyAdded = 11,
+        FeverGaugeAdded = 12,
+        FeverGaugeUnavailable = 13
     }
 
     public readonly struct ItemEffectResult
@@ -41,6 +43,7 @@ namespace LootUp.Core.Items
             && Outcome != ItemEffectOutcome.CollectionAlreadyOwned
             && Outcome != ItemEffectOutcome.CollectionOwnedLimitReached
             && Outcome != ItemEffectOutcome.CollectionRunLimitReached
-            && Outcome != ItemEffectOutcome.CollectionDuplicateEvent;
+            && Outcome != ItemEffectOutcome.CollectionDuplicateEvent
+            && Outcome != ItemEffectOutcome.FeverGaugeUnavailable;
     }
 }

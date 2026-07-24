@@ -92,8 +92,19 @@ GameState
 	- 효과: 현재 생명력이 Max이고 추가 슬롯이 없을 때 Max Life +1
 	- 차감 상태에서는 Max Life 증가 없이 생명력만 회복
 	- 추가된 생명력 슬롯이 피해로 소모되면 Max Life는 캐릭터의 원래 수치로 복귀
-	- 추가 슬롯 활성 중 재획득하면 SCORE로 환산하며 Max Life는 중첩 증가하지 않음
-	- 추가 슬롯 소모 후 Max 상태에서 재획득하면 다시 Max Life +1 적용
+		- 추가 슬롯 활성 중 재획득하면 SCORE로 환산하며 Max Life는 중첩 증가하지 않음
+		- 추가 슬롯 소모 후 Max 상태에서 재획득하면 다시 Max Life +1 적용
+•	Fever Battery
+	- ItemType: Fever
+	- EffectKey: add_fever_gauge
+	- EffectValue: 5
+	- RequiredPassCount: 스폰 시 1/3/5 중 랜덤
+	- SpawnWeight: 18
+	- 효과: 카운트 1은 5%, 3은 15%, 5는 30% 즉시 충전
+	- 100% 도달 시 기존 피버 자동 발동
+	- 피버 활성 중에는 Pass와 수명 타이머를 정지하고 획득되지 않은 상태로 필드에 보존
+	- 피버 종료 후 남은 Pass와 수명부터 다시 진행
+	- 피버 중 배터리 접촉 시 `FEVER ACTIVE` 피드백만 표시
 
 이동속도 증가 아이템은 영구 강화가 아니다.
 효과 지속시간 동안만 `PlayerMotor`의 이동속도에 반영하고, 시간이 끝나면 자동으로 제거한다.
@@ -180,6 +191,8 @@ ItemDefinition은 데이터만 보유한다.
 •	Winged Heart는 5회 통과 후 획득한다.
 •	Time, Score 계열 아이템은 스폰 시 1~5회 중 랜덤 통과 카운트를 부여한다.
 •	Red Sneaker, Winged Shoe는 스폰 시 1~3회 중 랜덤 통과 카운트를 부여한다.
+•	Fever Battery는 스폰 시 1/3/5회 중 랜덤 통과 카운트를 부여한다.
+•	Fever Battery는 통과 카운트에 따라 피버 게이지를 각각 5%/15%/30% 충전한다.
 •	이동속도 아이템은 통과 카운트에 비례해 버프 지속시간이 상승한다.
 •	Time 계열 아이템은 통과 카운트에 비례해 시간 증가량이 상승한다.
 •	Score 계열 아이템은 랜덤 통과 카운트가 높을수록 점수 보정이 붙는다.

@@ -136,7 +136,8 @@ Lobby 선택값에 따라 플레이어를 런타임 생성하고 좌우 이동�
 •	`CharacterSkillRuntime`은 런타임 생성 Player에 자동 부착하고 아이템 기본 효과 이후 스킬을 한 번 판정한다.
 •	스킬 효과는 `ICharacterSkillEffect` 구현체로 분리한다.
 •	스킬 발동 텍스트는 `PlayerItemPickupFeedback`의 공용 상승·페이드 연출을 재사용한다. 아이템 연계 발동은 아이템 텍스트 위쪽, 비아이템 연계 발동은 기본 위치에 표시한다.
-•	Agent X Lv.5, Landy/Alice Lv.15, Ninja Lv.20 해금을 위해 캐릭터별 성장 테이블을 Lv.20까지 확장한다.
+•	모든 캐릭터 최대 레벨은 Lv.99로 통일하고 향후 성장 및 능력치 밸런스는 Max Lv.99를 기준으로 조율한다.
+•	Agent X Lv.5, Landy/Alice Lv.15, Ninja Lv.20 해금 구간은 현재 개별 성장 테이블 값을 유지하며, Lv.20 이후 미설정 구간은 마지막 값을 사용한다.
 •	Lobby 스킬 설명은 P1~P5를 현재 에셋 값으로 치환해 표시하며 강화/상세 조작은 후속 작업으로 남긴다.
 Lobby 디자인 현행 메모
 •	`concept/Lobby/Lobby_Design.png`의 세로 구성을 기준으로 상단 프로필/재화, BEST, 캐릭터, START, 메뉴, 광고 순서로 배치한다.
@@ -348,6 +349,7 @@ PART 13
 •	Max Life 증가
 •	시간 증가
 •	플레이어 이동 속도 증가
+•	피버 게이지 즉시 충전
 작업
 •	IItemEffect / ItemEffectResolver
 •	지속 시간
@@ -361,7 +363,7 @@ PART 13
 구현 상태
 •	완료
 현행 메모
-•	현재 구현된 스킬형 아이템은 `Red Sneaker`, `Winged Shoe`, `Winged Heart`이다.
+•	현재 구현된 스킬형 아이템은 `Red Sneaker`, `Winged Shoe`, `Winged Heart`, `Fever Battery`이다.
 •	이동속도 증가는 `AddMoveSpeedItemEffect`로 처리한다.
 •	이동속도 증가는 영구 적용하지 않으며, 기본 5초에 스폰 시 부여된 1~3 카운트를 곱해 5초, 10초, 15초 동안 적용한다.
 •	생명력이 실제로 차감되면 활성 이동속도 효과를 즉시 제거하고 캐릭터 기본 이동속도로 복원한다.
@@ -369,6 +371,7 @@ PART 13
 •	활성 이동속도 버프는 현재 퍼센트 합산 방식으로 계산한다.
 •	Max Life 증가는 `AddMaxLifeItemEffect`로 처리하며, 현재 런에서 최대 +1까지만 허용한다.
 •	Heart Pack은 3회, Winged Heart는 5회 통과 후 획득한다.
+•	Fever Battery는 스폰 시 카운트 1/3/5 중 하나를 부여하고 각각 피버 게이지를 5%/15%/30% 충전하며, 100% 도달 시 기존 피버 자동 발동 경로를 사용한다.
 •	Enemy 일시 정지 아이템은 필요성이 낮아 기획 범위에서 제외한다.
 •	무적, Enemy 감속 등 추가 효과와 세부 중첩 제한은 추후 레벨 디자인 및 밸런스 단계에서 검토한다.
 ________________________________________

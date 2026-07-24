@@ -1,3 +1,4 @@
+using LootUp.Core.Characters;
 using LootUp.Core.Player;
 using LootUp.Core.UI;
 
@@ -38,7 +39,8 @@ namespace LootUp.Core.Items
             int requiredPassCount,
             int scoreBonusPercent,
             RunItemEventRecorder runItemEventRecorder,
-            string eventId)
+            string eventId,
+            PlayerCharacterRuntime playerCharacterRuntime = null)
         {
             TopHUDController = topHUDController;
             PlayerHealth = playerHealth;
@@ -48,6 +50,7 @@ namespace LootUp.Core.Items
             ScoreBonusPercent = scoreBonusPercent;
             RunItemEventRecorder = runItemEventRecorder;
             EventId = eventId ?? string.Empty;
+            PlayerCharacterRuntime = playerCharacterRuntime;
         }
 
         public TopHUDController TopHUDController { get; }
@@ -58,5 +61,6 @@ namespace LootUp.Core.Items
         public int ScoreBonusPercent { get; }
         public RunItemEventRecorder RunItemEventRecorder { get; }
         public string EventId { get; }
+        public PlayerCharacterRuntime PlayerCharacterRuntime { get; }
     }
 }

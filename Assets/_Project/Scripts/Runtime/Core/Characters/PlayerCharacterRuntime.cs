@@ -100,6 +100,18 @@ namespace LootUp.Core.Characters
             AddFeverGauge(FeverGaugeMax);
         }
 
+        public float AddFeverGaugeFromItem(float amount)
+        {
+            if (amount <= 0f || isFeverActive)
+            {
+                return 0f;
+            }
+
+            float addedAmount = Mathf.Min(amount, Mathf.Max(0f, FeverGaugeMax - feverGauge));
+            AddFeverGauge(amount);
+            return addedAmount;
+        }
+
         public bool RollInstantItemAcquire()
         {
             float chance = Mathf.Clamp01(InstantItemAcquireChance);

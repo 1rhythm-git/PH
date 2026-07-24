@@ -4,6 +4,7 @@ money_default,Items/Icons/score_coin,money_default,,,1
 score_gem,Items/Icons/score_gem,score_default,,,1
 ruby_default,Items/Icons/ruby,ruby_default,,,1
 time_default,Items/Icons/clock,time_default,,,1
+fever_battery,Items/Icons/fever_battery,score_default,,,1
 heal_default,Items/Icons/heart,heal_default,,,1
 max_life_heart,Items/Icons/max_life_heart,heal_default,,,1
 red_sneaker,Items/Icons/red_sneaker,score_default,,,1

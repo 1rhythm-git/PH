@@ -13,6 +13,7 @@ namespace LootUp.Core.Player
     public sealed class PlayerSpawner : MonoBehaviour
     {
         private const string SpriteVisualName = "SpriteVisual";
+        private const float TimeCheatSeconds = 30f;
 
         [SerializeField]
         private bool spawnOnStart = true;
@@ -72,14 +73,28 @@ namespace LootUp.Core.Player
         private void Update()
         {
             Keyboard keyboard = Keyboard.current;
-            if (keyboard == null
-                || (!keyboard.digit1Key.wasPressedThisFrame
-                    && !keyboard.numpad1Key.wasPressedThisFrame))
+            if (keyboard == null)
             {
                 return;
             }
 
-            TriggerFeverTest();
+            if (keyboard.digit1Key.wasPressedThisFrame
+                || keyboard.numpad1Key.wasPressedThisFrame)
+            {
+                TriggerFeverTest();
+            }
+
+            if (keyboard.digit2Key.wasPressedThisFrame
+                || keyboard.numpad2Key.wasPressedThisFrame)
+            {
+                TriggerAddTimeTest();
+            }
+
+            if (keyboard.digit3Key.wasPressedThisFrame
+                || keyboard.numpad3Key.wasPressedThisFrame)
+            {
+                TriggerHealTest();
+            }
         }
 
         private void TriggerFeverTest()
@@ -100,6 +115,38 @@ namespace LootUp.Core.Player
             }
 
             characterRuntime.FillFeverGaugeForTest();
+        }
+
+        private void TriggerAddTimeTest()
+        {
+            TopHUDController topHUDController = FindFirstObjectByType<TopHUDController>();
+            if (topHUDController == null)
+            {
+                Debug.LogWarning("시간 연장 테스트를 실행할 TopHUDController를 찾을 수 없습니다.", this);
+                return;
+            }
+
+            topHUDController.AddTime(TimeCheatSeconds);
+            Debug.Log($"Time test input detected: +{TimeCheatSeconds:0}s", this);
+        }
+
+        private void TriggerHealTest()
+        {
+            if (spawnedPlayer == null)
+            {
+                Debug.LogWarning("생명력 회복 테스트를 실행할 Player가 생성되지 않았습니다.", this);
+                return;
+            }
+
+            PlayerHealth playerHealth = spawnedPlayer.GetComponent<PlayerHealth>();
+            if (playerHealth == null)
+            {
+                Debug.LogWarning("생명력 회복 테스트를 실행할 PlayerHealth를 찾을 수 없습니다.", this);
+                return;
+            }
+
+            int healedLife = playerHealth.Heal(1);
+            Debug.Log($"Life heal test input detected: +{healedLife} HP", this);
         }
 
         [ContextMenu("Debug/Spawn Player")]

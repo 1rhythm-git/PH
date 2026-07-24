@@ -503,6 +503,11 @@ namespace LootUp.Core.Items
                 return RollPassCount(random, speedItemPassCountMin, speedItemPassCountMax);
             }
 
+            if (IsFeverGaugeItem(definition))
+            {
+                return random.Next(0, 3) * 2 + 1;
+            }
+
             if (ShouldRandomizePassCount(definition))
             {
                 return RollPassCount(random, randomPassCountMin, randomPassCountMax);
@@ -529,6 +534,12 @@ namespace LootUp.Core.Items
         private bool IsMoveSpeedItem(ItemDefinition definition)
         {
             return definition != null && definition.EffectKey == ItemEffectKeys.AddMoveSpeedPercent;
+        }
+
+        private bool IsFeverGaugeItem(ItemDefinition definition)
+        {
+            return definition != null
+                && (definition.ItemType == ItemType.Fever || definition.EffectKey == ItemEffectKeys.AddFeverGauge);
         }
 
         private int RollPassCount(System.Random random, int minimum, int maximum)

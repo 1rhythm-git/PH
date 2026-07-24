@@ -3766,6 +3766,205 @@ ________________________________________
 
 ________________________________________
 
+2.116 Fever Battery 아이템 및 아이콘 추가
+
+목표:
+• 충전 표시가 있는 배터리 획득 아이템 추가
+• 배터리 획득 시 피버 게이지 충전
+• 기존 일반 아이템 드랍 풀에 배터리 포함
+
+완료 내용:
+• 은색 배터리, 초록 충전 3칸과 노란 번개로 구성된 픽셀아트 아이콘 생성
+• 아이콘을 256×256 RGBA 투명 PNG와 Point 필터용 Unity 메타로 구성
+• `ItemType.Fever`, `add_fever_gauge` 효과 키와 `AddFeverGaugeItemEffect` 추가
+• `PlayerCharacterRuntime.AddFeverGaugeFromItem()`으로 기존 피버 충전과 100% 자동 발동 경로 재사용
+• 아이템 효과 컨텍스트에 현재 `PlayerCharacterRuntime` 전달
+• 획득 피드백에 `+N FEVER`, 피버 활성 중 `FEVER ACTIVE` 상태 추가
+• `Fever Battery`를 1층부터 SpawnWeight 18, 수명 10초로 등록
+• 배터리는 스폰 시 Pass 1/3/5 중 하나를 부여하고 각각 피버 게이지 5%/15%/30% 충전
+• 피버 활성 중에는 기존 정책대로 추가 게이지 충전을 적용하지 않음
+• 피버 활성 중 Enemy 붉은 라인 접촉 피해를 무시하도록 적용
+• Enemy 본체 직접 충돌 피해는 피버 여부와 관계없이 기존대로 유지
+• 아이콘 테이블에 `fever_battery` → `Items/Icons/fever_battery` 연결 추가
+
+변경된 주요 파일:
+• `Assets/_Project/Resources/Items/Icons/fever_battery.png`
+• `Assets/_Project/Resources/Items/Icons/fever_battery.png.meta`
+• `Assets/_Project/Data/Tables/Items.csv`
+• `Assets/_Project/Data/Tables/ItemIcons.csv`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerCharacterRuntime.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/AddFeverGaugeItemEffect.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemEffectContext.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemEffectKeys.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemEffectResolver.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemEffectResult.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemEnums.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemInstance.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/FallbackItemIconProvider.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Items.csv 28열, ItemIcons.csv 6열 전체 행 구조 일치 확인
+• 신규 Unity 메타 GUID 2종의 프로젝트 내 중복 없음 확인
+• 배터리 PNG 256×256 RGBA, 투명 모서리 4개와 가시 마젠타 잔여 픽셀 0 확인
+• 신규 효과 스크립트를 포함한 Unity 6000.3.17f1 전체 Roslyn 컴파일 성공
+• 게이지 100% 도달 시 기존 `StartFever()` 호출 경로 정적 확인
+• 배터리 Pass 생성값이 1/3/5로 제한되고 효과값이 5/15/30으로 계산되는 경로 정적 확인
+• 피버 면역 조건이 붉은 라인 판정에만 적용되고 Enemy 본체 충돌 판정은 유지되는 구조 확인
+
+남은 확인:
+• Unity Play Mode에서 Fever Battery 드랍과 아이콘 표시 확인
+• Pass 1/3/5 배터리가 각각 게이지를 5/15/30 증가시키는지 확인
+• 배터리 획득으로 게이지가 100%에 도달할 때 즉시 피버가 발동하는지 확인
+• 피버 활성 중 획득 시 게이지가 추가되지 않고 `FEVER ACTIVE`가 표시되는지 확인
+• 피버 활성 중 붉은 라인 접촉 피해는 무시하고 Enemy 직접 충돌 피해는 유지되는지 확인
+• 실제 드랍 빈도와 아이콘 크기 밸런스 확인
+
+관련 작업 기준:
+• 사용자 요청: 충전 표시 배터리 아이콘, 피버 게이지 충전 효과와 일반 드랍 추가
+
+________________________________________
+
+2.117 플레이타임 30초 연장 치트키 추가
+
+목표:
+• 키보드 숫자 `2` 입력으로 남은 플레이타임을 즉시 연장
+• 반복 입력할 때마다 30초씩 계속 누적
+
+완료 내용:
+• `PlayerSpawner.Update()`에서 숫자열 `2`와 NumPad `2` 입력 감지
+• 입력 시 기존 `TopHUDController.AddTime(30f)` 경로를 호출
+• 입력 횟수 제한 없이 누를 때마다 남은 시간에 30초 누적
+• 기존 숫자 `1` 피버 즉시 발동 치트 동작 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerSpawner.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 기존 타이머 가산 API를 재사용해 HUD 즉시 갱신 경로 정적 확인
+• 숫자열과 NumPad 입력을 모두 지원하는 구조 확인
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+
+남은 확인:
+• Unity Play Mode에서 숫자열 `2` 입력 시 30초 증가 확인
+• 연속 입력 시 30초씩 누적 증가 확인
+• NumPad `2` 입력 시 동일하게 동작하는지 확인
+
+관련 작업 기준:
+• 사용자 요청: 치트키 `2`에 플레이타임 30초 반복 연장 기능 추가
+
+________________________________________
+
+2.118 생명력 회복 치트키 추가
+
+목표:
+• 키보드 숫자 `3` 입력으로 플레이어 생명력 회복
+• 반복 입력으로 최대 생명력까지 회복
+
+완료 내용:
+• `PlayerSpawner.Update()`에서 숫자열 `3`과 NumPad `3` 입력 감지
+• 입력 시 현재 플레이어의 기존 `PlayerHealth.Heal(1)` 경로 호출
+• 입력할 때마다 생명력 1 회복 및 HUD 즉시 동기화
+• 최대 생명력 초과와 추가 생명력 슬롯 생성 없이 현재 최대치 유지
+• 기존 숫자 `1`, `2` 치트 동작 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerSpawner.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 기존 생명력 회복 API의 최대치 제한과 HUD 동기화 경로 정적 확인
+• 숫자열과 NumPad 입력을 모두 지원하는 구조 확인
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+
+남은 확인:
+• Unity Play Mode에서 피해 후 숫자열 `3` 입력 시 생명력 1 회복 확인
+• 반복 입력 시 최대 생명력까지만 회복되는지 확인
+• NumPad `3` 입력 시 동일하게 동작하는지 확인
+
+관련 작업 기준:
+• 사용자 요청: 치트키 `3`에 생명력 회복 기능 추가
+
+________________________________________
+
+2.119 피버 중 Fever Battery 보존 정책 적용
+
+목표:
+• 피버 중 Fever Battery가 효과 없이 소모되는 문제 방지
+• 피버 종료 후 기존 배터리 진행 상태 재개
+
+완료 내용:
+• 피버 활성 중 Fever Battery의 Pass 카운트 감소 차단
+• 피버 활성 시간만큼 배터리 수명 기준 시각을 보정해 만료 타이머 정지
+• 배터리는 활성 오브젝트와 일반 아이템 점유 셀 상태를 유지
+• 피버 중 최초 접촉 시 `FEVER ACTIVE` HUD 및 캐릭터 피드백 표시
+• 피버 종료 후 남은 Pass와 수명부터 정상 진행
+• 종료 시 배터리와 겹친 상태에서는 자동 획득하지 않고 재접촉 시 Pass 진행
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemInstance.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/02_ITEM_SYSTEM_SPEC.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Fever Battery에만 정지 정책이 적용되는 조건 분기 정적 확인
+• 피버 중 `Acquire()`와 `Expire()`에 진입하지 않는 흐름 확인
+• 활성 상태 유지로 일반 아이템 점유 셀에서 제외되지 않는 구조 확인
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+
+남은 확인:
+• Unity Play Mode에서 피버 중 배터리 Pass가 감소하지 않는지 확인
+• 피버 지속시간 동안 배터리가 만료되지 않는지 확인
+• 피버 종료 후 재접촉 시 남은 Pass부터 진행하는지 확인
+• 배터리 셀에 피버 골드바가 중복 생성되지 않는지 확인
+
+관련 작업 기준:
+• 사용자 확정: 피버 중 배터리 Pass와 수명을 정지하고 종료 후 다시 활성화
+
+________________________________________
+
+2.120 전 캐릭터 최대 레벨 Lv.99 통일
+
+목표:
+• 모든 현재 및 향후 캐릭터의 최대 레벨을 Lv.99로 통일
+• 향후 성장과 능력치 밸런스 기준을 Max Lv.99로 확정
+
+완료 내용:
+• `CharacterDefinition.MaximumCharacterLevel` 공통 상수를 99로 추가
+• `MaxCharacterLevel`이 XP 배열 길이가 아닌 공통 Lv.99를 반환하도록 변경
+• Lv.99에서는 필요 XP 0을 반환해 최대 레벨 상태 유지
+• 현재 에셋에 설정된 Lv.1~20 필요 XP는 그대로 유지
+• Lv.20 이후 미설정 구간은 마지막 필요 XP 값 7600을 사용
+• 기본 런 XP도 기존 동작대로 Lv.20 이후 마지막 값 24를 유지
+• 향후 밸런스 조율 시 Max Lv.99를 최종 기준으로 문서화
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterDefinition.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 기존 스킬 해금 레벨과 Lv.1~20 XP 값 유지 경로 정적 확인
+• 저장 레벨 정규화와 XP 반복 레벨업이 공통 Lv.99 상한을 참조하는 구조 확인
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+
+남은 확인:
+• Unity Play Mode에서 Lv.20 캐릭터가 최대 레벨로 표시되지 않는지 확인
+• XP 지급으로 Lv.21 이상 성장하는지 확인
+• Lv.99에서 XP 게이지가 최대 상태로 표시되고 추가 레벨업하지 않는지 확인
+• Lv.21~99 구간별 필요 XP와 기본 런 XP는 향후 밸런스 단계에서 확정
+
+관련 작업 기준:
+• 사용자 확정: 모든 캐릭터 최대 레벨 Lv.99, 향후 밸런스 기준 Max Lv.99
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
@@ -3779,6 +3978,7 @@ ________________________________________
 8. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
+• Fever Battery 드랍/충전/피버 중 보존, 붉은 라인 면역, 치트키 `2`/`3`을 Play Mode에서 함께 회귀 테스트하고 현재 미커밋 작업을 정리해 커밋한다.
 • 다음으로 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
 • 캐릭터 강화 시스템이 완료된 뒤 실제 Artifact와 CharacterCoin 콘텐츠 및 강화 에셋을 구성하고 PART 14 Play Mode 검증을 재개한다.
 • 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.

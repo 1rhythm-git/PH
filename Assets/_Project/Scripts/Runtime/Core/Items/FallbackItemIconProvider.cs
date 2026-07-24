@@ -28,6 +28,8 @@ namespace LootUp.Core.Items
                     return GetOrCreateCircleSprite();
                 case ItemType.Heal:
                     return GetOrCreateHeartSprite();
+                case ItemType.Fever:
+                    return GetOrCreateSquareSprite();
                 default:
                     return GetOrCreateSquareSprite();
             }
@@ -41,6 +43,8 @@ namespace LootUp.Core.Items
                     return new Color(0.15f, 0.78f, 1f, 0.96f);
                 case ItemType.Heal:
                     return new Color(1f, 0.08f, 0.24f, 0.96f);
+                case ItemType.Fever:
+                    return new Color(0.42f, 1f, 0.18f, 0.96f);
                 default:
                     return defaultScoreColor;
             }

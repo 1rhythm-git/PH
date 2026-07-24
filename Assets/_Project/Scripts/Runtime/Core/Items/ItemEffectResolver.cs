@@ -10,7 +10,8 @@ namespace LootUp.Core.Items
             new AddMaxLifeItemEffect(),
             new HealHeartItemEffect(),
             new AddMoveSpeedItemEffect(),
-            new AddCollectionItemEffect()
+            new AddCollectionItemEffect(),
+            new AddFeverGaugeItemEffect()
         };
 
         public ItemEffectResult Execute(ItemDefinition definition, ItemEffectContext context)

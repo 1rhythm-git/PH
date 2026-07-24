@@ -4,6 +4,7 @@ game_money_small_01,srv_game_money_small_01,items_v1,true,Game Money,Currency,mo
 game_money_medium_01,srv_game_money_medium_01,items_v1,true,Game Money Bundle,Currency,money_default,3,0,20,2,10,Any,add_run_game_money,5,0,false,false,true,0,Uncommon,None,,,1,0,0,0
 game_money_large_01,srv_game_money_large_01,items_v1,true,Game Money Jackpot,Currency,money_default,6,0,5,3,12,Any,add_run_game_money,10,0,false,false,true,0,Rare,None,,,1,0,0,0
 time_chip_01,srv_time_chip_01,items_v1,true,Time Chip,Time,time_default,3,0,35,1,8,Any,add_time,5,0,false,false,true,0,Common,None,,,1,0,0,0
+fever_battery_01,srv_fever_battery_01,items_v1,true,Fever Battery,Fever,fever_battery,1,0,18,1,10,Any,add_fever_gauge,5,0,false,false,true,0,Uncommon,None,,,1,0,0,0
 heart_pack_01,srv_heart_pack_01,items_v1,true,Heart Pack,Heal,heal_default,2,0,30,3,10,Any,heal_heart,1,0,false,false,true,0,Common,None,,,1,0,0,0
 max_life_heart_01,srv_max_life_heart_01,items_v1,true,Winged Heart,Skill,max_life_heart,6,0,10,5,12,Any,add_max_life,1,0,false,false,true,0,Rare,None,,,1,0,0,0
 pass_orb_01,srv_pass_orb_01,items_v1,true,Pass Orb,Score,score_gem,1,0,45,3,12,Any,add_score,250,0,true,false,true,0,Uncommon,None,,,1,0,0,0

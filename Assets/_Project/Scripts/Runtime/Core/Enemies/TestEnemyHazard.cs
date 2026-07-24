@@ -1,4 +1,5 @@
 using LootUp.Core.Audio;
+using LootUp.Core.Characters;
 using LootUp.Core.Game;
 using LootUp.Core.Player;
 using LootUp.Core.World;
@@ -82,7 +83,9 @@ namespace LootUp.Core.Enemies
             }
 
             bool overlapsEnemy = IsPlayerOverlapping(playerHealth);
-            bool overlapsDangerousGuideLine = isDangerousGuideLineActive && IsPlayerOverlappingGuideLine(playerHealth);
+            bool overlapsDangerousGuideLine = isDangerousGuideLineActive
+                && !IsPlayerFeverActive(playerHealth)
+                && IsPlayerOverlappingGuideLine(playerHealth);
             if (!overlapsEnemy && !overlapsDangerousGuideLine)
             {
                 return;
@@ -408,6 +411,14 @@ namespace LootUp.Core.Enemies
             lineLocalRect.yMax += padding;
 
             return lineLocalRect.Overlaps(playerLocalRect, true);
+        }
+
+        private static bool IsPlayerFeverActive(PlayerHealth playerHealth)
+        {
+            PlayerCharacterRuntime characterRuntime = playerHealth != null
+                ? playerHealth.GetComponent<PlayerCharacterRuntime>()
+                : null;
+            return characterRuntime != null && characterRuntime.IsFeverActive;
         }
 
         private Rect GetRectInEnemyParentLocal(RectTransform target)

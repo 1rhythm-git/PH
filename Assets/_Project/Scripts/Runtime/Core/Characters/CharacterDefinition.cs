@@ -7,6 +7,8 @@ namespace LootUp.Core.Characters
     [CreateAssetMenu(fileName = "CharacterDefinition", menuName = "LootUp/Characters/Character Definition")]
     public sealed class CharacterDefinition : ScriptableObject
     {
+        public const int MaximumCharacterLevel = 99;
+
         [SerializeField]
         private string characterId = "default";
 
@@ -95,7 +97,7 @@ namespace LootUp.Core.Characters
         private bool initiallyOwned = true;
 
         [SerializeField]
-        [Tooltip("현재 레벨에서 다음 레벨로 올라갈 때 필요한 XP입니다. 배열 길이 + 1이 최대 레벨입니다.")]
+        [Tooltip("현재 레벨에서 다음 레벨로 올라갈 때 필요한 XP입니다. 미설정된 Lv.99 이전 구간은 마지막 값을 사용합니다.")]
         private int[] requiredExperienceByLevel = { 100, 150, 225, 325, 450, 600, 800, 1050, 1350 };
 
         [SerializeField]
@@ -146,7 +148,7 @@ namespace LootUp.Core.Characters
         public float CollectionItemChanceBonusPercent => Mathf.Max(0f, collectionItemChanceBonusPercent);
         public CharacterUpgradeDefinition[] CollectionUpgrades => collectionUpgrades;
         public bool InitiallyOwned => initiallyOwned;
-        public int MaxCharacterLevel => Mathf.Max(1, (requiredExperienceByLevel?.Length ?? 0) + 1);
+        public int MaxCharacterLevel => MaximumCharacterLevel;
         public CharacterSkillDefinition CharacterSkill => characterSkill;
         public string UnlockableSkillId => characterSkill != null ? characterSkill.SkillId : unlockableSkillId;
         public string UnlockableSkillName => characterSkill != null ? characterSkill.DisplayName : unlockableSkillName;
@@ -178,12 +180,18 @@ namespace LootUp.Core.Characters
         // (추가) 캐릭터 테이블의 현재 레벨 기준 필요 XP를 반환한다. 최대 레벨은 0을 반환한다.
         public int GetRequiredExperienceForLevel(int currentLevel)
         {
-            int index = Mathf.Max(1, currentLevel) - 1;
-            if (requiredExperienceByLevel == null || index < 0 || index >= requiredExperienceByLevel.Length)
+            int normalizedLevel = Mathf.Clamp(currentLevel, 1, MaxCharacterLevel);
+            if (normalizedLevel >= MaxCharacterLevel)
             {
                 return 0;
             }
 
+            if (requiredExperienceByLevel == null || requiredExperienceByLevel.Length == 0)
+            {
+                return 1;
+            }
+
+            int index = Mathf.Clamp(normalizedLevel - 1, 0, requiredExperienceByLevel.Length - 1);
             return Mathf.Max(1, requiredExperienceByLevel[index]);
         }
 
