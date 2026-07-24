@@ -336,7 +336,7 @@ ________________________________________
 
 고려 사항:
 • 부스터 100% 도달 시 효과는 캐릭터 고유 스킬 버튼이 아니라 피버타임 발동으로 기획을 조정했다.
-• 초기 조작 정책은 별도 버튼 없이 100% 도달 후 다음 방향전환 시 자동 발동하는 방향으로 둔다.
+• 당시 초기 조작 정책은 별도 버튼 없이 100% 도달 후 다음 방향전환 시 자동 발동하는 방향으로 두었으며, `2.104`에서 100% 즉시 발동으로 변경했다.
 • 캐릭터 데이터가 연결되지 않으면 기존 테스트 기본값이 유지된다.
 • 현재 InGame에는 네모 기본 캐릭터가 연결되어 있으며, 세모 저성능 캐릭터는 `PlayerSpawner.characterDefinition`에 수동으로 교체해 테스트한다.
 • 아이템 즉시 획득 확률은 RequiredPassCount를 무시하는 강한 효과이므로 서버 검증/랭킹 정책과 함께 관리해야 한다.
@@ -752,7 +752,7 @@ ________________________________________
 기획 결정:
 • 현재 `BOOST %`로 표시되는 게이지는 기획상 피버타임 게이지로 전환한다.
 • 게이지 축적 조건은 기존과 동일하게 이동거리와 방향전환을 사용한다.
-• 게이지 100% 도달 후에는 별도 버튼 없이 다음 방향전환 시 피버타임을 자동 발동하는 방향을 기본안으로 둔다.
+• 당시 기본안은 게이지 100% 도달 후 다음 방향전환 시 자동 발동이었으며, `2.104`에서 방향전환 조건을 폐기하고 100% 즉시 발동으로 변경했다.
 • 피버타임 중에는 이동속도, 아이템 획득, Enemy 회피, 점수 보정 등 런 플레이에 직접 영향을 주는 보너스를 적용할 수 있다.
 • 캐릭터별 고유성은 수동 스킬이 아니라 피버타임 효과 차별화로 확장한다.
 • 수동 스킬 버튼은 초기 출시 범위에서 제외하고, 필요 시 추후 캐릭터/아이템 시스템 확장 단계에서 재검토한다.
@@ -3254,13 +3254,411 @@ ________________________________________
 
 ________________________________________
 
+2.103 Lobby / InGame 공용 배너 광고 영역
+
+목표:
+• Lobby의 기존 배너 광고 정보를 InGame `BottomUI`에도 동일하게 표시
+• 추후 광고 제거 구매 시 Lobby와 InGame 광고 영역이 같은 상태로 함께 숨겨지는 기반 구성
+• 기존 Scene과 런타임 HUD 생성 로직을 변경하지 않고 광고 기능을 독립 관리
+
+완료 내용:
+• `BannerAdState`에 공용 `AD` 라벨, 광고 제거 여부와 `PlayerPrefs` 저장 키 추가
+• 추후 구매 검증 완료 후 `BannerAdState.SetAdsRemoved(true)` 호출로 광고 제거 상태를 영구 저장하도록 구성
+• `BannerAdCoordinator`를 씬 로드 전 자동 생성하고 `DontDestroyOnLoad`로 유지
+• Lobby의 기존 `BannerAdArea`를 자동 등록해 공용 라벨과 표시 상태 적용
+• InGame 진입 시 `Canvas/BottomUI/BannerAdArea`를 런타임 생성
+• InGame 배너는 Lobby와 동일하게 하단 31% 앵커, `AD` 라벨, 배경색과 글자 스타일 사용
+• 광고 제거 상태 변경 이벤트 발생 시 현재 화면의 등록된 광고 영역을 즉시 갱신
+
+변경된 주요 파일:
+• `AGENTS.md`
+• `Assets/_Project/Scripts/Runtime/Core/UI/BannerAdState.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/BannerAdCoordinator.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 기존 `LobbyController`, `TopHUDController`, Lobby/InGame Scene 내용은 변경하지 않음
+• Unity 생성 `Assembly-CSharp.rsp`와 동일한 Roslyn 설정으로 기존 전체 스크립트와 신규 스크립트 컴파일 성공
+• 신규 코드와 실제 내용 diff 기준 공백 오류 없음
+• 전역 `git diff --check`는 이번 작업 전부터 존재한 대규모 CRLF 변경을 trailing whitespace로 인식하므로 별도 확인 필요
+• 사용자 실기기 확인으로 InGame 배너와 피버 게이지 비중첩 확인 완료
+
+남은 확인:
+• Unity Play Mode에서 Lobby 하단 `AD` 영역 표시 확인
+• `BannerAdState.SetAdsRemoved(true)` 호출 시 현재 광고 영역이 숨겨지고 씬 전환 후에도 유지되는지 확인
+• 실제 광고 제거 구매 연결 시 로컬 호출 전에 영수증/서버 검증 정책 적용 필요
+
+관련 작업 기준:
+• 사용자 요청: Lobby의 AD 영역을 InGame BottomUI에도 같은 위치로 추가하고 두 화면이 동일한 광고 제거 정보를 사용
+
+________________________________________
+
+2.104 피버 100% 즉시 발동 / 공통 골드바 효과
+
+목표:
+• 방향전환 조건 없이 피버 게이지 100% 도달 즉시 피버타임 발동
+• 피버 발동 연출과 지속시간 상태를 HUD에 표시
+• 일반 드롭 아이템 위치를 제외한 모든 셀에 Pass 미적용 골드바 배치
+• 페이지 전환 중 효과 유지 및 피버 종료 시 전용 골드바 전체 제거
+
+완료 내용:
+• `PlayerCharacterRuntime`에 피버 활성 상태, 기본 8초 지속시간과 시작/종료 이벤트 추가
+• 게이지가 100%에 도달한 프레임에 즉시 피버를 시작하고 게이지를 0%로 소비
+• 피버 활성 중 추가 게이지 충전을 중지하고 종료 후 다시 충전하도록 구성
+• `TopHUDController`에서 `FEVER TIME` 남은 시간과 노란색 감소 게이지 표시
+• 피버 시작 시 게임 필드 중앙 `FEVER TIME!` 문구와 금색 플래시 연출 추가
+• `ItemSpawner`가 현재 페이지의 일반 드롭 점유 셀을 제공하고 페이지 스폰 완료 이벤트 제공
+• `FeverGoldFieldController`가 활성 일반 드롭 점유 셀을 제외한 전체 빈 셀에 전용 골드바 배치
+• 피버 골드바는 Pass 없이 최초 접촉 시 100점 즉시 지급
+• 동일 피버에서 획득한 절대 층/열 좌표는 재생성하지 않도록 기록
+• 페이지 전환 시 새 페이지를 다시 구성하고 피버 종료 시 모든 활성 골드바를 오브젝트 풀로 회수
+• `FeverGoldLayer`를 MiddleUI 게임 필드의 마지막 형제로 생성해 층별 가림 효과보다 위에 표시
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerCharacterRuntime.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/FeverGoldFieldController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/FeverGoldInstance.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/TopHUDController.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp`에 신규 피버 스크립트를 포함한 전체 Roslyn 컴파일 성공
+• 기존 Scene 수정 없이 `PlayerSpawner`가 Managers에 피버 컨트롤러를 런타임 자동 연결
+• 활성 일반 아이템 점유 좌표 우선, 동일 좌표 중복 생성 방지와 페이지 전환 재구성 경로 정적 확인
+• 실제 내용 diff 기준 피버와 아이템 관련 파일의 공백 오류 확인
+• 저장소 기준 LF와 현재 작업 트리 CRLF 차이로 일반 전역 diff는 대규모 줄바꿈 변경으로 표시됨
+
+남은 확인:
+• Unity Play Mode에서 100% 도달 즉시 `FEVER TIME!` 연출과 골드바 배치 확인
+• 일반 드롭 아이템 셀에 피버 골드바가 생성되지 않는지 확인
+• 피버 중 다음 페이지 진입 시 골드바가 계속 배치되는지 확인
+• 8초 종료 직후 미획득 골드바가 모두 사라지는지 확인
+• 캐릭터별 이동속도에 따른 실제 피버 획득 점수와 8초 지속시간 밸런스 확인
+
+관련 작업 기준:
+• 사용자 요청: 방향전환과 관계없이 100% 도달 후 피버 연출과 효과 즉시 적용
+• 사용자 확정 효과: 일반 드롭 위치 제외 전체 셀 골드바, Pass 미적용, 페이지 전환 유지, 종료 시 제거, 층별 가림 미적용
+
+________________________________________
+
+2.105 피버 일반 드롭 점유 동기화 보완
+
+목표:
+• 피버 중 일반 드롭 아이템을 기존 규칙대로 실제 배치 및 유지
+• 실제 일반 아이템이 없는 빈 셀에는 누락 없이 피버 골드바 배치
+
+완료 내용:
+• 최초 스폰 좌표를 페이지 전체 기간 동안 제외하던 예약 방식 제거
+• `ItemInstance`에 현재 활성 여부와 셀 좌표 조회 API 추가
+• `ItemSpawner.IsCurrentPageCellOccupied()`가 활성 일반 아이템만 점유 셀로 판정
+• 일반 아이템 획득 또는 만료 시 점유 변경 이벤트 발생
+• 피버 활성 중 점유 변경 이벤트를 받으면 현재 페이지의 피버 골드바 필드를 즉시 재구성
+• 일반 아이템이 실제로 존재하는 셀은 골드바에서 제외하고, 사라져 빈 셀이 되면 피버 골드바 배치
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemInstance.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/FeverGoldFieldController.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+• 비활성 일반 아이템은 빈 셀, 활성 일반 아이템만 점유 셀로 판정하는 경로 정적 확인
+• 일반 아이템 획득/만료 후 점유 변경 이벤트가 피버 필드 재구성으로 연결되는 경로 확인
+
+남은 확인:
+• 피버 시작 시 활성 일반 아이템과 피버 골드바가 서로 다른 셀에 함께 표시되는지 확인
+• 일반 아이템 획득 또는 만료 직후 해당 빈 셀에 피버 골드바가 생성되는지 확인
+• 일반 아이템 획득 효과와 새 피버 골드바가 같은 프레임에 연속 획득되는지 플레이 감각 확인
+
+관련 작업 기준:
+• 사용자 확인: 피버 중 일반 드롭 좌표가 비어 보이고 실제 아이템이 없는 셀에도 골드바가 누락됨
+• 사용자 요청: 기본 드롭은 기존처럼 배치하고 실제 빈 셀에만 피버 골드바 생성
+
+________________________________________
+
+2.106 피버 즉시 발동 테스트 치트키
+
+목표:
+• 정상 충전 시간을 기다리지 않고 피버 발동과 효과를 반복 검증
+• 키보드 숫자열 `1` 입력으로 기존 100% 자동 발동 경로 실행
+
+완료 내용:
+• `PlayerCharacterRuntime.FillFeverGaugeForTest()` 추가
+• `PlayerController` Input System에 `<Keyboard>/digit1` 테스트 액션 추가
+• 숫자열 `1` 입력 시 현재 게이지 상태와 관계없이 100%까지 충전해 기존 `StartFever()` 실행
+• 이미 피버가 활성 상태이면 중복 발동하지 않음
+• `Debug.isDebugBuild` 조건을 적용해 Editor와 Development Build에서만 치트키 동작
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerCharacterRuntime.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+• 테스트 액션 생성, 활성화, 비활성화와 `Dispose()` 수명주기 연결 확인
+• 치트 입력이 정상 게이지 충전 및 기존 피버 자동 발동 경로를 재사용하는 구조 확인
+
+남은 확인:
+• Unity Play Mode에서 숫자열 `1` 입력 직후 피버 연출과 골드바 필드 생성 확인
+• 피버 활성 중 숫자열 `1` 재입력 시 지속시간이 초기화되지 않는지 확인
+• 일반 릴리스 빌드에서 치트키가 동작하지 않는지 확인
+
+관련 작업 기준:
+• 사용자 요청: 테스트를 위해 키보드 `1` 입력 시 피버 게이지 즉시 100% 및 발동
+
+________________________________________
+
+2.107 피버 테스트 치트키 입력 무반응 보완
+
+목표:
+• 인게임에서 키보드 숫자 `1` 입력 시 환경과 이동 제어 상태에 관계없이 피버 테스트 실행
+• 숫자열 `1`과 NumPad `1`의 바인딩을 명확히 구분해 모두 지원
+
+완료 내용:
+• 기존 `<Keyboard>/digit1`이 숫자열 `1` 바인딩임을 확인
+• `<Keyboard>/numpad1` 바인딩을 추가해 NumPad `1`도 지원
+• `Debug.isDebugBuild` 제한을 제거해 일반 빌드 테스트에서도 치트 입력 처리
+• 이동 제어 비활성 검사보다 피버 테스트 입력을 먼저 처리하도록 실행 순서 분리
+• `PlayerCharacterRuntime` 참조가 비어 있으면 동일 Player GameObject에서 재탐색
+• 런타임 참조를 찾지 못한 경우 Console 경고 출력
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 숫자열 `1`과 NumPad `1`의 Input System 바인딩 정적 확인
+• 이동 제어 비활성 상태에서도 테스트 입력 처리 경로가 먼저 실행되는 구조 확인
+• 런타임 참조 누락 시 재탐색 및 경고 출력 경로 확인
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+
+남은 확인:
+• Unity Play Mode Game 뷰에서 숫자열 `1` 입력 직후 피버 발동 확인
+• NumPad `1` 입력 시 동일하게 피버 발동하는지 확인
+• 피버 활성 중 재입력 시 지속시간이 초기화되지 않는지 확인
+
+관련 작업 기준:
+• 사용자 확인: 인게임에서 숫자열 `1` 입력 시 반응 없음
+• 사용자 요청: NumPad 전용 적용 여부 확인 및 숫자열 `1` 동작 보장
+
+________________________________________
+
+2.108 피버 테스트 입력 경로 PlayerSpawner 이관
+
+목표:
+• `PlayerController` 생성 순서, 활성 상태와 직렬화 값에 의존하지 않는 피버 테스트 입력 구성
+• 두 차례 확인된 숫자 `1` 입력 무반응 원인을 Console에서 즉시 구분 가능하게 진단 정보 제공
+
+완료 내용:
+• 피버 테스트 입력 책임을 런타임 생성 Player의 `PlayerController`에서 InGame 씬의 `PlayerSpawner`로 이관
+• InputAction 대신 `Keyboard.current.digit1Key.wasPressedThisFrame`을 직접 검사
+• `Keyboard.current.numpad1Key.wasPressedThisFrame`도 함께 지원
+• 입력 감지 시 Console에 `Fever test input detected` 로그 출력
+• Player 미생성 또는 `PlayerCharacterRuntime` 누락 시 원인별 경고 출력
+• `PlayerController`에서 테스트 전용 필드, InputAction과 처리 코드를 제거해 중복 발동 방지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• InGame 씬에 `PlayerSpawner`가 존재하고 Player를 런타임 생성하는 구조 확인
+• InGame `PlayerSpawner.playerPrefab`이 비어 있어 기본 Player 생성 경로를 사용하는 상태 확인
+• 숫자열 `1`과 NumPad `1`을 직접 검사하는 입력 경로 정적 확인
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+• 기존 Editor 로그에서 Player 생성과 InGame 실행은 정상이지만 이전 입력 감지 및 `Fever Started` 로그가 없었던 상태 확인
+
+남은 확인:
+• Unity Play Mode Game 뷰에서 숫자열 `1` 입력 시 `Fever test input detected` 로그 확인
+• 입력 로그 직후 `Fever Started` 로그와 피버 연출 확인
+• 입력 로그가 없다면 Game 뷰 포커스와 Input System 키보드 장치 연결 상태 확인
+
+관련 작업 기준:
+• 사용자 재확인: 입력 경로 보완 후에도 숫자열 `1` 입력 반응 없음
+
+________________________________________
+
+2.109 Logo / Damage / Walk / Run SFX 연결
+
+목표:
+• 기존 공용 SFX 구조를 확장해 신규 음원 4종을 게임 이벤트와 애니메이션에 연결
+• Walk/Run 반복음이 렌더 프레임마다 중첩되지 않고 실제 애니메이션 프레임 전환마다 재생되도록 구성
+
+완료 내용:
+• `GameSfxId`에 `Logo`, `Damage`, `Walk`, `Run` 추가
+• `Resources/Audio/SFX` 경로의 신규 음원을 지연 로드하고 캐시하도록 확장
+• 일반 효과음과 Walk/Run 이동음을 서로 다른 `AudioSource`로 분리
+• 두 AudioSource를 2D, Play On Awake Off, Loop Off로 자동 설정
+• Loading 로고 하이라이트가 켜지는 시점에 `Logo.ogg` 재생
+• Enemy 충돌로 실제 생명력이 차감된 경우에만 `Damage.ogg` 재생
+• Walk/Run 스프라이트 프레임 인덱스가 변경될 때 해당 이동음 재생
+• Idle, 실제 이동 잠금, 애니메이션 누락, 컴포넌트 비활성화 시 이동음 즉시 중단
+• Walk와 Run 전환 시 전용 이동 채널의 이전 음원을 정리한 뒤 새 음원 재생
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Audio/GameSfxPlayer.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Bootstrap/RuntimeBootstrapper.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Enemies/TestEnemyHazard.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/PlayerSpriteAnimator.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 기존 `Enemy`, `ItemPass`, `ItemGain` 재생 API 유지
+• 신규 음원 4종의 파일과 Unity 메타 파일 존재 확인
+• Logo, 실제 Damage 성공, Walk/Run 프레임 변경 호출 경로 정적 확인
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+
+남은 확인:
+• Loading 로고 하이라이트와 `Logo.ogg` 재생 타이밍 확인
+• Enemy 충돌 시 `Damage.ogg`가 1회 재생되고 무적 중 재충돌에서는 재생되지 않는지 확인
+• 일반 이동 시 Walk, 이동속도 버프 중 Run 음원이 애니메이션 프레임마다 재생되는지 확인
+• Idle과 피격 이동 잠금 시 이동음이 즉시 중단되는지 확인
+• 실기기 스피커 기준 음량과 프레임별 재시작 감각 조정
+
+관련 작업 기준:
+• 사용자 요청: `Audio/SFX`의 Logo, Damage, Walk, Run 음원을 지정된 이벤트에 연결
+• 사용자 승인: 신규 매니저를 추가하지 않고 기존 `GameSfxPlayer` 확장 진행
+
+________________________________________
+
+2.110 Walk / Run 기본 음량 상향
+
+목표:
+• 일반 효과음의 현재 음량은 유지하면서 Walk/Run 이동음만 명확히 들리도록 출력 상향
+
+완료 내용:
+• 일반 SFX용 `masterVolume`과 별도로 이동음 전용 `movementVolume` 추가
+• 이동음 기본값을 기존 `0.5`에서 Unity AudioSource 최대 기본 범위인 `1.0`으로 상향
+• Walk/Run 재생 시 `movementVolume`을 사용하도록 변경
+• Logo, Damage, Enemy, ItemPass, ItemGain의 기존 `masterVolume = 0.5` 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Audio/GameSfxPlayer.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Walk/Run 전용 채널만 별도 음량을 사용하는 경로 정적 확인
+• 일반 효과음 재생 경로와 기본 음량에 영향 없음 확인
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+
+남은 확인:
+• Play Mode 및 실기기에서 Walk/Run 음량이 충분히 들리는지 확인
+• 최대 음량에서도 부족하면 AudioMixer 증폭 또는 원본 음원 노멀라이즈 재검토
+
+관련 작업 기준:
+• 사용자 확인: Walk와 Run 기본 음량이 작아 거의 들리지 않음
+
+________________________________________
+
+2.111 Walk / Run WAV 원본 레벨 정규화
+
+목표:
+• 이동음이 계속 들리지 않는 원인을 WAV 형식, Unity 임포트와 원본 샘플 레벨 기준으로 확인
+• 코드 볼륨을 1 이상으로 비정상 증폭하지 않고 원본 음원을 안전한 범위로 정규화
+
+확인 결과:
+• 두 파일 모두 Unity가 지원하는 Microsoft PCM 16-bit, Stereo, 44.1 kHz WAV
+• Unity Editor 로그에 Walk/Run 오디오 임포트 오류 없음
+• `Walk.wav` 원본 피크 약 `-21.8 dBFS`, RMS 약 `-45.0 dBFS`
+• `Run.wav` 원본 피크 약 `-20.9 dBFS`, RMS 약 `-41.8 dBFS`
+• WAV 확장자 문제가 아니라 원본 샘플 레벨이 매우 낮았던 것이 주 원인
+
+완료 내용:
+• `Walk.wav`와 `Run.wav`를 피크 `-3.0 dBFS` 기준으로 정규화
+• Walk 약 `8.672배`, Run 약 `7.850배` 샘플 증폭
+• 정규화 후 Walk RMS `-26.2 dBFS`, Run RMS `-23.9 dBFS`
+• 채널 수, 비트 깊이, 샘플레이트와 재생 길이 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Resources/Audio/SFX/Walk.wav`
+• `Assets/_Project/Resources/Audio/SFX/Run.wav`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 정규화 후 두 파일의 RIFF/WAVE 및 PCM 헤더 정상 확인
+• Walk 재생 길이 약 `0.4985초`, Run 재생 길이 약 `0.5015초` 유지
+• 양쪽 음원의 최종 피크 `-3.0 dBFS` 확인
+
+남은 확인:
+• Unity 오디오 재임포트 완료 후 Play Mode에서 Walk/Run 청감 확인
+• 반복 재생이 지나치게 크거나 피로하면 `movementVolume`을 `0.7~0.9` 범위로 조정
+
+관련 작업 기준:
+• 사용자 재확인: `movementVolume = 1.0` 적용 후에도 Walk/Run이 들리지 않음
+• 사용자 질문: 두 효과음이 WAV 형식인 것이 원인인지 확인
+
+________________________________________
+
+2.112 Title / Lobby / InGame / Fever BGM 적용
+
+목표:
+• `Assets/_Project/Resources/Audio/BGM/README.txt`의 트랙 용도와 Unity 권장 설정 반영
+• 씬과 피버 상태에 맞는 BGM을 자동 선택하고 끊김을 줄인 전환 제공
+
+README 적용 기준:
+• Title: `LootUp_Title_Loop.wav`, 104 BPM
+• Lobby: `LootUp_Lobby_Loop.wav`, 112 BPM
+• InGame Normal: `LootUp_InGame_Normal_Loop.wav`, 132 BPM
+• InGame Fever: `LootUp_InGame_Fever_Loop.wav`, 160 BPM
+• Compressed In Memory, Vorbis, Quality 0.75, Preload Audio Data On
+• BGM AudioSource Loop On
+• Normal/Fever 전환은 AudioSource 2개와 0.4초 크로스페이드 사용
+
+완료 내용:
+• 씬 로드 전 자동 생성되고 `DontDestroyOnLoad`로 유지되는 `GameBgmPlayer` 추가
+• Title, Lobby, InGame 씬 진입 시 지정 트랙 자동 재생
+• Loading 등 BGM이 지정되지 않은 씬에서는 기존 BGM 정지
+• InGame Player 생성 후 최대 10프레임 동안 `PlayerCharacterRuntime` 탐색 및 이벤트 연결
+• `FeverStarted` 시 Normal에서 Fever로 0.4초 크로스페이드
+• `FeverEnded` 시 Fever에서 Normal로 0.4초 크로스페이드
+• 씬 전환 시 기존 피버 이벤트 구독과 탐색 코루틴 정리
+• 같은 트랙 재요청 시 재시작하지 않아 루프 위치 유지
+• BGM 볼륨 기본값 `0.4`, 2D, Play On Awake Off로 구성
+• BGM 4종과 README에 Unity 메타 파일 및 고유 GUID 추가
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Audio/GameBgmPlayer.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Audio/GameBgmPlayer.cs.meta`
+• `Assets/_Project/Resources/Audio/BGM.meta`
+• `Assets/_Project/Resources/Audio/BGM/*.wav`
+• `Assets/_Project/Resources/Audio/BGM/*.wav.meta`
+• `Assets/_Project/Resources/Audio/BGM/README.txt`
+• `Assets/_Project/Resources/Audio/BGM/README.txt.meta`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• BGM 4종이 README 명시 형식인 PCM 16-bit, Stereo, 22.05 kHz WAV임을 확인
+• Resources 경로와 파일 대소문자 일치 확인
+• 신규 메타 GUID 7종의 프로젝트 내 중복 없음 확인
+• 씬별 선택, 피버 이벤트 구독/해제, 2채널 크로스페이드 경로 정적 확인
+• 신규 `GameBgmPlayer.cs`를 포함한 Unity 6000.3.17f1 전체 Roslyn 컴파일 성공
+• 사용자 Play Mode 확인으로 Title, Lobby, InGame Normal/Fever BGM 재생과 피버 전환 동작 확인 완료
+
+남은 확인:
+• 실기기에서 SFX 대비 BGM 기본 음량 `0.4` 밸런스 확인
+• 장시간 루프 시 루프 경계 클릭음 또는 공백 여부 확인
+
+관련 작업 기준:
+• 사용자 요청: `Audio/BGM/README.txt`를 읽고 타이틀, 로비, 인게임 노멀, 인게임 피버 BGM 적용
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
 1. 캐릭터 강화 시스템 기획 및 구현
 2. PART 14 실제 Artifact / CharacterCoin 콘텐츠와 강화 에셋 구성 및 Play Mode 검증 (`2.62`, 선행 작업 완료 후 재개)
 3. PlayerRespawnController 정식 분리
-4. 피버타임 발동/효과 정책 정의
+4. 피버타임 Play Mode 검증 및 지속시간/점수 밸런스 조정
 5. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
 6. TopUI 디자인 교체 전 구조 정리
 7. 유저 프로필 재화 보상 지급/차감 정책 및 서버 동기화 설계
@@ -3270,7 +3668,7 @@ ________________________________________
 • 다음으로 캐릭터 강화 능력치, 단계별 비용, 복수 코인 조합과 최대 단계 정책을 확정하고 구현한다.
 • 캐릭터 강화 시스템이 완료된 뒤 실제 Artifact와 CharacterCoin 콘텐츠 및 강화 에셋을 구성하고 PART 14 Play Mode 검증을 재개한다.
 • 광고 부활 작업 전에 `PlayerRespawnController`를 분리해 일반 피격과 광고 부활의 복귀 정책을 구분한다.
-• 피버타임은 발동 조건과 캐릭터별 효과 정책을 확정한 뒤 구현한다.
+• 피버타임은 Play Mode에서 즉시 발동, 페이지 전환 유지, 종료 제거를 확인한 뒤 지속시간과 점수를 조정한다.
 • Normal / Hard 선택은 실제 모드별 리스폰 정책을 정의한 뒤 Lobby에 활성 기능으로 연결한다.
 • 광고 부활은 리스폰 정책이 확정된 뒤 결과창 확장 작업으로 연결한다.
 

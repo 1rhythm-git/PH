@@ -85,7 +85,7 @@
       - Horizontal floor boundary lines aligned to grid row boundaries.
   - `Canvas/BottomUI`:
     - Item slots.
-    - (Future) Banner ad area.
+    - Banner ad area (shares visibility/removal state with Lobby).
 
 ## Important Scripts (so far)
 

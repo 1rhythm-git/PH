@@ -161,7 +161,7 @@ namespace LootUp.Core.UI
 
         private void Update()
         {
-            UpdateFeverReadyBlink();
+            UpdateFeverVisual();
             RefreshSpeedBuffStatus();
 
             if (!useTimer || timerPaused || remainingSeconds <= 0f)
@@ -191,6 +191,8 @@ namespace LootUp.Core.UI
             if (characterRuntime != null)
             {
                 characterRuntime.FeverGaugeChanged -= HandleFeverGaugeChanged;
+                characterRuntime.FeverStarted -= HandleFeverStarted;
+                characterRuntime.FeverEnded -= HandleFeverEnded;
             }
         }
 
@@ -277,6 +279,8 @@ namespace LootUp.Core.UI
             if (characterRuntime != null)
             {
                 characterRuntime.FeverGaugeChanged -= HandleFeverGaugeChanged;
+                characterRuntime.FeverStarted -= HandleFeverStarted;
+                characterRuntime.FeverEnded -= HandleFeverEnded;
             }
 
             characterRuntime = runtime;
@@ -285,6 +289,8 @@ namespace LootUp.Core.UI
             {
                 ApplyCharacterDefinition(characterRuntime.CharacterDefinition);
                 characterRuntime.FeverGaugeChanged += HandleFeverGaugeChanged;
+                characterRuntime.FeverStarted += HandleFeverStarted;
+                characterRuntime.FeverEnded += HandleFeverEnded;
                 RefreshFeverGauge(characterRuntime.FeverGaugeNormalized);
                 return;
             }
@@ -994,6 +1000,17 @@ namespace LootUp.Core.UI
             RefreshFeverGauge(normalizedGauge);
         }
 
+        private void HandleFeverStarted(float durationSeconds)
+        {
+            SetItemStatus("FEVER TIME!");
+            RefreshFeverActive();
+        }
+
+        private void HandleFeverEnded()
+        {
+            RefreshFeverGauge(characterRuntime != null ? characterRuntime.FeverGaugeNormalized : 0f);
+        }
+
         private void RefreshFeverGauge(float normalizedGauge)
         {
             if (feverText == null)
@@ -1019,8 +1036,14 @@ namespace LootUp.Core.UI
             }
         }
 
-        private void UpdateFeverReadyBlink()
+        private void UpdateFeverVisual()
         {
+            if (characterRuntime != null && characterRuntime.IsFeverActive)
+            {
+                RefreshFeverActive();
+                return;
+            }
+
             if (feverGaugeFillImage == null || currentFeverGaugeNormalized < 1f)
             {
                 return;
@@ -1029,6 +1052,29 @@ namespace LootUp.Core.UI
             float interval = Mathf.Max(0.01f, feverReadyBlinkInterval);
             bool showReadyColor = Mathf.FloorToInt(Time.unscaledTime / interval) % 2 == 0;
             feverGaugeFillImage.color = showReadyColor ? feverReadyColor : feverGaugeFillColor;
+        }
+
+        private void RefreshFeverActive()
+        {
+            if (feverText == null || characterRuntime == null)
+            {
+                return;
+            }
+
+            float remainingNormalized = characterRuntime.FeverRemainingNormalized;
+            feverText.text = $"FEVER TIME  {characterRuntime.FeverRemainingSeconds:0.0}s";
+            feverText.color = feverReadyColor;
+
+            if (feverGaugeFillImage != null)
+            {
+                feverGaugeFillImage.color = feverReadyColor;
+            }
+
+            if (feverGaugeFillRect != null)
+            {
+                feverGaugeFillRect.anchorMax = new Vector2(remainingNormalized, 1f);
+                feverGaugeFillRect.offsetMax = new Vector2(remainingNormalized <= 0f ? 4f : -4f, -4f);
+            }
         }
 
         private void EnsureReferences()

@@ -1,3 +1,4 @@
+using LootUp.Core.Audio;
 using LootUp.Core.Player;
 using UnityEngine;
 using UnityEngine.UI;
@@ -21,6 +22,9 @@ namespace LootUp.Core.Characters
 
         private float elapsedSeconds;
         private int lastFacingDirection = 1;
+        private int lastAnimationFrameIndex = -1;
+        private AnimationState lastAnimationState = AnimationState.Idle;
+        private bool hasAnimationFrameState;
         private Vector2 baseAnchoredPosition;
 
         private void Awake()
@@ -32,6 +36,7 @@ namespace LootUp.Core.Characters
         {
             if (targetImage == null || characterDefinition == null)
             {
+                StopMovementSfx();
                 return;
             }
 
@@ -39,6 +44,7 @@ namespace LootUp.Core.Characters
             if (frames == null || frames.Length == 0)
             {
                 targetImage.enabled = false;
+                StopMovementSfx();
                 return;
             }
 
@@ -49,6 +55,7 @@ namespace LootUp.Core.Characters
             int frameIndex = Mathf.FloorToInt(elapsedSeconds * framesPerSecond) % frames.Length;
             targetImage.sprite = frames[frameIndex];
             ApplyFrameTransform(animationState, frameIndex);
+            UpdateMovementSfx(animationState, frameIndex);
         }
 
         public void Configure(CharacterDefinition definition, PlayerController controller)
@@ -56,9 +63,15 @@ namespace LootUp.Core.Characters
             characterDefinition = definition;
             playerController = controller;
             elapsedSeconds = 0f;
+            ResetMovementSfxState();
             EnsureReferences();
             baseAnchoredPosition = targetImage != null ? targetImage.rectTransform.anchoredPosition : Vector2.zero;
             ApplyInitialFrame();
+        }
+
+        private void OnDisable()
+        {
+            ResetMovementSfxState();
         }
 
         private void ApplyInitialFrame()
@@ -80,9 +93,56 @@ namespace LootUp.Core.Characters
             ApplyFrameTransform(animationState, 0);
         }
 
+        private void UpdateMovementSfx(AnimationState animationState, int frameIndex)
+        {
+            if (hasAnimationFrameState
+                && lastAnimationState == animationState
+                && lastAnimationFrameIndex == frameIndex)
+            {
+                return;
+            }
+
+            hasAnimationFrameState = true;
+            lastAnimationState = animationState;
+            lastAnimationFrameIndex = frameIndex;
+
+            switch (animationState)
+            {
+                case AnimationState.Walk:
+                    GameSfxPlayer.PlayMovement(GameSfxId.Walk);
+                    break;
+                case AnimationState.Run:
+                    GameSfxPlayer.PlayMovement(GameSfxId.Run);
+                    break;
+                default:
+                    GameSfxPlayer.StopMovement();
+                    break;
+            }
+        }
+
+        private void StopMovementSfx()
+        {
+            if (!hasAnimationFrameState || lastAnimationState == AnimationState.Idle)
+            {
+                return;
+            }
+
+            ResetMovementSfxState();
+        }
+
+        private void ResetMovementSfxState()
+        {
+            hasAnimationFrameState = false;
+            lastAnimationState = AnimationState.Idle;
+            lastAnimationFrameIndex = -1;
+            GameSfxPlayer.StopMovement();
+        }
+
         private Sprite[] ResolveFrames(out AnimationState animationState)
         {
-            bool isMoving = playerController != null && playerController.IsMoving;
+            bool isMoving = playerController != null
+                && playerController.IsMoving
+                && (playerMotor == null || !playerMotor.IsMovementLocked);
 
             // (추가) 이동속도 아이템이 활성화된 동안 기존 Run 스프라이트를 대시 애니메이션으로 사용한다.
             if (isMoving && playerMotor != null && playerMotor.HasActiveMoveSpeedBuff && HasFrames(characterDefinition.RunSprites))

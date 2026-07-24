@@ -76,6 +76,7 @@ namespace LootUp.Core.Enemies
 
             if (playerHealth.TakeDamage(damage))
             {
+                GameSfxPlayer.Play(GameSfxId.Damage);
                 ShowHitFeedback(playerHealth);
                 nextHitAllowedTime = Time.time + Mathf.Max(0f, hitCooldownSeconds);
             }

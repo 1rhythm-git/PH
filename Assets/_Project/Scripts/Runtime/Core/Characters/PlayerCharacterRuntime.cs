@@ -13,11 +13,17 @@ namespace LootUp.Core.Characters
         [FormerlySerializedAs("boosterGauge")]
         private float feverGauge;
 
-        private bool feverReadyLogged;
+        [SerializeField]
+        private float feverDurationSeconds = 8f;
+
+        private float feverRemainingSeconds;
+        private bool isFeverActive;
         private CharacterUpgradeModifiers upgradeModifiers;
 
         public event Action<float> FeverGaugeChanged;
         public event Action<float> BoosterGaugeChanged;
+        public event Action<float> FeverStarted;
+        public event Action FeverEnded;
 
         public CharacterDefinition CharacterDefinition => characterDefinition;
         public float MoveSpeedColumnsPerSecond => characterDefinition != null
@@ -38,16 +44,37 @@ namespace LootUp.Core.Characters
         public float FeverGauge => feverGauge;
         public float FeverGaugeMax => characterDefinition != null ? characterDefinition.FeverGaugeMax : 100f;
         public float FeverGaugeNormalized => FeverGaugeMax <= 0f ? 0f : Mathf.Clamp01(feverGauge / FeverGaugeMax);
+        public bool IsFeverActive => isFeverActive;
+        public float FeverDurationSeconds => Mathf.Max(0.1f, feverDurationSeconds);
+        public float FeverRemainingSeconds => Mathf.Max(0f, feverRemainingSeconds);
+        public float FeverRemainingNormalized => !isFeverActive
+            ? 0f
+            : Mathf.Clamp01(feverRemainingSeconds / FeverDurationSeconds);
         public float BoosterGauge => FeverGauge;
         public float BoosterGaugeMax => FeverGaugeMax;
         public float BoosterGaugeNormalized => FeverGaugeNormalized;
+
+        private void Update()
+        {
+            if (!isFeverActive)
+            {
+                return;
+            }
+
+            feverRemainingSeconds = Mathf.Max(0f, feverRemainingSeconds - Time.deltaTime);
+            if (feverRemainingSeconds <= 0f)
+            {
+                EndFever();
+            }
+        }
 
         public void Configure(CharacterDefinition definition)
         {
             characterDefinition = definition;
             upgradeModifiers = CharacterUpgradeResolver.Resolve(definition);
             feverGauge = 0f;
-            feverReadyLogged = false;
+            feverRemainingSeconds = 0f;
+            isFeverActive = false;
             NotifyFeverGaugeChanged();
         }
 
@@ -63,6 +90,16 @@ namespace LootUp.Core.Characters
             AddFeverGauge(gain);
         }
 
+        public void FillFeverGaugeForTest()
+        {
+            if (isFeverActive)
+            {
+                return;
+            }
+
+            AddFeverGauge(FeverGaugeMax);
+        }
+
         public bool RollInstantItemAcquire()
         {
             float chance = Mathf.Clamp01(InstantItemAcquireChance);
@@ -71,7 +108,7 @@ namespace LootUp.Core.Characters
 
         private void AddFeverGauge(float amount)
         {
-            if (amount <= 0f || feverGauge >= FeverGaugeMax)
+            if (amount <= 0f || isFeverActive)
             {
                 return;
             }
@@ -79,11 +116,38 @@ namespace LootUp.Core.Characters
             feverGauge = Mathf.Min(FeverGaugeMax, feverGauge + amount);
             NotifyFeverGaugeChanged();
 
-            if (!feverReadyLogged && feverGauge >= FeverGaugeMax)
+            if (feverGauge >= FeverGaugeMax)
             {
-                feverReadyLogged = true;
-                Debug.Log($"Fever Ready: {(characterDefinition != null ? characterDefinition.FeverBuffKey : "Undefined")}", this);
+                StartFever();
             }
+        }
+
+        private void StartFever()
+        {
+            if (isFeverActive)
+            {
+                return;
+            }
+
+            isFeverActive = true;
+            feverRemainingSeconds = FeverDurationSeconds;
+            feverGauge = 0f;
+            NotifyFeverGaugeChanged();
+            FeverStarted?.Invoke(FeverDurationSeconds);
+            Debug.Log($"Fever Started: {(characterDefinition != null ? characterDefinition.FeverBuffKey : "Undefined")}", this);
+        }
+
+        private void EndFever()
+        {
+            if (!isFeverActive)
+            {
+                return;
+            }
+
+            isFeverActive = false;
+            feverRemainingSeconds = 0f;
+            FeverEnded?.Invoke();
+            Debug.Log("Fever Ended", this);
         }
 
         private void NotifyFeverGaugeChanged()
@@ -91,5 +155,12 @@ namespace LootUp.Core.Characters
             FeverGaugeChanged?.Invoke(FeverGaugeNormalized);
             BoosterGaugeChanged?.Invoke(FeverGaugeNormalized);
         }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            feverDurationSeconds = Mathf.Max(0.1f, feverDurationSeconds);
+        }
+#endif
     }
 }

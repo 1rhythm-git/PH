@@ -80,6 +80,8 @@ namespace LootUp.Core.Items
         private bool hasRuntimeSeed;
 
         public ItemIconTable IconTable => itemIconTable;
+        public event System.Action<int> CurrentPageItemsSpawned;
+        public event System.Action CurrentPageItemOccupancyChanged;
 
         private void Awake()
         {
@@ -197,6 +199,33 @@ namespace LootUp.Core.Items
             }
 
             lastSpawnedPageIndex = floorManager.CurrentPageIndex;
+            CurrentPageItemsSpawned?.Invoke(lastSpawnedPageIndex);
+        }
+
+        public bool IsCurrentPageCellOccupied(int column, int row)
+        {
+            if (buildingGridUI == null
+                || column < 0
+                || column >= buildingGridUI.Columns
+                || row < 0
+                || row >= buildingGridUI.Rows)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < spawnedItems.Count; i++)
+            {
+                ItemInstance item = spawnedItems[i];
+                if (item != null
+                    && item.IsAvailable
+                    && item.ColumnIndex == column
+                    && item.PageFloorIndex == row)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         [ContextMenu("Debug/Clear Items")]
@@ -209,6 +238,8 @@ namespace LootUp.Core.Items
                 {
                     continue;
                 }
+
+                item.AvailabilityChanged -= HandleItemAvailabilityChanged;
 
                 if (Application.isPlaying)
                 {
@@ -451,7 +482,13 @@ namespace LootUp.Core.Items
             int runtimePassCount = ResolveRuntimePassCount(definition, random);
             int scoreBonusPercent = ResolveScoreBonusPercent(definition, runtimePassCount);
             item.Configure(definition, floorManager, playerMotor, eventRecorder, address.AbsoluteFloor, address.PageIndex, address.PageFloorIndex, column, new Color(1f, 1f, 1f, 0f), runtimePassCount, scoreBonusPercent);
+            item.AvailabilityChanged += HandleItemAvailabilityChanged;
             spawnedItems.Add(item);
+        }
+
+        private void HandleItemAvailabilityChanged(ItemInstance item)
+        {
+            CurrentPageItemOccupancyChanged?.Invoke();
         }
 
         private int ResolveRuntimePassCount(ItemDefinition definition, System.Random random)

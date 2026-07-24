@@ -1,4 +1,5 @@
 using System.Collections;
+using LootUp.Core.Audio;
 using LootUp.Core.SceneFlow;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -39,6 +40,7 @@ namespace LootUp.Core.Bootstrap
             }
 
             SetLogoHighlightVisible(true);
+            GameSfxPlayer.Play(GameSfxId.Logo);
 
             if (completedHoldDuration > 0f)
             {

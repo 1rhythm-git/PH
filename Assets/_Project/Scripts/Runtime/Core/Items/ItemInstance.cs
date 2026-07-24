@@ -50,6 +50,10 @@ namespace LootUp.Core.Items
         private readonly Vector3[] worldCorners = new Vector3[4];
 
         public bool Acquired => acquired;
+        public bool IsAvailable => !acquired && gameObject.activeSelf;
+        public int PageFloorIndex => pageFloorIndex;
+        public int ColumnIndex => columnIndex;
+        public event Action<ItemInstance> AvailabilityChanged;
 
         private void Awake()
         {
@@ -207,6 +211,7 @@ namespace LootUp.Core.Items
             eventRecorder?.Record(new ItemRunEvent(eventId, definition, absoluteFloor, pageIndex, pageFloorIndex, columnIndex, Time.time, effectResult));
             ShowPickupFeedback(effectResult);
             gameObject.SetActive(false);
+            AvailabilityChanged?.Invoke(this);
         }
 
         private void ShowPickupFeedback(ItemEffectResult effectResult)
@@ -422,6 +427,7 @@ namespace LootUp.Core.Items
             }
 
             gameObject.SetActive(false);
+            AvailabilityChanged?.Invoke(this);
         }
 
         private bool IsPlayerInside()

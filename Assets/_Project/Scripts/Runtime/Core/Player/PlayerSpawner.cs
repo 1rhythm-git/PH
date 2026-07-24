@@ -1,9 +1,11 @@
 using LootUp.Core.Characters;
 using LootUp.Core.Characters.Skills;
 using LootUp.Core.Game;
+using LootUp.Core.Items;
 using LootUp.Core.UI;
 using LootUp.Core.World;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace LootUp.Core.Player
@@ -65,6 +67,39 @@ namespace LootUp.Core.Player
             {
                 SpawnPlayer();
             }
+        }
+
+        private void Update()
+        {
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null
+                || (!keyboard.digit1Key.wasPressedThisFrame
+                    && !keyboard.numpad1Key.wasPressedThisFrame))
+            {
+                return;
+            }
+
+            TriggerFeverTest();
+        }
+
+        private void TriggerFeverTest()
+        {
+            Debug.Log("Fever test input detected", this);
+
+            if (spawnedPlayer == null)
+            {
+                Debug.LogWarning("피버 테스트를 실행할 Player가 생성되지 않았습니다.", this);
+                return;
+            }
+
+            PlayerCharacterRuntime characterRuntime = spawnedPlayer.GetComponent<PlayerCharacterRuntime>();
+            if (characterRuntime == null)
+            {
+                Debug.LogWarning("피버 테스트를 실행할 PlayerCharacterRuntime을 찾을 수 없습니다.", this);
+                return;
+            }
+
+            characterRuntime.FillFeverGaugeForTest();
         }
 
         [ContextMenu("Debug/Spawn Player")]
@@ -159,6 +194,7 @@ namespace LootUp.Core.Player
             motor.SetCharacterRuntime(characterRuntime);
             motor.Configure(buildingGridUI, floorManager, startColumn, characterRuntime.MoveSpeedColumnsPerSecond);
             playerHealth.Configure(characterRuntime.MaxLife, topHUDController, gameStateController, elevatorController, startColumn);
+            EnsureFeverGoldFieldController(characterRuntime, motor, topHUDController);
 
             if (topHUDController != null)
             {
@@ -166,6 +202,26 @@ namespace LootUp.Core.Player
                 topHUDController.BindPlayerMotor(motor);
                 topHUDController.SetHearts(playerHealth.MaxLife, playerHealth.CurrentLife);
             }
+        }
+
+        private void EnsureFeverGoldFieldController(
+            PlayerCharacterRuntime characterRuntime,
+            PlayerMotor motor,
+            TopHUDController topHUDController)
+        {
+            FeverGoldFieldController feverController = GetComponent<FeverGoldFieldController>();
+            if (feverController == null)
+            {
+                feverController = gameObject.AddComponent<FeverGoldFieldController>();
+            }
+
+            feverController.Configure(
+                characterRuntime,
+                buildingGridUI,
+                floorManager,
+                FindFirstObjectByType<ItemSpawner>(),
+                motor,
+                topHUDController);
         }
 
         private GameObject CreateDefaultPlayer()
