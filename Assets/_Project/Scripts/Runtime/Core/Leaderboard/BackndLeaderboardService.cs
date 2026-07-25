@@ -14,6 +14,7 @@ namespace LootUp.Core.Leaderboard
     public sealed class BackndLeaderboardService : ILeaderboardService
     {
         public const string TableName = "LootUpRank";
+        public const string LifetimeBestTableName = "LootUpBest";
         public const string RankColumnName = "rankValue";
         public const string ExtraDataColumnName = "recordData";
 
@@ -86,6 +87,84 @@ namespace LootUp.Core.Leaderboard
                 string.Empty);
         }
 
+        public async Task<LeaderboardRecord>
+            SynchronizeLifetimeBestAsync(
+                LeaderboardRecord localRecord)
+        {
+            StoredRecordQuery lifetimeQuery =
+                await GetStoredRecordAsync(
+                    LifetimeBestTableName,
+                    localRecord?.Nickname ?? string.Empty);
+            if (!lifetimeQuery.Response.IsSuccess())
+            {
+                Debug.LogWarning(
+                    $"Lifetime best load failed: {lifetimeQuery.Response}");
+                return localRecord;
+            }
+
+            LeaderboardRecord bestRecord = SelectBetterRecord(
+                lifetimeQuery.Record,
+                localRecord);
+            if (lifetimeQuery.Record == null)
+            {
+                StoredRecordQuery legacyQuery =
+                    await GetStoredRecordAsync(
+                        TableName,
+                        localRecord?.Nickname ?? string.Empty);
+                if (legacyQuery.Response.IsSuccess())
+                {
+                    bestRecord = SelectBetterRecord(
+                        bestRecord,
+                        legacyQuery.Record);
+                }
+            }
+
+            if (bestRecord == null)
+            {
+                return null;
+            }
+
+            bool shouldSave =
+                lifetimeQuery.Record == null
+                || CompareRecords(
+                    bestRecord,
+                    lifetimeQuery.Record) > 0;
+            if (!shouldSave)
+            {
+                return lifetimeQuery.Record;
+            }
+
+            Param param = CreateParam(bestRecord);
+            BackendReturnObject saveResponse;
+            if (string.IsNullOrWhiteSpace(
+                    lifetimeQuery.RowInDate))
+            {
+                saveResponse = await RunRequest(
+                    callback => BackndApi.GameData.Insert(
+                        LifetimeBestTableName,
+                        param,
+                        callback));
+            }
+            else
+            {
+                saveResponse = await RunRequest(
+                    callback => BackndApi.GameData.UpdateV2(
+                        LifetimeBestTableName,
+                        lifetimeQuery.RowInDate,
+                        userId,
+                        param,
+                        callback));
+            }
+
+            if (!saveResponse.IsSuccess())
+            {
+                Debug.LogWarning(
+                    $"Lifetime best update failed: {saveResponse}");
+            }
+
+            return bestRecord;
+        }
+
         public async Task<LeaderboardSubmitResult> SubmitAsync(
             LeaderboardRecord record)
         {
@@ -93,6 +172,8 @@ namespace LootUp.Core.Leaderboard
             {
                 return LeaderboardSubmitResult.Success(false);
             }
+
+            await SynchronizeLifetimeBestAsync(record);
 
             string configurationError = await EnsureRankConfigurationAsync();
             if (!string.IsNullOrEmpty(configurationError))
@@ -123,10 +204,29 @@ namespace LootUp.Core.Leaderboard
                 savedRecord = ParseStoredRecord(row, record.Nickname);
             }
 
-            if (savedRecord != null
-                && CompareRecords(savedRecord, record) >= 0)
+            bool savedRecordIsBetterOrEqual =
+                savedRecord != null
+                && CompareRecords(savedRecord, record) >= 0;
+            if (savedRecordIsBetterOrEqual)
             {
-                return LeaderboardSubmitResult.Success(false);
+                BackendUserLeaderboardReturnObject currentRankResponse =
+                    await GetMyLeaderboardAsync();
+                if (currentRankResponse.IsSuccess())
+                {
+                    List<LeaderboardRecord> currentRankRecords =
+                        ParseRankRecords(
+                            currentRankResponse.GetUserLeaderboardList());
+                    if (FindRecord(currentRankRecords, userId) != null
+                        || currentRankRecords.Count > 0)
+                    {
+                        return LeaderboardSubmitResult.Success(false);
+                    }
+                }
+                else if (!IsMissingCurrentLeaderboardRecord(
+                             currentRankResponse))
+                {
+                    return CreateSubmitFailure(currentRankResponse);
+                }
             }
 
             Param param = CreateParam(record);
@@ -372,6 +472,25 @@ namespace LootUp.Core.Leaderboard
                 : left.CharacterLevel.CompareTo(right.CharacterLevel);
         }
 
+        private static LeaderboardRecord SelectBetterRecord(
+            LeaderboardRecord left,
+            LeaderboardRecord right)
+        {
+            if (left == null)
+            {
+                return right;
+            }
+
+            if (right == null)
+            {
+                return left;
+            }
+
+            return CompareRecords(left, right) >= 0
+                ? left
+                : right;
+        }
+
         private static LeaderboardRecord FindRecord(
             IReadOnlyList<LeaderboardRecord> records,
             string targetUserId)
@@ -455,6 +574,28 @@ namespace LootUp.Core.Leaderboard
                     "BackND ranking could not be updated."));
         }
 
+        private static bool IsMissingCurrentLeaderboardRecord(
+            BackendReturnObject response)
+        {
+            if (response == null)
+            {
+                return false;
+            }
+
+            string errorText = string.Concat(
+                response.GetErrorCode(),
+                " ",
+                response.GetMessage(),
+                " ",
+                response.GetErrorMessage());
+            return errorText.IndexOf(
+                       "userRank",
+                       StringComparison.OrdinalIgnoreCase) >= 0
+                   && errorText.IndexOf(
+                       "not found",
+                       StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private static string GetResponseMessage(
             BackendReturnObject response,
             string fallback)
@@ -483,6 +624,40 @@ namespace LootUp.Core.Leaderboard
             }
 
             return source.Task;
+        }
+
+        private async Task<StoredRecordQuery> GetStoredRecordAsync(
+            string tableName,
+            string nickname)
+        {
+            BackendReturnObject response = await RunRequest(
+                callback => BackndApi.GameData.GetMyData(
+                    tableName,
+                    new Where(),
+                    1,
+                    callback));
+            if (!response.IsSuccess())
+            {
+                return new StoredRecordQuery(
+                    response,
+                    string.Empty,
+                    null);
+            }
+
+            JsonData rows = response.FlattenRows();
+            if (rows == null || rows.Count <= 0)
+            {
+                return new StoredRecordQuery(
+                    response,
+                    string.Empty,
+                    null);
+            }
+
+            JsonData row = rows[0];
+            return new StoredRecordQuery(
+                response,
+                GetString(row, "inDate"),
+                ParseStoredRecord(row, nickname));
         }
 
         private Task<BackendLeaderboardTableReturnObject>
@@ -568,6 +743,23 @@ namespace LootUp.Core.Leaderboard
             }
 
             return source.Task;
+        }
+
+        private sealed class StoredRecordQuery
+        {
+            public StoredRecordQuery(
+                BackendReturnObject response,
+                string rowInDate,
+                LeaderboardRecord record)
+            {
+                Response = response;
+                RowInDate = rowInDate ?? string.Empty;
+                Record = record;
+            }
+
+            public BackendReturnObject Response { get; }
+            public string RowInDate { get; }
+            public LeaderboardRecord Record { get; }
         }
     }
 }

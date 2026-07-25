@@ -8,6 +8,9 @@ namespace LootUp.Core.Leaderboard
 
         Task<LeaderboardSnapshot> LoadAsync(int limit);
 
+        Task<LeaderboardRecord> SynchronizeLifetimeBestAsync(
+            LeaderboardRecord localRecord);
+
         Task<LeaderboardSubmitResult> SubmitAsync(
             LeaderboardRecord record);
     }

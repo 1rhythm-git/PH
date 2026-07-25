@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace LootUp.Core.Profile
@@ -8,13 +9,28 @@ namespace LootUp.Core.Profile
     {
         private const string SaveKey = "LootUp.UserProfile.v1";
         private const string LegacySaveKey = "PH.UserProfile.v1";
+        private const string AccountSaveKeyPrefix =
+            "LootUp.UserProfile.Account.v2.";
         private const string DefaultUserIdPrefix = "guest-";
         private const string DefaultNickname = "Player";
 
         private readonly UserProfileSaveData saveData;
+        private readonly string activeSaveKey;
+        private readonly string accountUserId;
+        private readonly bool isAccountScoped;
 
         public LocalUserProfileService()
+            : this(string.Empty)
         {
+        }
+
+        public LocalUserProfileService(string userId)
+        {
+            accountUserId = userId?.Trim() ?? string.Empty;
+            isAccountScoped = !string.IsNullOrWhiteSpace(accountUserId);
+            activeSaveKey = isAccountScoped
+                ? CreateAccountSaveKey(accountUserId)
+                : SaveKey;
             saveData = Load();
             EnsureDefaults();
         }
@@ -153,8 +169,14 @@ namespace LootUp.Core.Profile
         {
             try
             {
-                PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(saveData));
-                PlayerPrefs.DeleteKey(LegacySaveKey);
+                PlayerPrefs.SetString(
+                    activeSaveKey,
+                    JsonUtility.ToJson(saveData));
+                if (!isAccountScoped)
+                {
+                    PlayerPrefs.DeleteKey(LegacySaveKey);
+                }
+
                 PlayerPrefs.Save();
                 return true;
             }
@@ -187,12 +209,59 @@ namespace LootUp.Core.Profile
             }
         }
 
-        private static string GetSavedJson()
+        private string GetSavedJson()
         {
-            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
-            return string.IsNullOrWhiteSpace(json)
-                ? PlayerPrefs.GetString(LegacySaveKey, string.Empty)
-                : json;
+            string json = PlayerPrefs.GetString(
+                activeSaveKey,
+                string.Empty);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                return json;
+            }
+
+            string legacyJson = PlayerPrefs.GetString(
+                SaveKey,
+                string.Empty);
+            if (string.IsNullOrWhiteSpace(legacyJson))
+            {
+                legacyJson = PlayerPrefs.GetString(
+                    LegacySaveKey,
+                    string.Empty);
+            }
+
+            if (!isAccountScoped
+                || string.IsNullOrWhiteSpace(legacyJson))
+            {
+                return legacyJson;
+            }
+
+            try
+            {
+                UserProfileSaveData legacyData =
+                    JsonUtility.FromJson<UserProfileSaveData>(
+                        legacyJson);
+                return legacyData != null
+                       && string.Equals(
+                           legacyData.UserId,
+                           accountUserId,
+                           StringComparison.Ordinal)
+                    ? legacyJson
+                    : string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string CreateAccountSaveKey(string userId)
+        {
+            string encoded = Convert.ToBase64String(
+                    Encoding.UTF8.GetBytes(userId.Trim()))
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+            return AccountSaveKeyPrefix + encoded;
         }
 
         private void EnsureDefaults()

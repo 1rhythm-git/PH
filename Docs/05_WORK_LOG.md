@@ -5200,7 +5200,8 @@ ________________________________________
 • `rankValue`는 DOUBLE, `highestFloor`, `score`, `characterLevel`, `recordVersion`은 INT로 생성
 • `characterId`, `recordData`는 STRING으로 생성하고 모든 사용자 정의 컬럼의 NULL 허용
 • `운영 > 리더보드`에서 `LootUp Global Rank` 유저 리더보드 생성
-• 그룹 구분 없음, 초기화 주기 없음, `LootUpRank.rankValue` 내림차순으로 설정
+• 최초 생성 당시 그룹 구분 없음, 초기화 주기 없음, `LootUpRank.rankValue` 내림차순으로 설정
+• 이후 운영 설정을 매일 00:00(UTC+09:00) 초기화로 변경했으며 현행 정책은 2.159 기준을 사용
 • 추가 항목은 `recordData`로 설정
 • 게임정보 테이블과 운영 리더보드가 별도 기능이며 정렬 대상 컬럼으로 연결되는 구조를 계획서에 명시
 
@@ -5219,23 +5220,183 @@ ________________________________________
 • 리더보드 이름: `LootUp Global Rank`
 • 정렬 정책: 도달 층수 > 스코어 > 플레이 당시 캐릭터 레벨
 
+2.156 BackND 로그인 및 LANK 실제 환경 검증 완료
+
+완료 내용:
+• 사용자 확인을 통해 Editor와 Android에서 Custom 가입 및 수동 로그인 정상 동작 확정
+• 앱 재실행 시 자동 로그인하지 않고 로그인 화면을 표시하는 정책 확인
+• `REMEMBER ID / PW` 선택 시 입력값만 유지되고 사용자가 직접 로그인하는 동작 확인
+• 계정별 캐릭터 레벨과 경험치 데이터가 분리되는지 확인
+• `LootUpRank` 기록 제출과 `LootUp Global Rank` 조회 정상 동작 확인
+• MY LANK와 전체 LANK 목록에 계정별 기록, 캐릭터, 레벨 정보가 표시되는지 확인
+• 마스터 기획서와 실행 계획서의 로컬 LANK, Guest/CONTINUE, BackND 미구현 설명을 현행 정책으로 교체
+• 캐릭터 진행 저장 키 설명을 계정별 `v2` 저장소 기준으로 수정
+
+검증 상태:
+• BackND 초기화, Custom 인증, 계정별 성장 데이터, 게임 종료 기록 제출과 LANK 조회 사용자 확인 완료
+• P0~P5 BackND 적용 단계를 완료 처리
+
+남은 후속 작업:
+• Google 로그인
+• 서버 저장 범위 확장 및 오프라인 동기화 정책
+• 랭킹 기록 위변조 검증과 운영 장애 대응
+
+관련 작업 기준:
+• 사용자 확인: 현재 BackND 및 LANK 실제 동작 검증 완료
+
+2.157 인게임 캐릭터 렌더링 우선순위 상향
+
+완료 내용:
+• 업적 아이템의 `ArtifactLayer`가 매 프레임 최상단으로 이동해 캐릭터보다 앞에 표시되는 원인 확인
+• `PlayerSpawner` 실행 순서를 일반 런타임 레이어 정렬보다 늦게 지정
+• `LateUpdate()`에서 `PlayerLayer`를 마지막 형제로 이동해 캐릭터를 인게임 레이어 중 최상단에 유지
+• 아이템 충돌 판정은 월드 좌표 사각형의 `Overlaps()`를 사용하므로 계층의 형제 순서 변경과 무관함을 확인
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerSpawner.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 캐릭터와 업적 아이템의 렌더링 계층 갱신 순서 정적 확인
+• 아이템 획득 및 통과 판정 로직 변경 없음
+
+남은 확인:
+• Unity Play Mode에서 캐릭터와 업적 아이템이 겹칠 때 캐릭터가 앞에 표시되는지 확인
+• 일반 아이템, Enemy, 피버 골드바와 겹칠 때도 캐릭터가 최상단인지 확인
+• 아이템 통과 및 획득 판정이 기존과 동일한지 확인
+
+2.158 BackND 리더보드 초기화 후 기록 재등록 수정
+
+재현 결과:
+• 한국 시간 자정에 `LootUp Global Rank`가 초기화된 뒤 전체 순위에 `NO RECORDS` 표시
+• 초기화 이후 플레이해도 MY LANK가 표시되지 않음
+
+원인:
+• 리더보드 초기화와 별개로 `LootUpRank` 테이블의 이전 최고 기록 또는 `recordData`가 유지됨
+• 제출 코드가 이전 테이블 기록보다 높지 않으면 `UpdateMyDataAndRefreshLeaderboard`를 호출하지 않음
+• 현재 초기화 주기의 MY LANK 등록 여부를 확인하지 않아 첫 플레이 기록도 제출이 생략됨
+
+수정 내용:
+• 저장 기록이 현재 런보다 높거나 같을 때 `GetMyLeaderboard`로 현재 주기 등록 여부 확인
+• 현재 MY LANK가 존재할 때만 기존 최고 기록을 유지하고 제출 생략
+• `userRank not found` 응답으로 초기화 후 MY LANK가 없음을 확인하면 이번 플레이 기록으로 `LootUpRank`와 리더보드를 다시 갱신
+• 네트워크 오류나 설정 오류는 초기화로 오인하지 않고 제출 실패로 처리해 낮은 기록 덮어쓰기 방지
+• 기기 날짜가 아니라 BackND 리더보드 등록 상태를 사용해 일간 이외의 초기화 주기 변경에도 대응
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Leaderboard/BackndLeaderboardService.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+남은 확인:
+• 초기화 후 첫 게임 종료 시 전체 순위와 MY LANK가 생성되는지 확인
+• 같은 초기화 주기 안에서 낮은 기록 재제출 시 기존 최고 기록이 유지되는지 확인
+• 다음 자정 초기화 후 다시 첫 플레이 기록이 등록되는지 확인
+
+2.159 계정 누적 BEST와 기간 랭킹 저장 분리
+
+확정 정책:
+• Lobby `BEST`는 로그인 계정의 전체 플레이 기간 누적 최고 기록으로 유지
+• `RANK`의 MY RANK와 전체 순위는 현재 리더보드 기간의 기록만 표시
+• 비교 기준은 도달 층수 > 스코어 > 플레이 당시 캐릭터 레벨 순서 유지
+• 향후 기간 종료 시 순위 스냅샷 확정, 보상 지급, 중복 지급 방지 기록 완료 후 이전 기간 데이터 삭제
+• 보상 지급 전에는 이전 기간 기록을 삭제하지 않음
+
+자동 적용 내용:
+• `LocalUserProfileService`를 `gamerInDate`별 저장 키로 분리해 같은 기기의 계정 간 BEST, 재화, 특성 공유 차단
+• 기존 공용 로컬 프로필은 저장된 `UserId`가 현재 로그인 계정과 일치할 때만 계정 저장소로 이전
+• 로그인 성공 시 계정별 사용자 프로필과 캐릭터 진행 저장소를 각각 구성
+• Private `LootUpBest`를 계정 누적 최고 기록 저장소로 추가
+• 로그인 시 로컬 BEST, 서버 `LootUpBest`, 최초 이전 시 기존 `LootUpRank` 기록 중 최고값 동기화
+• 게임 종료 시 누적 `LootUpBest`와 현재 기간 `LootUpRank`를 각각 갱신
+• `LootUpBest`가 아직 없거나 일시 실패해도 현재 기간 랭킹 제출은 계속 수행
+• 운영 리더보드 UUID는 테이블명, 정렬 컬럼, 내림차순, 추가 항목으로 자동 탐색하므로 동일 계약으로 재생성 가능
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Profile/LocalUserProfileService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Leaderboard/ILeaderboardService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Leaderboard/LeaderboardManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Leaderboard/BackndLeaderboardService.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp`와 BackND SDK 5.18.3 참조 기반 전체 C# 컴파일 성공
+• `Backend.GameData.UpdateV2` 콜백 API 시그니처 컴파일 확인
+• 누적 기록과 기간 기록의 비교 우선순위가 동일한지 정적 확인
+
+수동 설정:
+• 뒤끝 `개발 > 게임정보 > 테이블`에 Private `LootUpBest` 생성
+• `LootUpRank`와 동일하게 DOUBLE `rankValue`, INT `highestFloor`, `score`, `characterLevel`, `recordVersion`, STRING `characterId`, `recordData` 생성
+• 모든 사용자 정의 컬럼 NULL 허용
+• `LootUpBest`는 운영 리더보드에 연결하지 않고 초기화 또는 기간 종료 삭제 대상에서 제외
+
+남은 확인:
+• 계정 A와 B를 번갈아 로그인해 Lobby BEST, 재화, 특성이 공유되지 않는지 확인
+• 기존 기록 보유 계정 로그인 시 `LootUpBest`가 생성되고 Lobby BEST가 유지되는지 확인
+• 게임 종료 후 `LootUpBest`와 `LootUpRank`가 함께 갱신되는지 확인
+• 일일 초기화 후 Lobby BEST는 유지되고 RANK/MY RANK만 비어 있는지 확인
+• 초기화 후 첫 플레이에서 현재 기간 MY RANK가 다시 생성되는지 확인
+• 운영 리더보드 교체 시 기존 항목 삭제 후 동일 계약으로 하나만 생성하고 재로그인하여 조회 확인
+
+2.160 BackND 데이터 분리 및 이관 범위 문서화
+
+사용자 확인:
+• 새 APK에서 `LootUpBest`와 현재 기간 랭킹 분리 테스트 완료
+
+완료 내용:
+• 현재 BackND 연동 완료 정보, 서버 이관 대상, 로컬 유지 정보, 런타임 전용 정보와 게임 마스터 데이터를 분류
+• P0 이관 대상으로 재화, 캐릭터 성장/보유/장착, Artifact/Character Coin/강화, 광고 제거 권리를 지정
+• P1 이관 대상으로 런 결과 정산 원장, 기간 랭킹 보상, Mission/Mail/Shop 등 향후 계정 콘텐츠를 지정
+• 누적 BEST, 기간 랭킹, 재화, 성장, 보유, 선택/장착, 수집, 강화와 유료 권리의 충돌 정책 기록
+• 권장 논리 테이블과 최초 이전, 멱등 요청, 서버 권한 전환 순서를 기록
+• 마스터 기획서의 단순 `더 많은 수집 진행도 우선` 초기 정책을 데이터별 충돌 정책으로 교체
+• 구현은 진행하지 않고 후속 작업 기준만 확정
+
+중요 발견:
+• `LocalCollectionInventoryService`가 아직 공용 `LootUp.CollectionProgress.v1` 키를 사용
+• 같은 기기의 계정 간 Artifact, Character Coin, 캐릭터 강화 정보가 공유될 수 있어 향후 구현 시 가장 먼저 계정별로 격리해야 함
+
+변경된 주요 파일:
+• `Docs/07_BACKND_DATA_MIGRATION_PLAN.md`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 현재 `PlayerPrefs` 사용처와 저장 모델을 기준으로 데이터 항목 정적 조사
+• 코드, 씬, Inspector 및 BackND 콘솔 설정 변경 없음
+
+다음 작업 기준:
+• 사용자가 서버 이관 작업을 재개하기 전까지 코드 변경하지 않음
+• 재개 시 수집 저장소 계정별 격리부터 진행
+• 이후 재화 원장 > 캐릭터 성장 > Artifact/Character Coin/강화 > 런 정산 원장 순서 권장
+
 ________________________________________
 
 3. 다음 작업 후보
 
 우선순위 후보:
-1. 재시작 최우선: BEST 얼굴 크롭 UI 회귀 검증
-2. PlayerRespawnController 정식 분리
-3. Artifact 상태 평가 순수화
-4. Lobby / TopHUD UI 빌더 공통화
-5. 로컬 저장소 추상화 및 반복 `PlayerPrefs` 직렬화 제거
-6. 캐릭터 강화 시스템 기획 및 CharacterCoin 콘텐츠 구현
-7. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
-8. Google AdMob 보상형 광고 부활 흐름 설계
+1. 재시작 최우선: 수집 저장소 `gamerInDate`별 격리
+2. 재화 서버 원장과 최초 이관 정책 구현
+3. 캐릭터 성장/보유/선택/장착 서버 이관
+4. Artifact/Character Coin/강화 서버 이관
+5. 런 정산 원장 및 기록 검증
+6. 기간 랭킹 보상 및 지급 원장 설계
+7. BEST 얼굴 크롭 UI 회귀 검증
+8. PlayerRespawnController 정식 분리
+9. Artifact 상태 평가 순수화
+10. Lobby / TopHUD UI 빌더 공통화
 
 현재 권장 다음 작업:
-• 다음 세션 시작 시 BEST 얼굴 크롭과 Editor 다중 Guest, Android 1계정 제한을 우선 검증한다.
-• 회귀 검증 후 `PlayerRespawnController`를 정식 분리한다.
+• 서버 이관 재개 요청 전까지 추가 이관 코드는 변경하지 않는다.
+• 재개 시 공용 수집 저장소를 계정별로 격리한 뒤 재화 원장과 캐릭터 성장 이관을 진행한다.
+• 서버 작업과 별도로 BEST 얼굴 크롭 UI 회귀 후 `PlayerRespawnController`를 정식 분리한다.
 • 이후 Artifact 상태 평가 순수화, Lobby/TopHUD UI 빌더 공통화와 로컬 저장소 추상화를 진행한다.
 • 구조 안정화 후 캐릭터 강화 정책과 실제 CharacterCoin 콘텐츠를 진행한다.
 • 광고 부활은 `PlayerRespawnController`와 결과 정산 책임 분리가 끝난 뒤 연결한다.
@@ -5247,7 +5408,7 @@ ________________________________________
 현재 기준:
 • BackND 5.18.3 SDK 임포트, 인증 설정, 초기화, P3 Custom 로그인을 구현했다.
 • P4~P5 LANK 클라이언트 구현과 `LootUpRank`, `LootUp Global Rank` 콘솔 설정을 완료했다.
-• 실제 계정 기록 제출과 Android 계정별 순위 분리 검증이 남아 있다.
+• 실제 계정 기록 제출과 Android 계정별 순위 분리 검증을 완료했다.
 • 게임 플레이 로직은 서버 SDK를 직접 호출하지 않는다.
 • 런 결과, 아이템 획득 이벤트, 최고 층, 점수, 수집형 아이템은 서비스 인터페이스 뒤로 분리한다.
 

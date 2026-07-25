@@ -19,7 +19,7 @@ ________________________________________
 •	2026-07-21 현재 Google Play 출시 기준 공정률은 약 45%이다.
 •	핵심 게임 루프와 주요 UI 흐름 이후에도 영구 저장, 온라인 기능, 수익화, Android 실기기 QA, 배포 및 스토어 심사가 완료되어야 100%로 판단한다.
 •	캐릭터별 XP/레벨과 선택/보유/장착 상태의 로컬 저장 통합은 완료되었다.
-•	재시작 최우선: 기능 확장 전에 1차 책임 분리 리팩터링을 진행한다.
+•	재시작 최우선: `LootUpBest` 콘솔 생성 후 계정별 BEST와 일일 리더보드 초기화 회귀를 검증한다.
 •	1차 범위는 `GameStateController`의 런 정산/결과 UI 분리, `PlayerSpawner`의 치트 입력/생성/런타임 연결 분리, `ItemSpawner`의 Page 배치/수집형 드랍/UI 생성 분리이다.
 •	리팩터링은 동작을 변경하지 않는 단계별 작업으로 진행하고 각 단계마다 Unity 컴파일과 기존 게임 흐름을 회귀 검증한다.
 ________________________________________
@@ -144,10 +144,11 @@ Lobby 선택값에 따라 플레이어를 런타임 생성하고 좌우 이동�
 Lobby 디자인 현행 메모
 •	`concept/Lobby/Lobby_Design.png`의 세로 구성을 기준으로 상단 프로필/재화, BEST, 캐릭터, START, 메뉴, 광고 순서로 배치한다.
 •	하단 메뉴는 `MISSION`, `MAIL BOX`, `UPGRADE`, `ARTIFACT`, `SHOP`, `LANK` 6개이다.
-•	`LANK`는 로컬 기록 기반 `FLOOR`, `SCORE` 탭과 MY LANK 및 전체 목록을 제공한다.
+•	Lobby `BEST`는 계정 전체 기간 누적 최고 기록이며 `gamerInDate`별 로컬 프로필과 Private `LootUpBest` 테이블에 유지한다.
+•	`LANK`는 현재 리더보드 기간의 BackND 계정별 기록 기반 `FLOOR`, `SCORE` 탭과 MY LANK 및 전체 목록을 제공한다.
 •	MY LANK에는 기록 캐릭터 얼굴 초상화와 레벨, 전체 목록에는 기록 캐릭터 전신 초상화와 레벨을 표시한다.
 •	LANK 순위는 최고 도달 층, 스코어, 플레이 당시 캐릭터 레벨 순으로 비교한다.
-•	BackND 연동 전에는 로컬 플레이어 1개 행을 표시하고, 서버 연동 시 전역 목록과 페이지네이션으로 교체한다.
+•	`ILeaderboardService`로 MY LANK와 전역 상위 5개 기록을 조회하며 로딩, 빈 결과, 오류, 재시도 상태를 표시한다.
 •	설정 버튼도 아이콘과 입력 상태만 구성하고 기능은 후속 작업으로 연결한다.
 ________________________________________
 PART 5
@@ -452,40 +453,48 @@ PART 16
 구현 상태
 •	프로필 재화와 수집/강화 데이터의 로컬 저장 기반은 구현됨
 •	캐릭터별 레벨/경험치와 선택/보유/장착 상태를 `ICharacterProgressionService` 뒤에 분리해 로컬 저장 완료
-•	캐릭터 진행 저장 키 `LootUp.CharacterProgression.v1`과 데이터 버전 2 적용
+•	캐릭터 진행 저장 키를 `LootUp.CharacterProgression.v2`와 `LootUp.CharacterProgression.Account.v2.{gamerInDate}`로 분리
 •	Ninja의 과거 ID `triangle_low_spec`는 로드 시 `ninja`로 변환하고 진행/선택/장착/강화 데이터를 병합
-•	프로필/인증/캐릭터 진행/수집 저장 키는 `LootUp.*` 형식을 사용하고 구 프로젝트 키는 최초 로드 시 자동 이전
+•	프로필/인증/캐릭터 진행/수집 저장 키는 `LootUp.*` 형식을 사용
+•	테스트 초기화를 위해 캐릭터 진행 `v1`은 자동 이전하지 않으며 다른 구 키는 각 저장 서비스 정책에 따라 처리
 •	최초 캐릭터 데이터는 캐릭터 에셋의 `InitiallyOwned` 기준으로 생성
 •	레벨별 필요 XP와 기본 런 XP는 `CharacterDefinition` 에셋에서 계속 관리하여 추후 레벨 디자인 변경 가능
 •	최고 층, 최고 점수, 기록 캐릭터 ID와 플레이 당시 레벨의 로컬 저장 완료
 •	선택 게임 모드와 직전 런 기록의 통합 저장은 후속 작업
 ________________________________________
 PART 17
-뒤끝 서버 연결 준비
+뒤끝 서버 연결
 목표
-SDK 연결 전 어댑터 위치와 데이터 흐름을 준비한다.
+BackND SDK를 서비스 경계 뒤에 연결하고 계정별 인증과 LANK를 제공한다.
 작업
-•	Backend 서비스 클래스 뼈대
+•	BackND 서비스 어댑터
 •	서버 호출 인터페이스
 •	실패 처리
-•	보류 데이터
-•	오프라인 동기화 큐
-•	로그인 전 Guest 모드
+•	계정별 캐릭터 성장 저장소
+•	게임 종료 기록 제출과 순위 조회
 구현 상태
-•	`IAuthenticationService`에 세션 복원, Guest 로그인, 계정 로그인, 로그아웃 계약 구현
+•	BackND 5.18.3 SDK 초기화와 Android 패키지명 및 Google Hash 설정 완료
+•	`IAuthenticationService`에 Custom 회원가입, 수동 로그인, 로그아웃 계약 구현
 •	`AuthenticationManager`에 `SignedOut`, `Authenticating`, `Authenticated`, `Failed` 상태와 변경 이벤트 구현
-•	`LocalAuthenticationService`가 기존 Guest 프로필 ID를 유지하고 `LootUp.Authentication.v1` 세션 복원 지원
-•	Title에서 Lobby 사전 로드와 저장 세션 복원을 함께 진행하고, 저장 세션 복원 성공/실패 여부와 관계없이 로그인 UI 표시
-•	Title 로그인 UI에 ID/password 입력, 계정 로그인 버튼, Guest 진입 또는 저장 세션 `CONTINUE` 버튼 구성
-•	Lobby 로그인 상태를 실제 인증 세션 기준 `GUEST`, `ONLINE`, `CONNECTING`, `OFFLINE`으로 표시
-•	BackND 어댑터, 실제 계정 인증 구현체, 토큰 갱신, 오프라인 동기화 큐는 미구현
-아직 하지 않을 것
-•	실제 뒤끝 콘솔 설정
-•	실제 서버 테이블 생성
-•	실제 SDK 로그인 호출
+•	Title에서 Lobby를 사전 로드하되 앱 시작마다 로그인 UI를 표시하고 자동 로그인하지 않음
+•	Title 로그인 UI에 Account ID, Nickname, Password, `CHECK NAME`, `SIGN UP`, `LOGIN` 구성
+•	`REMEMBER ID / PW` 선택 시 입력값만 복원하고 사용자가 직접 로그인
+•	로그인 성공 시 `gamerInDate`별 캐릭터 진행 저장소와 LANK 서비스를 구성
+•	로그인 성공 시 `gamerInDate`별 사용자 프로필을 구성하고 `LootUpBest`의 계정 누적 최고 기록과 동기화
+•	Private `LootUpRank` 테이블과 `LootUp Global Rank` 유저 리더보드 연동
+•	Private `LootUpBest` 누적 최고 기록과 기간용 `LootUpRank`를 분리
+•	게임 종료 기록 제출, MY LANK, 전역 상위 5개 기록 조회 및 오류/재시도 구현
+•	리더보드 초기화 후 MY LANK가 없으면 이전 테이블 기록 비교를 건너뛰고 첫 플레이 기록을 다시 등록
+•	현재 초기화 주기에 등록된 이후에는 도달 층수, 스코어, 캐릭터 레벨 순으로 최고 기록 유지
+•	향후 기간 종료 시 순위 스냅샷, 보상 지급 및 중복 지급 방지 완료 후 이전 기간 기록 삭제
+후속 작업
+•	Google 로그인
+•	오프라인 동기화 큐와 서버 기록 위변조 검증
+•	기간 랭킹 보상 테이블과 지급 Function 구현
 완료 조건
 •	로컬 구현체를 뒤끝 구현체로 교체할 수 있는 구조
 •	Gameplay 코드 수정 없이 서비스 교체 가능
+•	Android 실제 계정별 로그인, 성장 데이터 분리, 기록 제출과 순위 조회 확인
 ________________________________________
 PART 18
 최종 통합 테스트
@@ -493,7 +502,7 @@ PART 18
 1.	Loading 진입 및 로딩바 미표시 확인
 2.	Title 진입 및 로딩 진행률 확인
 3.	Title 로그인 UI가 표시되는지 확인
-4.	저장 세션이 있으면 `CONTINUE`, 없으면 `GUEST` 진입 또는 계정 로그인 실패 메시지 확인
+4.	저장된 ID/PW는 입력값만 복원되고 자동 로그인하지 않는지 확인
 5.	인증 성공 후 하단 점멸 `TOUCH` 입력으로 Lobby 진입
 6.	Lobby 배경 및 캐릭터 UI 확인
 7.	캐릭터 선택
@@ -514,6 +523,8 @@ PART 18
 22.	확인 선택 시 최고 층과 점수 저장
 23.	Lobby 복귀
 24.	저장 데이터 확인
+25.	`LootUpRank` 게임 종료 기록 제출 확인
+26.	LANK의 MY LANK와 전역 순위 및 계정별 데이터 분리 확인
 완료 조건
 •	컴파일 에러 없음
 •	Missing Reference 없음

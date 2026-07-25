@@ -84,6 +84,53 @@ namespace LootUp.Core.Leaderboard
             SnapshotChanged?.Invoke();
         }
 
+        public static async Task SynchronizeLifetimeBestAsync()
+        {
+            ILeaderboardService activeService = service;
+            int generation = serviceGeneration;
+            if (activeService == null || !activeService.IsOnline)
+            {
+                return;
+            }
+
+            bool hasLocalRecord =
+                UserProfileManager.BestHighestFloor > 0
+                || UserProfileManager.BestScore > 0;
+            LeaderboardRecord localRecord = hasLocalRecord
+                ? new LeaderboardRecord(
+                    0,
+                    UserProfileManager.UserId,
+                    UserProfileManager.Nickname,
+                    UserProfileManager.BestHighestFloor,
+                    UserProfileManager.BestScore,
+                    UserProfileManager.BestCharacterId,
+                    UserProfileManager.BestCharacterLevel)
+                : null;
+
+            try
+            {
+                LeaderboardRecord synchronizedRecord =
+                    await activeService
+                        .SynchronizeLifetimeBestAsync(localRecord);
+                if (generation != serviceGeneration
+                    || synchronizedRecord == null)
+                {
+                    return;
+                }
+
+                UserProfileManager.TrySetBestRun(
+                    synchronizedRecord.HighestFloor,
+                    synchronizedRecord.Score,
+                    synchronizedRecord.CharacterId,
+                    synchronizedRecord.CharacterLevel);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"Lifetime best synchronization failed: {exception.Message}");
+            }
+        }
+
         public static async Task SubmitRunAsync(RunResultData resultData)
         {
             ILeaderboardService activeService = service;

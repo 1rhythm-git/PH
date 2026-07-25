@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace LootUp.Core.Player
 {
+    [DefaultExecutionOrder(10000)]
     public sealed class PlayerSpawner : MonoBehaviour
     {
         [SerializeField]
@@ -60,6 +61,12 @@ namespace LootUp.Core.Player
             {
                 SpawnPlayer();
             }
+        }
+
+        private void LateUpdate()
+        {
+            // 아티팩트와 다른 런타임 레이어 정렬이 끝난 뒤 PlayerLayer를 최상단에 유지한다.
+            playerLayer?.SetAsLastSibling();
         }
 
         [ContextMenu("Debug/Spawn Player")]

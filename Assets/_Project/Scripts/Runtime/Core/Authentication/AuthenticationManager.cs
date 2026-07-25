@@ -182,6 +182,9 @@ namespace LootUp.Core.Authentication
                     new LocalCharacterProgressionService(
                         result.Session.UserId));
                 CharacterSelectionState.Reset();
+                UserProfileManager.Configure(
+                    new LocalUserProfileService(
+                        result.Session.UserId));
                 UserProfileManager.SetIdentity(
                     result.Session.UserId,
                     result.Session.Nickname);
@@ -190,6 +193,8 @@ namespace LootUp.Core.Authentication
                         ? new BackndLeaderboardService(
                             result.Session.UserId)
                         : null);
+                await LeaderboardManager
+                    .SynchronizeLifetimeBestAsync();
                 SetState(AuthenticationState.Authenticated);
             }
             else

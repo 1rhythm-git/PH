@@ -599,11 +599,26 @@ Game Over 결과창에는 기본적으로 결과 확인 후 Lobby로 복귀하�
 •	Best Score
 •	Best Character ID
 •	Best Character Level
+Lobby `BEST`는 로그인 계정의 전체 플레이 기간 누적 최고 기록이며 리더보드
+초기화와 관계없이 유지한다. 같은 기기의 다른 계정과 프로필, 재화, 특성을
+공유하지 않도록 `gamerInDate`별 로컬 저장소를 사용하고, 서버의 Private
+`LootUpBest` 테이블과 로그인/게임 종료 시 동기화한다.
+`RANK`의 MY RANK와 전체 순위는 현재 리더보드 기간의 기록만 표시하며
+Private `LootUpRank` 테이블과 운영 리더보드를 사용한다.
 LANK 순위는 다음 우선순위로 비교한다.
 1.	최고 도달 층이 높은 기록
 2.	최고 도달 층이 같으면 스코어가 높은 기록
 3.	최고 도달 층과 스코어가 같으면 플레이 당시 캐릭터 레벨이 높은 기록
 Lobby LANK의 `FLOOR`, `SCORE` 탭은 표시 관점을 전환하며 순위 비교 우선순위는 위 공통 규칙을 유지한다.
+리더보드 초기화 후 MY LANK가 없는 계정은 `LootUpRank`의 이전 저장 기록과 관계없이 초기화 이후 첫 플레이 기록을 다시 제출한다.
+현재 초기화 주기에 이미 등록된 계정만 기존 기록과 새 기록을 비교해 더 높은 기록을 유지한다.
+향후 기간 랭킹 보상을 추가할 때는 기간 종료 순위를 스냅샷으로 확정하고,
+보상 지급 성공 및 중복 지급 방지 상태를 저장한 뒤 이전 기간 기록을
+삭제하는 순서로 처리한다. 보상 지급 전에는 이전 기간 기록을 삭제하지 않는다.
+운영 리더보드는 동일한 `LootUpRank.rankValue`, 내림차순,
+`recordData` 추가 항목 계약으로 재생성할 수 있으며 클라이언트는 UUID를
+자동 탐색한다. 교체 중에는 동일 계약의 리더보드를 둘 이상 활성화하지 않고
+재로그인 또는 앱 재시작으로 UUID 캐시를 갱신한다.
 ________________________________________
 17. 씬 구성
 기본 씬은 다음과 같다.
@@ -622,11 +637,12 @@ InGame
 역할:
 •	`Art/Backgrounds/Title.png` 전체 화면 표시
 •	화면 하단에 Lobby 비동기 로딩 진행률과 `TOUCH` 상태 표시
-•	저장된 인증 세션 복원 우선, 복원 성공/실패 여부와 관계없이 중앙 로그인 UI 표시
-•	로그인 UI는 ID/password 입력, 계정 로그인 버튼, Guest 진입 또는 저장 세션 `CONTINUE` 버튼을 제공
+•	앱 시작 시 BackND를 초기화하고 남아 있는 인증 세션을 로그아웃한 뒤 중앙 로그인 UI 표시
+•	로그인 UI는 Account ID, Nickname, Password 입력과 `CHECK NAME`, `SIGN UP`, `LOGIN` 버튼을 제공
+•	`REMEMBER ID / PW`는 자동 로그인이 아니라 다음 실행에서 입력값만 복원
 •	Lobby 비동기 로딩과 인증 성공이 모두 완료된 뒤 진행 문구를 `TOUCH`로 전환하고 점멸
 •	터치, 마우스 클릭 또는 확인 키 입력 시 준비된 Lobby 씬 활성화
-•	인증 실패 또는 서버 인증 미연결 상태에서는 Lobby 진입을 막고 로그인 UI 메시지로 재시도 제공
+•	Custom 가입 또는 수동 로그인에 성공하기 전에는 Lobby 진입을 막고 오류 메시지와 재시도 제공
 17.3 Lobby
 배경:
 •	`Art/Backgrounds/Lobby.png`를 전체 화면 배경으로 사용한다.
@@ -642,9 +658,9 @@ InGame
 •	하단 `MISSION`, `MAIL BOX`, `UPGRADE`, `ARTIFACT`, `SHOP`, `LANK` 메뉴 버튼
 •	최하단 배너 광고 영역
 현재 `ARTIFACT` 메뉴는 최초 Artifact 획득 후 활성화하며 수집 목록과 조합 효과 화면을 제공한다.
-현재 `LANK` 메뉴는 로컬 최고 기록을 사용하는 `FLOOR`, `SCORE` 탭과 MY LANK 및 전체 목록을 제공한다.
+현재 `LANK` 메뉴는 현재 리더보드 기간의 BackND 계정별 기록을 사용하는 `FLOOR`, `SCORE` 탭과 MY LANK 및 전체 목록을 제공한다.
 MY LANK에는 기록 캐릭터의 얼굴 초상화와 레벨을 표시하고, 전체 목록에는 기록 캐릭터의 전신 초상화와 레벨을 표시한다.
-BackND 연동 전에는 로컬 플레이어 1개 행과 `LOCAL` 상태를 표시하며, 서버 연동 시 `ILeaderboardService` 기반 전역 목록과 페이지네이션으로 교체한다.
+`ILeaderboardService` 기반으로 MY LANK와 전역 상위 5개 기록을 조회하며 로딩, 빈 결과, 서버 오류, 재시도를 구분해 표시한다.
 `MISSION`, `MAIL BOX`, `UPGRADE`, `SHOP`과 설정 버튼은 디자인 및 입력 상태만 구성하고 기능 연결은 별도 작업으로 진행한다.
 캐릭터 초상화 기본 규격:
 •	캔버스는 1024×1536 RGBA PNG와 투명 배경을 사용한다.
@@ -707,28 +723,27 @@ InGame
 └── EventSystem
 ________________________________________
 19. 서버 연동 준비
-현재 단계에서 뒤끝 SDK를 반드시 설치할 필요는 없다.
-그러나 서버를 나중에 연결할 때 게임 코드를 크게 수정하지 않도록 인터페이스 기반으로 설계한다.
+BackND 5.18.3 SDK, Custom 인증, 계정별 LANK 연동을 적용했다.
+서버 기능을 확장할 때 게임 코드를 크게 수정하지 않도록 인터페이스 기반 구조를 유지한다.
 게임 플레이 코드는 뒤끝 SDK를 직접 호출하지 않는다.
 19.1 서비스 인터페이스
-다음 인터페이스를 준비한다.
-•	IAuthService
+현재 구현 또는 확장 대상으로 다음 인터페이스를 관리한다.
+•	IAuthenticationService
 •	IDataSaveService
 •	ILeaderboardService
 •	IAchievementService
 •	IInventoryService
 19.2 초기 구현
-초기에는 로컬 구현체를 사용한다.
-•	GuestAuthService
+오프라인 및 로컬 데이터에는 로컬 구현체를 사용한다.
+•	LocalAuthenticationService
 •	LocalDataSaveService
-•	LocalLeaderboardService
 •	LocalAchievementService
 •	LocalInventoryService
 19.3 뒤끝 구현
-추후 다음 구현체를 추가한다.
-•	BackendAuthService
+현재 인증과 랭킹 구현체를 적용했으며 나머지는 필요 시 추가한다.
+•	BackndAuthenticationService
+•	BackndLeaderboardService
 •	BackendDataSaveService
-•	BackendLeaderboardService
 •	BackendAchievementService
 •	BackendInventoryService
 ________________________________________
@@ -759,13 +774,14 @@ ________________________________________
 
 20.1 캐릭터 진행 저장 정책
 캐릭터 진행은 `ICharacterProgressionService`를 통해 접근하며 초기 구현은 `LocalCharacterProgressionService`를 사용한다.
-로컬 저장 키는 `LootUp.CharacterProgression.v1`이며 저장 데이터 자체에도 버전을 기록한다. 현재 캐릭터 진행 데이터 버전은 2이다.
+비로그인 공용 저장 키는 `LootUp.CharacterProgression.v2`, BackND 로그인 계정 저장 키는 `LootUp.CharacterProgression.Account.v2.{gamerInDate}`이며 저장 데이터 자체에도 버전을 기록한다.
+현재 캐릭터 진행 데이터 버전은 2이며 테스트 초기화를 위해 기존 공용 및 계정별 `v1` 캐릭터 진행 데이터는 자동 이전하지 않는다.
 버전 2 로드 시 `triangle_low_spec` 레벨·XP·보유·선택·장착 데이터를 `ninja`로 이전한다.
 `LootUp.CollectionProgress.v1`의 Ninja 캐릭터 강화 데이터도 동일하게 `ninja`로 이전하며, 구·신 ID 데이터가 함께 있으면 더 높은 진행도와 강화 레벨을 보존한다.
 캐릭터별 저장 항목은 캐릭터 ID, 현재 레벨, 잔여 XP, 보유 여부, 장착 여부이다.
 선택 캐릭터 ID와 장착 캐릭터 ID를 별도로 기록하되 현재 Lobby 정책에서는 선택 즉시 장착하여 같은 캐릭터를 가리킨다.
 프로필, 인증, 캐릭터 진행, 수집형 데이터의 `PlayerPrefs` 키는 `LootUp.*` 형식을 사용한다.
-구 프로젝트 키만 존재하면 최초 로드 시 데이터를 새 키로 저장하고 구 키를 제거한다.
+캐릭터 진행 `v1`을 제외한 다른 구 프로젝트 키의 이전 여부는 각 저장 서비스 정책을 따른다.
 이전 캐릭터 영구 저장 데이터는 존재하지 않으므로 첫 접근 시 `CharacterDefinition.InitiallyOwned`와 Lv.1/XP 0을 기본값으로 생성한다.
 향후 저장 버전이 증가하면 로드 시 버전별 마이그레이션을 수행하고 캐릭터 ID를 데이터 결합 키로 유지한다.
 ________________________________________
@@ -788,7 +804,12 @@ ________________________________________
 서버 저장 실패 시 데이터를 로컬에 저장한다.
 다음 로그인 또는 네트워크 복구 시 서버로 재전송할 수 있어야 한다.
 최고 층, 최고 점수, 수집형 아이템 데이터는 동기화 충돌 가능성을 고려해야 한다.
-초기 정책은 더 높은 기록과 더 많은 수집 진행도를 우선하는 방식으로 설계할 수 있다.
+누적 BEST는 도달 층수 > 스코어 > 캐릭터 레벨 순서의 최고값을 사용한다.
+재화, Character Coin, 강화처럼 획득과 소비가 모두 존재하는 데이터는
+더 큰 값을 선택하지 않고 서버 거래 원장과 고유 요청 ID를 기준으로 처리한다.
+Artifact 고유 보유 항목은 최초 이전 시 검증된 합집합을 허용하되 이후에는
+서버를 최종 권한으로 사용한다.
+세부 이관 범위와 충돌 정책은 `Docs/07_BACKND_DATA_MIGRATION_PLAN.md`를 기준으로 한다.
 ________________________________________
 23. 폴더 구조
 Assets
@@ -908,12 +929,15 @@ ________________________________________
 
 인증 기반 현행 규칙:
 •	인증 호출은 `IAuthenticationService` 뒤에 두고 게임 및 UI 코드가 BackND SDK를 직접 참조하지 않는다.
-•	`AuthenticationManager`가 세션 복원, 게스트 로그인, 계정 로그인, 로그아웃과 인증 상태를 관리한다.
-•	Title은 `InitializeAsync(false)`로 저장 세션만 복원하고, 저장 세션이 있어도 자동 Lobby 진입 대신 로그인 UI의 `CONTINUE` 확인을 거친다.
-•	저장 세션이 없을 때는 자동 Guest 생성 대신 로그인 UI에서 사용자가 Guest 진입을 선택한다.
-•	현재 `LocalAuthenticationService`는 기존 로컬 프로필의 Guest ID를 유지하고 `LootUp.Authentication.v1`에 세션만 저장한다.
-•	계정 ID와 비밀번호 로그인은 서버 인증 구현체가 연결되기 전까지 `ProviderUnavailable`을 반환하며 비밀번호를 로컬에 저장하지 않는다.
-•	서버 연결 후 `IAuthenticationService` 구현체만 BackND 어댑터로 교체하고 성공 세션의 ID/닉네임을 `UserProfileManager`에 전달한다.
+•	`AuthenticationManager`가 Custom 가입, 수동 로그인, 로그아웃과 인증 상태를 관리한다.
+•	Title 시작 시 남아 있는 BackND 세션을 로그아웃하며 저장된 세션으로 자동 Lobby에 진입하지 않는다.
+•	회원가입 또는 로그인 성공 후에만 `TOUCH` 상태로 전환해 Lobby 진입을 허용한다.
+•	`REMEMBER ID / PW`를 선택한 경우에만 Account ID와 Password 입력값을 로컬 난독화 저장하고 다음 실행에 복원한다.
+•	입력값 기억과 자동 로그인은 분리하며 복원된 입력값이 있어도 사용자가 `LOGIN`을 직접 눌러야 한다.
+•	`CHECK NAME`은 Nickname 형식을 사전 확인하고, 실제 중복 확인과 Nickname 생성은 CustomSignUp 성공 세션에서 처리한다.
+•	성공 세션의 `gamerInDate`와 Nickname을 사용자 식별 및 프로필에 전달한다.
+•	로그인 성공 시 `gamerInDate`별 사용자 프로필 및 캐릭터 성장 저장소와 BackND LANK 서비스를 구성하고 계정 전환 캐시를 초기화한다.
+•	Lobby `BEST`는 `LootUpBest`, 현재 기간의 MY RANK와 전체 순위는 `LootUpRank` 및 운영 리더보드로 분리한다.
 의존성 역전
 게임 플레이 클래스가 뒤끝 SDK나 구체 저장 클래스에 직접 의존하지 않는다.
 ________________________________________
