@@ -18,7 +18,7 @@ namespace LootUp.Core.UI
         private const float AgentXBasePivotCooldown = 0.3f;
         private const float AgentXBaseFeverGainPerColumn = 0.15f;
 
-        private static readonly string[] FooterMenuLabels = { "MISSION", "MAIL BOX", "UPGRADE", "ARTIFACT", "SHOP", "RANK" };
+        private static readonly string[] FooterMenuLabels = { "MISSION", "MAIL BOX", "UPGRADE", "ARTIFACT", "SHOP", "LANK" };
         private static readonly string[] FooterMenuIconKeys = { "mission", "mailbox", "upgrade", "artifact", "shop", "rank" };
         private static readonly Vector2 HeaderBandMin = new Vector2(0f, 0.87f);
         private static readonly Vector2 HeaderBandMax = Vector2.one;
@@ -320,7 +320,16 @@ namespace LootUp.Core.UI
             {
                 float minX = leftMargin + i * (buttonWidth + gap);
                 bool isArtifactButton = i == 3;
-                bool interactable = isArtifactButton && ArtifactCatalog.Instance.IsSystemUnlocked();
+                bool isLankButton = i == 5;
+                bool interactable =
+                    (isArtifactButton && ArtifactCatalog.Instance.IsSystemUnlocked())
+                    || isLankButton;
+                UnityEngine.Events.UnityAction onClick =
+                    isArtifactButton
+                        ? OpenArtifactPanel
+                        : isLankButton
+                            ? OpenLankPanel
+                            : null;
                 CreateFooterMenuButton(
                     root,
                     FooterMenuLabels[i],
@@ -328,7 +337,7 @@ namespace LootUp.Core.UI
                     minX,
                     minX + buttonWidth,
                     interactable,
-                    isArtifactButton ? OpenArtifactPanel : null);
+                    onClick);
             }
 
             RectTransform adArea = CreatePanel(root, "BannerAdArea", new Vector2(0f, 0f), new Vector2(1f, 0.31f), disabledButtonColor, false);
@@ -570,7 +579,9 @@ namespace LootUp.Core.UI
             }
 
             Rect normalizedRect =
-                ClampNormalizedRect(definition.IngamePortraitFaceRect);
+                AddPortraitTopPadding(
+                    ClampNormalizedRect(definition.IngamePortraitFaceRect),
+                    0.05f);
             Rect sourceRect = source.textureRect;
             Rect faceRect = new Rect(
                 sourceRect.x + sourceRect.width * normalizedRect.x,
@@ -617,6 +628,17 @@ namespace LootUp.Core.UI
             float x = Mathf.Clamp(rect.x, 0f, 1f - width);
             float y = Mathf.Clamp(rect.y, 0f, 1f - height);
             return new Rect(x, y, width, height);
+        }
+
+        private static Rect AddPortraitTopPadding(
+            Rect rect,
+            float normalizedPadding)
+        {
+            // (수정) BEST 초상화는 슬롯 여백을 활용해 머리 위쪽 크롭 여유를 확보한다.
+            float top = Mathf.Min(
+                1f,
+                rect.yMax + Mathf.Max(0f, normalizedPadding));
+            return new Rect(rect.x, rect.y, rect.width, top - rect.y);
         }
 
         private static Rect PixelSnapRect(Rect rect)
@@ -1073,7 +1095,30 @@ namespace LootUp.Core.UI
 
         private void OpenArtifactPanel()
         {
+            CloseContentOverlay("LankLobbyPanel");
             ArtifactLobbyPanel.Show(contentRoot, lobbyFont, accentTextColor, primaryTextColor, panelColor);
+        }
+
+        private void OpenLankPanel()
+        {
+            CloseContentOverlay("ArtifactLobbyPanel");
+            LankLobbyPanel.Show(
+                contentRoot,
+                lobbyFont,
+                accentTextColor,
+                primaryTextColor,
+                panelColor,
+                availableCharacters);
+        }
+
+        private void CloseContentOverlay(string objectName)
+        {
+            Transform existing =
+                contentRoot != null ? contentRoot.Find(objectName) : null;
+            if (existing != null)
+            {
+                Destroy(existing.gameObject);
+            }
         }
 
         private static RectTransform ConfigureRect(RectTransform rectTransform, Vector2 anchorMin, Vector2 anchorMax)

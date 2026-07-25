@@ -36,12 +36,13 @@ namespace LootUp.Core.Profile
     [Serializable]
     public sealed class UserProfileSaveData
     {
-        public int Version = 2;
+        public int Version = 3;
         public string UserId;
         public string Nickname = "Player";
         public int BestHighestFloor;
         public int BestScore;
         public string BestCharacterId;
+        public int BestCharacterLevel;
         public List<UserCurrencyData> Currencies = new List<UserCurrencyData>();
         public List<UserTraitData> Traits = new List<UserTraitData>();
     }

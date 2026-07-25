@@ -90,7 +90,8 @@ namespace LootUp.Core.Game
             UserProfileManager.TrySetBestRun(
                 resultData.HighestFloor,
                 resultData.Score,
-                resultData.CharacterId);
+                resultData.CharacterId,
+                resultData.CharacterLevel);
 
             if (resultData.TotalGameMoney > 0)
             {

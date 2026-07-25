@@ -24,6 +24,7 @@ namespace LootUp.Core.Profile
         public int BestHighestFloor => Mathf.Max(0, saveData.BestHighestFloor);
         public int BestScore => Mathf.Max(0, saveData.BestScore);
         public string BestCharacterId => saveData.BestCharacterId ?? string.Empty;
+        public int BestCharacterLevel => Mathf.Max(0, saveData.BestCharacterLevel);
 
         public int GetCurrencyAmount(UserCurrencyType currencyType)
         {
@@ -71,15 +72,24 @@ namespace LootUp.Core.Profile
         public bool TrySetBestRun(
             int highestFloor,
             int score,
-            string characterId)
+            string characterId,
+            int characterLevel)
         {
             int normalizedFloor = Mathf.Max(0, highestFloor);
             int normalizedScore = Mathf.Max(0, score);
+            int normalizedCharacterLevel = Mathf.Max(1, characterLevel);
             bool hasHigherFloor = normalizedFloor > BestHighestFloor;
             bool hasHigherScoreAtSameFloor =
                 normalizedFloor == BestHighestFloor
                 && normalizedScore > BestScore;
-            if (!hasHigherFloor && !hasHigherScoreAtSameFloor)
+            bool hasHigherLevelAtSameFloorAndScore =
+                normalizedFloor == BestHighestFloor
+                && normalizedScore == BestScore
+                && (normalizedFloor > 0 || normalizedScore > 0)
+                && normalizedCharacterLevel > BestCharacterLevel;
+            if (!hasHigherFloor
+                && !hasHigherScoreAtSameFloor
+                && !hasHigherLevelAtSameFloorAndScore)
             {
                 return false;
             }
@@ -90,6 +100,7 @@ namespace LootUp.Core.Profile
                 string.IsNullOrWhiteSpace(characterId)
                     ? string.Empty
                     : characterId.Trim();
+            saveData.BestCharacterLevel = normalizedCharacterLevel;
             return TrySave();
         }
 
@@ -196,10 +207,15 @@ namespace LootUp.Core.Profile
                 saveData.Nickname = DefaultNickname;
             }
 
-            saveData.Version = 2;
+            saveData.Version = 3;
             saveData.BestHighestFloor = Mathf.Max(0, saveData.BestHighestFloor);
             saveData.BestScore = Mathf.Max(0, saveData.BestScore);
             saveData.BestCharacterId ??= string.Empty;
+            bool hasBestRun =
+                saveData.BestHighestFloor > 0 || saveData.BestScore > 0;
+            saveData.BestCharacterLevel = hasBestRun
+                ? Mathf.Max(1, saveData.BestCharacterLevel)
+                : 0;
             FindOrCreateCurrency(UserCurrencyType.GameMoney);
             FindOrCreateCurrency(UserCurrencyType.Ruby);
             TrySave();

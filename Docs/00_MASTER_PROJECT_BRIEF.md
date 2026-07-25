@@ -597,10 +597,13 @@ Game Over 결과창에는 기본적으로 결과 확인 후 Lobby로 복귀하�
 •	Best Highest Floor
 •	Current Run Score
 •	Best Score
-랭킹 기준은 별도로 선택 가능하게 설계한다.
-초기 권장 기준:
-•	메인 랭킹: 최고 도달 층
-•	보조 랭킹: 최고 점수
+•	Best Character ID
+•	Best Character Level
+LANK 순위는 다음 우선순위로 비교한다.
+1.	최고 도달 층이 높은 기록
+2.	최고 도달 층이 같으면 스코어가 높은 기록
+3.	최고 도달 층과 스코어가 같으면 플레이 당시 캐릭터 레벨이 높은 기록
+Lobby LANK의 `FLOOR`, `SCORE` 탭은 표시 관점을 전환하며 순위 비교 우선순위는 위 공통 규칙을 유지한다.
 ________________________________________
 17. 씬 구성
 기본 씬은 다음과 같다.
@@ -636,10 +639,13 @@ InGame
 •	`SPEED`, `REFLEX`, `VITALITY`, `FEVER DRIVE`, `ITEM LUCK`, `AWAKENING` 스테이터스
 •	현재 캐릭터 스킬 설명
 •	Start Button
-•	하단 `MISSION`, `MAIL BOX`, `UPGRADE`, `ARTIFACT`, `SHOP`, `RANK` 메뉴 버튼
+•	하단 `MISSION`, `MAIL BOX`, `UPGRADE`, `ARTIFACT`, `SHOP`, `LANK` 메뉴 버튼
 •	최하단 배너 광고 영역
 현재 `ARTIFACT` 메뉴는 최초 Artifact 획득 후 활성화하며 수집 목록과 조합 효과 화면을 제공한다.
-`MISSION`, `MAIL BOX`, `UPGRADE`, `SHOP`, `RANK`와 설정 버튼은 디자인 및 입력 상태만 구성하고 기능 연결은 별도 작업으로 진행한다.
+현재 `LANK` 메뉴는 로컬 최고 기록을 사용하는 `FLOOR`, `SCORE` 탭과 MY LANK 및 전체 목록을 제공한다.
+MY LANK에는 기록 캐릭터의 얼굴 초상화와 레벨을 표시하고, 전체 목록에는 기록 캐릭터의 전신 초상화와 레벨을 표시한다.
+BackND 연동 전에는 로컬 플레이어 1개 행과 `LOCAL` 상태를 표시하며, 서버 연동 시 `ILeaderboardService` 기반 전역 목록과 페이지네이션으로 교체한다.
+`MISSION`, `MAIL BOX`, `UPGRADE`, `SHOP`과 설정 버튼은 디자인 및 입력 상태만 구성하고 기능 연결은 별도 작업으로 진행한다.
 캐릭터 초상화 기본 규격:
 •	캔버스는 1024×1536 RGBA PNG와 투명 배경을 사용한다.
 •	캐릭터는 2등신 전신 픽셀아트로 제작하고 원본 비율을 유지한다.
@@ -731,6 +737,7 @@ ________________________________________
 플레이어 진행
 •	최고 도달 층
 •	최고 점수
+•	최고 기록 캐릭터 ID와 플레이 당시 레벨
 •	직전 런 도달 층
 •	직전 런 점수
 •	선택 캐릭터

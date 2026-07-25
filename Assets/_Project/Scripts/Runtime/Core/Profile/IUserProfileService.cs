@@ -9,12 +9,13 @@ namespace LootUp.Core.Profile
         int BestHighestFloor { get; }
         int BestScore { get; }
         string BestCharacterId { get; }
+        int BestCharacterLevel { get; }
         int GetCurrencyAmount(UserCurrencyType currencyType);
         IReadOnlyList<UserCurrencyData> GetCurrencies();
         IReadOnlyList<UserTraitData> GetTraits();
         float GetTraitBonusPercent(UserTraitEffectType effectType);
         void SetIdentity(string userId, string nickname);
-        bool TrySetBestRun(int highestFloor, int score, string characterId);
+        bool TrySetBestRun(int highestFloor, int score, string characterId, int characterLevel);
         UserCurrencyChangeResult AddCurrency(UserCurrencyType currencyType, int amount);
         UserCurrencyChangeResult TrySpendCurrency(UserCurrencyType currencyType, int amount);
         void SetTrait(string traitId, UserTraitEffectType effectType, int level, float value);

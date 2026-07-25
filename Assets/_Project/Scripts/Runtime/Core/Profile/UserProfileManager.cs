@@ -14,6 +14,7 @@ namespace LootUp.Core.Profile
         public static int BestHighestFloor => Service.BestHighestFloor;
         public static int BestScore => Service.BestScore;
         public static string BestCharacterId => Service.BestCharacterId;
+        public static int BestCharacterLevel => Service.BestCharacterLevel;
         public static int GameMoney => Service.GetCurrencyAmount(UserCurrencyType.GameMoney);
         public static int Ruby => Service.GetCurrencyAmount(UserCurrencyType.Ruby);
 
@@ -32,10 +33,15 @@ namespace LootUp.Core.Profile
         public static bool TrySetBestRun(
             int highestFloor,
             int score,
-            string characterId)
+            string characterId,
+            int characterLevel)
         {
             bool updated =
-                Service.TrySetBestRun(highestFloor, score, characterId);
+                Service.TrySetBestRun(
+                    highestFloor,
+                    score,
+                    characterId,
+                    characterLevel);
             if (updated)
             {
                 ProfileChanged?.Invoke();

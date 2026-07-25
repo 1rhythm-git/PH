@@ -4536,10 +4536,219 @@ ________________________________________
 
 ________________________________________
 
+2.136 Lobby LANK UI 구성
+
+목표:
+• Lobby 하단 LANK 버튼으로 이동 가능한 순위 UI 구성
+• BackND 연동 전 로컬 BEST 기록을 사용해 실제 화면 동작 제공
+
+완료 내용:
+• 기존 비활성 `RANK` 버튼 표기를 `LANK`로 변경하고 상시 활성화
+• LANK 버튼 클릭 시 `LankLobbyPanel` 오버레이 표시
+• `FLOOR`, `SCORE` 탭과 선택 상태 전환 구현
+• `MY LANK`, 닉네임, 최고 Floor, 최고 Score 로컬 기록 표시
+• 순위 테이블 헤더와 로컬 플레이어 1개 행 구성
+• 신규 계정처럼 BEST 기록이 없으면 순위 `-`와 `NO RECORD` 표시
+• 닫기 `X` 버튼과 Artifact/LANK 오버레이 상호 전환 처리
+• BackND 연동 전 범위를 나타내는 `LOCAL` 상태 표시
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LankLobbyPanel.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batchmode 전체 스크립트 컴파일 및 Tundra build 성공
+• 변경 스크립트 대상 `git diff --check` 통과
+• 기존 `ProjectSettings/TagManager.asset` 41행 파싱 경고는 이번 작업과 분리된 이슈로 확인
+
+남은 확인:
+• Lobby Play Mode에서 LANK 버튼 터치와 패널 열기/닫기 확인
+• FLOOR/SCORE 탭 전환과 기록 표시 확인
+• Artifact 패널과 LANK 패널 상호 전환 시 오버레이 중복 여부 확인
+• BackND 연동 시 `ILeaderboardService` 기반 전역 순위 목록과 페이지네이션으로 교체
+
+관련 작업 기준:
+• 사용자 요청: Lobby LANK 버튼으로 이동 가능한 LANK UI 구성
+• 재시작 최우선: LANK UI Play Mode 검증
+
+________________________________________
+
+2.137 TagManager 41행 파서 경고 해결
+
+목표:
+• Unity Batchmode마다 반복되던 `ProjectSettings/TagManager.asset` 41행 YAML 파서 경고 제거
+
+원인:
+• 빈 Layer 슬롯이 명시적 빈 문자열 없이 `-`로만 저장됨
+• 빈 Layer 목록의 종료를 정상 인식하지 못해 다음 `m_SortingLayers` 첫 항목인 41행에서 파싱 실패
+
+완료 내용:
+• 동일 Unity 6000.3.17f1 프로젝트의 정상 `TagManager.asset` 구조와 비교
+• 26개 빈 Layer 슬롯을 명시적 빈 문자열 형식 `- ""`으로 복구
+• 기존 Default, TransparentFX, Ignore Raycast, Water, UI Layer 유지
+• 기존 Default Sorting Layer와 Rendering Layer 유지
+
+변경된 주요 파일:
+• `ProjectSettings/TagManager.asset`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batchmode에서 `TagManager.asset` 정상 import 확인
+• 기존 `Parser Failure at line 41` 경고 제거 확인
+• Tundra build 성공 및 Batchmode 정상 종료
+
+남은 확인:
+• Unity Editor의 Tags and Layers 설정 화면에서 기본 Layer 목록 확인
+
+관련 작업 기준:
+• 사용자 요청: 반복되는 TagManager 41행 파서 경고 해결 가능 여부 확인
+• 재시작 최우선: LANK UI Play Mode 검증
+
+________________________________________
+
+2.138 Lobby BEST 얼굴 초상화 상단 크롭 보정
+
+목표:
+• BEST 캐릭터 얼굴 초상화에서 머리 윗부분이 잘리는 문제 수정
+• 기존 슬롯 70% 크기와 하단 정렬 유지
+
+원인:
+• 공통 `IngamePortraitFaceRect`가 원본 이미지 상단 5%를 제외한 상태로 Sprite 생성
+• 슬롯 여백과 관계없이 생성된 얼굴 Sprite 자체에서 머리 상단이 잘림
+
+완료 내용:
+• BEST 얼굴 크롭 Rect의 하단과 가로 범위 유지
+• 크롭 상단에 정규화 좌표 최대 `0.05` 여유 추가
+• 크롭 상단을 원본 이미지 범위 `1.0` 이내로 제한
+• 기존 BEST 초상화 슬롯 70% 크기, 가로 중앙, 하단 정렬 유지
+• TopHUD 공통 얼굴 크롭에는 영향을 주지 않고 Lobby BEST 전용으로 적용
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 변경 스크립트 대상 `git diff --check` 통과
+• Unity Editor가 동일 프로젝트를 실행 중이어서 Batchmode 컴파일은 중단됨
+
+남은 확인:
+• Lobby Play Mode에서 BEST 캐릭터 머리 전체 표시 확인
+• 캐릭터별 모자와 머리 장식 상단 크롭 여부 확인
+
+관련 작업 기준:
+• 사용자 요청: BEST 얼굴 초상화 머리 윗부분 잘림 수정
+• 재시작 최우선: BEST 얼굴 크롭 및 LANK UI Play Mode 검증
+
+________________________________________
+
+2.139 LANK 정보 확장 및 복합 순위 기준 적용
+
+목표:
+• MY LANK 영역을 축소하고 줄어든 공간만큼 LANK 목록 영역 확대
+• 기록 캐릭터의 얼굴 초상화와 플레이 당시 레벨 표시
+• 순위와 최고 기록 판정 기준을 도달 층수, 스코어, 캐릭터 레벨 순으로 적용
+
+완료 내용:
+• MY LANK 영역 높이를 Body 기준 32%에서 22%로 축소
+• LANK 목록 영역 높이를 Body 기준 64%에서 75%로 확대
+• MY LANK 요약과 로컬 순위 행에 기록 캐릭터 얼굴 초상화 표시
+• 순위 목록에 `CHAR`, `LV.` 열을 추가하고 플레이 당시 캐릭터 레벨 표시
+• 최고 기록 저장 데이터에 `BestCharacterLevel`을 추가하고 저장 버전을 3으로 갱신
+• 최고 기록 갱신 기준을 도달 층수 우선, 동률이면 스코어, 다시 동률이면 캐릭터 레벨 순으로 확장
+• 기존 최고 기록 저장 데이터는 캐릭터 레벨이 없을 때 최소 Lv. 1로 호환
+• 런 결과 정산 시 플레이 당시 캐릭터 레벨을 최고 기록 데이터에 전달
+• LANK 패널이 Lobby의 기존 캐릭터 목록을 사용하므로 별도 Inspector 연결 없이 얼굴 초상화 생성
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LankLobbyPanel.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Game/RunResultService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/IUserProfileService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/LocalUserProfileService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/UserProfileData.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/UserProfileManager.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+• 신규 `LankLobbyPanel.cs`가 `Assembly-CSharp.rsp`에 포함된 것 확인
+• 변경 스크립트 대상 `git diff --check` 통과
+• Unity Batchmode는 프로젝트 초기화 후 `Begin MonoManager ReloadAssembly`에서 진행이 멈춰 종료
+• 사용자 Lobby Play Mode 확인 완료: MY LANK/LANK 목록 비율, 기록 캐릭터 초상화와 레벨 표시
+
+남은 확인:
+• 동일 층수와 스코어 기록에서 더 높은 캐릭터 레벨 기록으로 교체되는지 확인
+
+관련 작업 기준:
+• 사용자 요청: 서버 오류로 중단된 LANK 수정사항 재개
+• 사용자 확인: LANK 정보 확장 UI 최종 확인 완료
+
+________________________________________
+
+2.140 LANK 목록 캐릭터 전신 초상화 적용
+
+목표:
+• MY LANK의 얼굴 초상화 유지
+• 전체 LANK 목록에는 기록 캐릭터의 전신 초상화 표시
+
+완료 내용:
+• 기록 캐릭터 정의를 LANK 패널 생성 시 한 번 조회해 재사용
+• MY LANK는 기존 얼굴 크롭 Sprite 유지
+• `LocalPlayerRow`는 캐릭터 원본 `PortraitSprite`를 사용하도록 분리
+• 얼굴 크롭 Sprite 생명주기와 해제 로직은 기존대로 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LankLobbyPanel.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 생성 `Assembly-CSharp.rsp` 기준 전체 Roslyn 컴파일 성공
+• 변경 스크립트 대상 `git diff --check` 통과
+• 사용자 Lobby Play Mode 확인 완료: MY LANK 얼굴 초상화 유지 및 전체 목록 전신 초상화 표시
+
+남은 확인:
+• 추가 확인 없음
+
+관련 작업 기준:
+• 사용자 요청: MY LANK 얼굴 유지 및 전체 랭크 목록 전신 초상화 적용
+• 사용자 확인: LANK 얼굴/전신 초상화 구분 최종 배치 완료
+
+________________________________________
+
+2.141 LANK 확정 기획 동기화 및 커밋 준비
+
+완료 내용:
+• 마스터 기획의 Lobby 메뉴 표기를 `RANK`에서 `LANK`로 갱신
+• MY LANK 얼굴 초상화와 전체 목록 전신 초상화 및 레벨 표시 규칙 명시
+• 순위 비교 기준을 도달 층수, 스코어, 플레이 당시 캐릭터 레벨 순으로 확정
+• BackND 연동 전 로컬 1개 행과 향후 `ILeaderboardService` 전환 범위 명시
+• 실행 계획의 Lobby, 점수, 로컬 저장 구현 상태를 현재 코드와 일치하도록 갱신
+• 사용자 Lobby Play Mode 확인 결과를 작업 로그에 반영
+
+변경된 주요 파일:
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• LANK 관련 구현과 기획 문서 용어 및 순위 기준 대조 완료
+• 커밋 대상 파일 `git diff --check` 통과
+
+남은 확인:
+• 동일 층수와 스코어 기록의 캐릭터 레벨 타이브레이커 런타임 데이터 검증
+• BackND 연동 시 전역 순위 목록과 페이지네이션 구현
+
+관련 작업 기준:
+• 사용자 요청: 확인 완료 작업을 기획 내용에 반영하고 커밋
+• 관련 커밋: 본 기록을 포함하는 커밋
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
-1. 재시작 최우선: Lobby BEST 초상화 최종 배치와 플랫폼별 Guest 가입 회귀 검증
+1. 재시작 최우선: BEST 얼굴 크롭 UI 회귀 검증
 2. PlayerRespawnController 정식 분리
 3. Artifact 상태 평가 순수화
 4. Lobby / TopHUD UI 빌더 공통화
@@ -4549,7 +4758,7 @@ ________________________________________
 8. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• 다음 세션 시작 시 Lobby BEST 최종 배치/초상화와 Editor 다중 Guest, Android 1계정 제한을 우선 검증한다.
+• 다음 세션 시작 시 BEST 얼굴 크롭과 Editor 다중 Guest, Android 1계정 제한을 우선 검증한다.
 • 회귀 검증 후 `PlayerRespawnController`를 정식 분리한다.
 • 이후 Artifact 상태 평가 순수화, Lobby/TopHUD UI 빌더 공통화와 로컬 저장소 추상화를 진행한다.
 • 구조 안정화 후 캐릭터 강화 정책과 실제 CharacterCoin 콘텐츠를 진행한다.
