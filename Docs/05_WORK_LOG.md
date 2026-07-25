@@ -5058,6 +5058,169 @@ ________________________________________
 
 ________________________________________
 
+2.151 BackND 계정별 캐릭터 성장 데이터 분리
+
+완료 내용:
+• 캐릭터 성장 데이터가 단일 `PlayerPrefs` 키를 사용해 모든 계정에 공유되는 원인 확인
+• BackND 로그인 성공 시 `gamerInDate` 기반 계정 전용 성장 저장 키 사용
+• 계정 전환 시 `CharacterProgressionState` 서비스를 현재 계정 데이터로 교체
+• 이전 계정의 캐릭터 선택 정적 캐시를 로그인 성공 시 초기화
+• 소유 계정을 판별할 수 없는 기존 공용 성장 데이터는 자동 이전하거나 삭제하지 않고 보존
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/LocalCharacterProgressionService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationManager.cs`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity Assembly-CSharp Roslyn 설정 기반 컴파일 성공
+• 계정 ID를 파일명에 직접 사용하지 않는 Base64 URL-safe 저장 키 생성 경로 확인
+• 계정 저장소에서는 기존 공용 저장 키로 폴백하지 않도록 분리
+• 로그인 세션 확정 후 Lobby 진입 전에 성장 서비스가 교체되는 호출 순서 확인
+• 임시 컴파일 산출물 제거 완료
+
+남은 확인:
+• 기존 계정 로그인 후 캐릭터 레벨/경험치 변경 및 재로그인 시 유지
+• 신규 계정 로그인 시 모든 캐릭터가 초기 레벨/경험치로 표시
+• 계정을 교대로 로그인해도 각 계정의 성장 상태가 섞이지 않는지 확인
+• 기존 공용 성장 데이터의 대상 계정이 확정되면 수동 이전 여부 결정
+
+관련 작업 기준:
+• 사용자 재현: Android에서 기존 계정의 캐릭터 레벨/경험치가 신규 계정에 공유됨
+• 현재 단계에서는 로컬 캐시를 계정별로 분리하며 서버 저장은 P4~P5에서 적용
+
+2.152 테스트용 전체 계정 캐릭터 정보 초기화
+
+작업 내용:
+• 캐릭터 진행 저장 키 세대를 `v2`로 변경해 기존 공용 및 계정별 `v1` 데이터를 더 이상 로드하지 않도록 처리
+• `PlayerPrefs.DeleteAll()`은 사용하지 않아 로그인 기억 정보와 캐릭터 외 설정은 유지
+• 초기화 이후 생성되는 캐릭터 레벨, 경험치, 보유, 선택, 장착 정보는 `gamerInDate`별 `v2` 저장소에 다시 독립 저장
+• 비로그인 로컬 저장소도 이전 `PH.CharacterProgression.v1`로 폴백하지 않도록 변경
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Characters/LocalCharacterProgressionService.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 기존 `LootUp.CharacterProgression.v1`, `PH.CharacterProgression.v1`, `LootUp.CharacterProgression.Account.v1.*` 키가 로드 경로에서 제외되는지 확인
+• 신규 저장 키가 공용 `LootUp.CharacterProgression.v2`, 계정별 `LootUp.CharacterProgression.Account.v2.*`로 생성되는지 확인
+• Unity Assembly-CSharp Roslyn 설정 기반 컴파일 성공
+
+남은 확인:
+• Android에서 각 기존 계정 로그인 시 캐릭터 정보가 초기 상태로 표시되는지 확인
+• 계정별로 새 진행도를 저장한 뒤 재로그인 시 각 계정 데이터가 독립적으로 유지되는지 확인
+
+관련 작업 기준:
+• 사용자 요청: 원활한 계정 분리 테스트를 위해 모든 계정의 캐릭터 정보를 초기화
+• 기존 캐릭터 저장 데이터는 물리 삭제하지 않고 저장 키 세대 전환으로 접근만 차단
+
+2.153 BackND 계정별 LANK 저장 및 조회 연동
+
+완료 내용:
+• `ILeaderboardService`, 랭킹 기록/스냅샷/제출 결과 모델과 `LeaderboardManager` 추가
+• BackND 로그인 성공 시 `gamerInDate`를 기준으로 `BackndLeaderboardService` 구성
+• 로그아웃, 로그인 실패, 수동 인증 요구 시 이전 계정 랭킹 서비스와 캐시 제거
+• 게임 종료 결과를
+  `Backend.Leaderboard.User.UpdateMyDataAndRefreshLeaderboard`로 제출
+• 기존 `LootUpRank` 행을 먼저 조회해 더 좋은 기록일 때만 갱신하고 중복 Insert 방지
+• `층수 > 점수 > 캐릭터 레벨` 순서를 보존하는 `rankValue` 합성 적용
+• 랭킹 설정을 `LootUpRank.rankValue`, 내림차순, `recordData` 추가 항목 기준으로 자동 탐색
+• LANK 화면의 MY LANK와 최대 5개 전체 랭킹 행을 서버 조회 결과로 표시
+• MY LANK 얼굴 초상화와 전체 목록 전신 초상화 정책 유지
+• 로딩, 빈 결과, 서버 오류, 재시도 UI 상태 추가
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Leaderboard/*`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Game/GameStateController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LankLobbyPanel.cs`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity Assembly-CSharp Roslyn 설정과 BackND SDK 5.18.3 참조 기반 컴파일 성공
+• SDK 실제 `GetRankTableList`, `GetRankList`, `GetMyRank`, `GetMyData`, `Insert`, `UpdateUserScore` 시그니처 확인
+• `rankValue` 최대값이 뒤끝 정수 랭킹 안전 범위 `2^53` 미만인지 확인
+• 서버 기록 비교가 `도달 층수 > 스코어 > 캐릭터 레벨` 순서인지 확인
+• 랭킹 UUID 하드코딩 없이 콘솔 설정 자동 탐색 경로 확인
+
+남은 수동 설정:
+• 뒤끝 콘솔에 Private `LootUpRank` 게임 정보 테이블 생성
+• DOUBLE: `rankValue`
+• INT: `highestFloor`, `score`, `characterLevel`, `recordVersion`
+• STRING: `characterId`, `recordData`
+• `rankValue` 내림차순, `recordData` 추가 항목의 유저 랭킹 생성
+• 권장 랭킹 주기는 무기한 누적
+
+남은 확인:
+• Android 계정 A/B에서 서로 다른 게임 결과 제출
+• LANK 전체 목록과 MY LANK의 계정별 순위, 닉네임, 층수, 점수, 레벨, 캐릭터 확인
+• 낮은 기록 재제출 시 기존 최고 기록이 유지되는지 확인
+• 네트워크 차단 및 잘못된 콘솔 설정에서 ERROR/RETRY 표시 확인
+
+관련 작업 기준:
+• 현재 SDK `5.18.3`에 포함된 신규 `Backend.Leaderboard.User` API 사용
+
+2.154 Android LANK SERVER ERROR 수정
+
+재현 결과:
+• 새 APK에서 로비의 로컬 최고 기록은 정상 표시
+• LANK 진입 시 랭킹 행 없이 `SERVER ERROR`와 `RETRY` 표시
+• 작업 환경의 ADB에는 Android 기기가 연결되지 않아 해당 실행의 원본 응답 로그 직접 수집 불가
+
+원인:
+• 클라이언트가 구형 `Backend.URank.User` 설정 및 조회 API를 사용
+• 현재 뒤끝 콘솔에서 생성한 신규 유저 리더보드와 SDK 조회 경로 불일치 가능
+• UI가 실제 서버 응답을 숨기고 `SERVER ERROR`만 표시해 원인 식별이 어려움
+
+수정 내용:
+• 설치된 BackND SDK `5.18.3` DLL을 리플렉션으로 확인해 신규 API 시그니처 검증
+• 설정 탐색을 `Backend.Leaderboard.User.GetLeaderboards`로 전환
+• 전체 순위 조회를 `GetLeaderboard`, MY LANK 조회를 `GetMyLeaderboard`로 전환
+• 기록 반영을 `UpdateMyDataAndRefreshLeaderboard`로 전환
+• 신규 SDK의 `LeaderboardTableItem`, `UserLeaderboardItem` 타입 응답을 직접 역직렬화
+• 설정 탐색, 조회, 갱신 실패 시 실제 BackND 응답을 Unity 로그에 기록
+• LANK 오류 영역에 일반 `SERVER ERROR` 대신 최대 72자의 실제 오류 메시지 표시
+
+검증 상태:
+• Unity Assembly-CSharp Roslyn 설정과 BackND SDK 5.18.3 기반 컴파일 성공
+• 설치 DLL에서 신규 유저 리더보드 설정/조회/MY LANK/갱신 API 존재 확인
+• 신규 API 콜백 및 반환 모델 컴파일 확인
+
+남은 확인:
+• 수정 APK에서 LANK 진입 시 빈 랭킹은 `NO RECORDS`, 기록 존재 시 순위 행 표시
+• 게임 종료 후 `LootUpRank` 데이터 행과 유저 리더보드 등록 확인
+• 오류가 재발하면 LANK에 표시되는 실제 메시지와 Android logcat 수집
+
+2.155 BackND LANK 콘솔 설정 완료
+
+완료 내용:
+• `개발 > 게임정보 > 테이블`에서 Private `LootUpRank` 테이블 생성 및 활성화
+• `rankValue`는 DOUBLE, `highestFloor`, `score`, `characterLevel`, `recordVersion`은 INT로 생성
+• `characterId`, `recordData`는 STRING으로 생성하고 모든 사용자 정의 컬럼의 NULL 허용
+• `운영 > 리더보드`에서 `LootUp Global Rank` 유저 리더보드 생성
+• 그룹 구분 없음, 초기화 주기 없음, `LootUpRank.rankValue` 내림차순으로 설정
+• 추가 항목은 `recordData`로 설정
+• 게임정보 테이블과 운영 리더보드가 별도 기능이며 정렬 대상 컬럼으로 연결되는 구조를 계획서에 명시
+
+검증 상태:
+• 사용자 확인을 통해 테이블과 리더보드 생성 및 활성화 완료
+• 클라이언트가 테이블명, 정렬 컬럼, 정렬 방향, 추가 항목으로 리더보드 UUID를 자동 탐색하는 구조 확인
+• Unity Assembly-CSharp Roslyn 설정과 BackND SDK 5.18.3 기반 컴파일 성공
+
+남은 확인:
+• Unity Editor 재로그인 후 `LEADERBOARD NOT FOUND` 오류가 사라지는지 확인
+• 기록이 없는 계정에서 LANK가 `NO RECORDS`로 표시되는지 확인
+• 게임 종료 후 `LootUpRank` 행과 `LootUp Global Rank` 순위가 생성되는지 확인
+• Android 계정 A/B의 기록과 MY LANK가 서로 분리되는지 확인
+
+관련 작업 기준:
+• 리더보드 이름: `LootUp Global Rank`
+• 정렬 정책: 도달 층수 > 스코어 > 플레이 당시 캐릭터 레벨
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
@@ -5083,16 +5246,19 @@ ________________________________________
 
 현재 기준:
 • BackND 5.18.3 SDK 임포트, 인증 설정, 초기화, P3 Custom 로그인을 구현했다.
-• 실제 계정 검증과 랭킹 정책 확정 후 `Docs/06_BACKND_INTEGRATION_PLAN.md`의 P4부터 적용한다.
+• P4~P5 LANK 클라이언트 구현과 `LootUpRank`, `LootUp Global Rank` 콘솔 설정을 완료했다.
+• 실제 계정 기록 제출과 Android 계정별 순위 분리 검증이 남아 있다.
 • 게임 플레이 로직은 서버 SDK를 직접 호출하지 않는다.
 • 런 결과, 아이템 획득 이벤트, 최고 층, 점수, 수집형 아이템은 서비스 인터페이스 뒤로 분리한다.
 
 필요한 추상화 후보:
 • `IRunResultService`
-• `ILeaderboardService`
 • `IPlayerProfileService`
 • `IInventoryService`
 • `IItemCatalogService`
+
+구현된 추상화:
+• `ILeaderboardService`
 
 아이템 서버 검증 시 고려:
 • `ItemId`는 클라이언트 테이블 ID

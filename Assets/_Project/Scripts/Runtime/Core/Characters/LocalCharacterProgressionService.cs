@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace LootUp.Core.Characters
@@ -7,13 +8,26 @@ namespace LootUp.Core.Characters
     public sealed class LocalCharacterProgressionService : ICharacterProgressionService
     {
         private const int CurrentVersion = 2;
-        private const string SaveKey = "LootUp.CharacterProgression.v1";
+        private const string SaveKey = "LootUp.CharacterProgression.v2";
         private const string LegacySaveKey = "PH.CharacterProgression.v1";
+        private const string AccountSaveKeyPrefix =
+            "LootUp.CharacterProgression.Account.v2.";
 
         private readonly CharacterProgressionSaveData saveData;
+        private readonly string activeSaveKey;
+        private readonly bool isAccountScoped;
 
         public LocalCharacterProgressionService()
+            : this(string.Empty)
         {
+        }
+
+        public LocalCharacterProgressionService(string userId)
+        {
+            isAccountScoped = !string.IsNullOrWhiteSpace(userId);
+            activeSaveKey = isAccountScoped
+                ? CreateAccountSaveKey(userId)
+                : SaveKey;
             saveData = Load();
             NormalizeSaveData();
         }
@@ -104,8 +118,14 @@ namespace LootUp.Core.Characters
         {
             try
             {
-                PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(saveData));
-                PlayerPrefs.DeleteKey(LegacySaveKey);
+                PlayerPrefs.SetString(
+                    activeSaveKey,
+                    JsonUtility.ToJson(saveData));
+                if (!isAccountScoped)
+                {
+                    PlayerPrefs.DeleteKey(LegacySaveKey);
+                }
+
                 PlayerPrefs.Save();
                 return true;
             }
@@ -135,12 +155,19 @@ namespace LootUp.Core.Characters
             }
         }
 
-        private static string GetSavedJson()
+        private string GetSavedJson()
         {
-            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
-            return string.IsNullOrWhiteSpace(json)
-                ? PlayerPrefs.GetString(LegacySaveKey, string.Empty)
-                : json;
+            return PlayerPrefs.GetString(activeSaveKey, string.Empty);
+        }
+
+        private static string CreateAccountSaveKey(string userId)
+        {
+            string encodedUserId = Convert.ToBase64String(
+                    Encoding.UTF8.GetBytes(userId.Trim()))
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+            return AccountSaveKeyPrefix + encodedUserId;
         }
 
         private void NormalizeSaveData()

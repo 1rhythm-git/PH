@@ -20,7 +20,7 @@ Android AAR의 최소 SDK는 22이며 현재 프로젝트의 최소 SDK 25와 �
 | P1 SDK 임포트/컴파일 | 완료 | Unity 6000.3.17f1 컴파일 성공 |
 | P2 SDK 초기화 계층 | 완료 | Play Mode 실제 서버 초기화 성공 확인 |
 | P3 로그인 연동 | 완료 | 회원가입·수동 로그인·ID/PW 기억하기 사용자 검증 완료 |
-| P4~P5 LANK 연동 | 대기 | 랭킹 합성 범위와 콘솔 테이블 필요 |
+| P4~P5 LANK 연동 | 코드 및 콘솔 설정 완료 | 실제 계정 기록 제출/조회 검증 필요 |
 
 ## 2. 적용 전 수동 선행 작업
 
@@ -74,7 +74,7 @@ Google Play Console, OAuth, Play Games Services 설정과 별도 GPGS 플러그�
 - `characterLevel` 최대값
 - `rankValue` 저장 타입과 오버플로 방지 범위
 
-권장 게임 데이터 테이블 초안:
+적용 게임 데이터 테이블:
 
 | 컬럼 | 용도 |
 | --- | --- |
@@ -83,17 +83,32 @@ Google Play Console, OAuth, Play Games Services 설정과 별도 GPGS 플러그�
 | `score` | 표시 및 검증용 스코어 |
 | `characterLevel` | 플레이 당시 캐릭터 레벨 |
 | `characterId` | 전신 초상화 선택용 캐릭터 식별자 |
+| `recordData` | 랭킹 추가 항목용 표시 데이터 JSON |
 | `recordVersion` | 데이터 규칙 변경 대응 |
 
-뒤끝 콘솔에서 다음 항목도 수동으로 생성하거나 확정해야 한다.
+합성 범위는 `층수 0~9,999`, `점수 0~99,999,999`,
+`캐릭터 레벨 1~999`로 제한한다. 합성식은
+`층수 × 100,000,000,000 + 점수 × 1,000 + 레벨`이며 최대값은
+뒤끝 정수 랭킹의 안전 범위인 `2^53` 미만이다.
 
-- 게임 데이터 테이블 이름과 컬럼 타입
-- 테이블 쓰기/읽기 권한
-- 유저 랭킹 생성
-- 랭킹 UUID
-- 정렬 대상 컬럼 `rankValue`와 내림차순
-- 랭킹 초기화 주기 또는 무기한 정책
-- 추가 데이터 컬럼 사용 여부
+뒤끝 콘솔에 다음 항목을 생성하고 활성화했다.
+
+- `개발 > 게임정보 > 테이블`의 Private 테이블 이름: `LootUpRank`
+- DOUBLE 컬럼: `rankValue`
+- INT 컬럼: `highestFloor`, `score`, `characterLevel`, `recordVersion`
+- STRING 컬럼: `characterId`, `recordData`
+- 모든 사용자 정의 컬럼: NULL 허용
+- `운영 > 리더보드`의 리더보드 이름: `LootUp Global Rank`
+- 대상: 유저, 그룹 구분 없음, 초기화 주기 없음
+- 정렬 대상: `LootUpRank.rankValue`
+- 정렬 순서: 내림차순
+- 추가 항목: `recordData`
+
+게임정보 테이블은 실제 사용자 기록을 저장하고, 운영 리더보드는 해당
+테이블의 숫자 컬럼을 기준으로 순위를 계산하는 별도 기능이다.
+코드는 `Backend.Leaderboard.User.GetLeaderboards`에서 테이블명, 정렬 컬럼, 내림차순,
+추가 항목이 모두 일치하는 랭킹 UUID를 자동 탐색한다. UUID를 소스에
+직접 입력하지 않는다.
 
 ## 3. 자동 작업과 적용 순서
 
@@ -120,24 +135,29 @@ Google Play Console, OAuth, Play Games Services 설정과 별도 GPGS 플러그�
 - 회원가입 후 닉네임 등록 및 중복 오류 매핑
 - SDK 오류 코드를 기존 `AuthenticationFailure`로 변환
 - 로그인 성공 시 기존 `UserProfileManager` 갱신
+- 로그인 성공 시 `gamerInDate`별 로컬 캐릭터 성장 저장소로 전환
+- 계정 전환 시 캐릭터 선택 런타임 캐시 초기화
 - 기존 로컬 구현은 Editor 및 오프라인 테스트 대체 구현으로 유지
 
 ### P4. LANK 서비스 경계
 
 - `ILeaderboardService`와 전송/조회 모델 추가
-- 기존 로컬 1개 행을 로컬 서비스 구현으로 이동
+- 인증 계정 변경 시 랭킹 서비스를 교체하고 이전 계정 캐시 제거
 - LANK UI에 로딩, 빈 결과, 오류, 재시도, 페이지 상태 추가
 - MY LANK는 얼굴 초상화, 전체 목록은 캐릭터 전신 초상화 규칙 유지
-- 조회 결과 캐시를 두어 패널을 열 때마다 서버를 호출하지 않도록 처리
+- 서버 설정 전 로컬 표시를 유지하되 BackND 로그인 후에는 서버 결과만 표시
 
 ### P5. 뒤끝 랭킹 저장 및 조회
 
 - 게임 종료 시 최고 기록 행 생성 또는 갱신
-- 기록 행의 `inDate` 보관 및 랭킹 점수 갱신에 사용
-- 랭킹 UUID로 전체 순위와 MY LANK 조회
+- 기존 행을 조회해 `inDate`를 복구하고 중복 Insert 방지
+- `Backend.Leaderboard.User.UpdateMyDataAndRefreshLeaderboard`로
+  기록과 리더보드를 함께 갱신
+- 자동 탐색한 랭킹 UUID로 전체 순위와 MY LANK 조회
 - 표시용 층수, 스코어, 캐릭터 레벨, 캐릭터 ID 역직렬화
-- 네트워크 실패 시 직전 캐시와 명시적 오류 상태 사용
+- 네트워크 및 콘솔 설정 실패 시 명시적 오류와 재시도 상태 사용
 - 중복 전송과 연속 버튼 입력 방지
+- 현재 SDK `5.18.3`에 포함된 신규 `Backend.Leaderboard.User` API 사용
 
 ### P6. 선택 작업
 
@@ -163,12 +183,12 @@ Google Play Console, OAuth, Play Games Services 설정과 별도 GPGS 플러그�
 
 ## 5. 다음 진행 기준
 
-P0 인증 설정, P1 SDK 임포트, P2 SDK 초기화, P3 Custom 로그인 구현과
-실제 계정 동작 확인을 완료했다. P4부터 순서대로 적용한다.
+P0 인증 설정, P1 SDK 임포트, P2 SDK 초기화, P3 Custom 로그인,
+P4~P5 LANK 클라이언트 구현과 서버 콘솔 설정을 완료했다.
 
-1. 층수, 스코어, 레벨 상한 및 랭킹 초기화 주기 확정
-2. 게임 데이터 테이블과 유저 랭킹 생성에 사용할 이름 확정
-3. 뒤끝 콘솔 게임 데이터 테이블 생성 및 유저 랭킹 UUID 발급
+1. Unity Editor 재로그인 후 `LEADERBOARD NOT FOUND`가 사라지는지 확인
+2. 게임 종료 후 `LootUpRank` 행 생성과 `LootUp Global Rank` 반영 확인
+3. Android 계정 2개 이상으로 서로 다른 기록 제출과 순위 조회 확인
 
 Google 로그인은 Custom 로그인과 LANK 연동이 Android 실기기에서 검증된 뒤
 진행한다.

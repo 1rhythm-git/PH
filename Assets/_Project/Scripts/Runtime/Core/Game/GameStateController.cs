@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using LootUp.Core.Characters;
 using LootUp.Core.Items;
+using LootUp.Core.Leaderboard;
 using LootUp.Core.Player;
 using LootUp.Core.SceneFlow;
 using LootUp.Core.UI;
@@ -116,6 +117,7 @@ namespace LootUp.Core.Game
             EnsureReferences();
             EnsureCollaborators();
             lastRunResultData = runResultService.CreateResult(CreateRunResultContext(gameOverReason));
+            _ = LeaderboardManager.SubmitRunAsync(lastRunResultData);
 
             StopInGameSystems();
             ShowGameOverOverlay();

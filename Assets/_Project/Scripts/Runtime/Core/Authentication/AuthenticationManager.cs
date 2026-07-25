@@ -1,5 +1,7 @@
 using System;
 using System.Threading.Tasks;
+using LootUp.Core.Characters;
+using LootUp.Core.Leaderboard;
 using LootUp.Core.Profile;
 
 namespace LootUp.Core.Authentication
@@ -25,6 +27,7 @@ namespace LootUp.Core.Authentication
         {
             service = authenticationService ?? CreateDefaultService();
             CurrentSession = null;
+            LeaderboardManager.Configure(null);
             SetState(AuthenticationState.SignedOut);
         }
 
@@ -105,6 +108,7 @@ namespace LootUp.Core.Authentication
         public static void RequireCredentialConfirmation()
         {
             CurrentSession = null;
+            LeaderboardManager.Configure(null);
             SetState(AuthenticationState.SignedOut);
         }
 
@@ -120,10 +124,13 @@ namespace LootUp.Core.Authentication
             {
                 await Service.SignOutAsync();
                 CurrentSession = null;
+                LeaderboardManager.Configure(null);
                 SetState(AuthenticationState.SignedOut);
             }
             catch
             {
+                CurrentSession = null;
+                LeaderboardManager.Configure(null);
                 SetState(AuthenticationState.Failed);
             }
             finally
@@ -171,14 +178,24 @@ namespace LootUp.Core.Authentication
                 }
 
                 CurrentSession = result.Session;
+                CharacterProgressionState.Configure(
+                    new LocalCharacterProgressionService(
+                        result.Session.UserId));
+                CharacterSelectionState.Reset();
                 UserProfileManager.SetIdentity(
                     result.Session.UserId,
                     result.Session.Nickname);
+                LeaderboardManager.Configure(
+                    result.Session.Provider == AuthenticationProvider.Backnd
+                        ? new BackndLeaderboardService(
+                            result.Session.UserId)
+                        : null);
                 SetState(AuthenticationState.Authenticated);
             }
             else
             {
                 CurrentSession = null;
+                LeaderboardManager.Configure(null);
                 SetState(AuthenticationState.Failed);
             }
 

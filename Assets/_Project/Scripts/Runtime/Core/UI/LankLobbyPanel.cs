@@ -1,5 +1,6 @@
+using LootUp.Core.Authentication;
 using LootUp.Core.Characters;
-using LootUp.Core.Profile;
+using LootUp.Core.Leaderboard;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,7 +21,9 @@ namespace LootUp.Core.UI
         private Button floorTab;
         private Button scoreTab;
         private RectTransform body;
+        private Text scopeText;
         private LankMode mode;
+        private bool isRefreshing;
         private CharacterDefinition[] availableCharacters;
         private CharacterDefinition bestCharacterDefinition;
         private Sprite generatedCharacterPortraitSprite;
@@ -68,10 +71,6 @@ namespace LootUp.Core.UI
 
         private void Build()
         {
-            bestCharacterDefinition = FindBestCharacterDefinition();
-            generatedCharacterPortraitSprite =
-                CreateFacePortraitSprite(bestCharacterDefinition);
-
             RectTransform root = transform as RectTransform;
             Text title = CreateText(
                 root,
@@ -83,10 +82,10 @@ namespace LootUp.Core.UI
                 TextAnchor.MiddleLeft,
                 accentColor);
             title.fontStyle = FontStyle.Bold;
-            CreateText(
+            scopeText = CreateText(
                 root,
                 "Scope",
-                "LOCAL",
+                GetScopeText(),
                 new Vector2(0.68f, 0.925f),
                 new Vector2(0.85f, 0.975f),
                 22,
@@ -125,6 +124,7 @@ namespace LootUp.Core.UI
                 new Vector2(0.055f, 0.055f),
                 new Vector2(0.945f, 0.815f));
             SetMode(LankMode.Floor);
+            _ = RefreshLeaderboardAsync();
         }
 
         private void SetMode(LankMode nextMode)
@@ -146,6 +146,13 @@ namespace LootUp.Core.UI
         private void BuildLankView()
         {
             ClearBody();
+            LeaderboardSnapshot snapshot = LeaderboardManager.Snapshot;
+            LeaderboardRecord myRecord = snapshot.MyRecord;
+            UpdateMyPortrait(myRecord);
+            if (scopeText != null)
+            {
+                scopeText.text = GetScopeText();
+            }
 
             RectTransform summary = CreatePanel(
                 body,
@@ -173,12 +180,15 @@ namespace LootUp.Core.UI
             summaryPortrait.sprite = generatedCharacterPortraitSprite;
             summaryPortrait.preserveAspect = true;
             summaryPortrait.enabled =
-                HasLocalRecord() && generatedCharacterPortraitSprite != null;
+                HasRecord(myRecord)
+                && generatedCharacterPortraitSprite != null;
 
             CreateText(
                 summary,
                 "SummaryRank",
-                HasLocalRecord() ? "# 1" : "-",
+                HasRecord(myRecord) && myRecord.Rank > 0
+                    ? $"# {myRecord.Rank}"
+                    : "-",
                 new Vector2(0.17f, 0.08f),
                 new Vector2(0.3f, 0.62f),
                 40,
@@ -187,7 +197,7 @@ namespace LootUp.Core.UI
             CreateText(
                 summary,
                 "SummaryValue",
-                $"{GetPrimaryValue()}  |  {GetCharacterLevelText()}",
+                $"{GetPrimaryValue(myRecord)}  |  {GetCharacterLevelText(myRecord)}",
                 new Vector2(0.31f, 0.08f),
                 new Vector2(0.96f, 0.62f),
                 30,
@@ -255,113 +265,226 @@ namespace LootUp.Core.UI
                 TextAnchor.MiddleRight,
                 accentColor);
 
-            RectTransform playerRow = CreatePanel(
-                table,
-                "LocalPlayerRow",
-                new Vector2(0.025f, 0.64f),
-                new Vector2(0.975f, 0.83f),
-                new Color(0.08f, 0.22f, 0.2f, 0.95f));
-            CreateText(
-                playerRow,
-                "Rank",
-                HasLocalRecord() ? "#1" : "-",
-                new Vector2(0.02f, 0f),
-                new Vector2(0.11f, 1f),
-                28,
-                TextAnchor.MiddleLeft,
-                accentColor);
+            int visibleCount = Mathf.Min(5, snapshot.Records.Count);
+            for (int i = 0; i < visibleCount; i++)
+            {
+                CreateRankRow(
+                    table,
+                    snapshot.Records[i],
+                    i);
+            }
 
-            Image rowPortrait = CreateImage(
-                playerRow,
-                "CharacterFullBodyPortrait",
-                new Vector2(0.12f, 0.08f),
-                new Vector2(0.23f, 0.92f),
-                Color.white);
-            rowPortrait.sprite = bestCharacterDefinition != null
-                ? bestCharacterDefinition.PortraitSprite
-                : null;
-            rowPortrait.preserveAspect = true;
-            rowPortrait.enabled =
-                HasLocalRecord() && rowPortrait.sprite != null;
+            if (visibleCount <= 0)
+            {
+                string emptyMessage = snapshot.State switch
+                {
+                    LeaderboardLoadState.Loading => "LOADING...",
+                    LeaderboardLoadState.Error =>
+                        GetErrorMessage(snapshot.Message),
+                    _ => "NO RECORDS"
+                };
+                CreateText(
+                    table,
+                    "EmptyState",
+                    emptyMessage,
+                    new Vector2(0.05f, 0.24f),
+                    new Vector2(0.95f, 0.58f),
+                    25,
+                    TextAnchor.MiddleCenter,
+                    new Color(
+                        textColor.r,
+                        textColor.g,
+                        textColor.b,
+                        0.62f));
 
-            CreateText(
-                playerRow,
-                "Player",
-                UserProfileManager.Nickname,
-                new Vector2(0.25f, 0f),
-                new Vector2(0.5f, 1f),
-                27,
-                TextAnchor.MiddleLeft,
-                textColor);
-            CreateText(
-                playerRow,
-                "Floor",
-                $"{UserProfileManager.BestHighestFloor}F",
-                new Vector2(0.51f, 0f),
-                new Vector2(0.64f, 1f),
-                27,
-                TextAnchor.MiddleRight,
-                textColor);
-            CreateText(
-                playerRow,
-                "Score",
-                UserProfileManager.BestScore.ToString("N0"),
-                new Vector2(0.65f, 0f),
-                new Vector2(0.84f, 1f),
-                27,
-                TextAnchor.MiddleRight,
-                textColor);
-            CreateText(
-                playerRow,
-                "Level",
-                HasLocalRecord()
-                    ? UserProfileManager.BestCharacterLevel.ToString()
-                    : "-",
-                new Vector2(0.85f, 0f),
-                new Vector2(0.97f, 1f),
-                27,
-                TextAnchor.MiddleRight,
-                textColor);
-
-            CreateText(
-                table,
-                "EmptyState",
-                "NO OTHER LOCAL RECORDS",
-                new Vector2(0.05f, 0.16f),
-                new Vector2(0.95f, 0.55f),
-                25,
-                TextAnchor.MiddleCenter,
-                new Color(textColor.r, textColor.g, textColor.b, 0.52f));
+                if (snapshot.State == LeaderboardLoadState.Error)
+                {
+                    Button retryButton = CreateButton(
+                        table,
+                        "RetryButton",
+                        "RETRY",
+                        new Vector2(0.34f, 0.08f),
+                        new Vector2(0.66f, 0.22f),
+                        accentColor);
+                    retryButton.onClick.AddListener(
+                        () => _ = RefreshLeaderboardAsync());
+                }
+            }
         }
 
-        private string GetPrimaryValue()
+        private void CreateRankRow(
+            RectTransform table,
+            LeaderboardRecord record,
+            int index)
         {
-            if (!HasLocalRecord())
+            const float rowHeight = 0.155f;
+            const float rowGap = 0.01f;
+            float rowMax = 0.83f - index * (rowHeight + rowGap);
+            float rowMin = rowMax - rowHeight;
+            bool isMine = AuthenticationManager.IsAuthenticated
+                          && string.Equals(
+                              AuthenticationManager.CurrentSession.UserId,
+                              record.UserId,
+                              System.StringComparison.Ordinal);
+            RectTransform row = CreatePanel(
+                table,
+                $"RankRow_{index}",
+                new Vector2(0.025f, rowMin),
+                new Vector2(0.975f, rowMax),
+                isMine
+                    ? new Color(0.08f, 0.22f, 0.2f, 0.95f)
+                    : new Color(
+                        panelColor.r,
+                        panelColor.g,
+                        panelColor.b,
+                        0.84f));
+            CreateText(
+                row,
+                "Rank",
+                record.Rank > 0 ? $"#{record.Rank}" : "-",
+                new Vector2(0.02f, 0f),
+                new Vector2(0.11f, 1f),
+                27,
+                TextAnchor.MiddleLeft,
+                isMine ? accentColor : textColor);
+
+            CharacterDefinition definition =
+                FindCharacterDefinition(record.CharacterId);
+            Image portrait = CreateImage(
+                row,
+                "CharacterFullBodyPortrait",
+                new Vector2(0.12f, 0.06f),
+                new Vector2(0.23f, 0.94f),
+                Color.white);
+            portrait.sprite = definition != null
+                ? definition.PortraitSprite
+                : null;
+            portrait.preserveAspect = true;
+            portrait.enabled = portrait.sprite != null;
+
+            CreateText(
+                row,
+                "Player",
+                record.Nickname,
+                new Vector2(0.25f, 0f),
+                new Vector2(0.5f, 1f),
+                25,
+                TextAnchor.MiddleLeft,
+                textColor);
+            CreateText(
+                row,
+                "Floor",
+                $"{record.HighestFloor}F",
+                new Vector2(0.51f, 0f),
+                new Vector2(0.64f, 1f),
+                25,
+                TextAnchor.MiddleRight,
+                textColor);
+            CreateText(
+                row,
+                "Score",
+                record.Score.ToString("N0"),
+                new Vector2(0.65f, 0f),
+                new Vector2(0.84f, 1f),
+                25,
+                TextAnchor.MiddleRight,
+                textColor);
+            CreateText(
+                row,
+                "Level",
+                record.CharacterLevel.ToString(),
+                new Vector2(0.85f, 0f),
+                new Vector2(0.97f, 1f),
+                25,
+                TextAnchor.MiddleRight,
+                textColor);
+        }
+
+        private async System.Threading.Tasks.Task
+            RefreshLeaderboardAsync()
+        {
+            if (isRefreshing)
+            {
+                return;
+            }
+
+            isRefreshing = true;
+            try
+            {
+                await LeaderboardManager.RefreshAsync(20);
+                if (this != null)
+                {
+                    BuildLankView();
+                }
+            }
+            finally
+            {
+                isRefreshing = false;
+            }
+        }
+
+        private string GetPrimaryValue(LeaderboardRecord record)
+        {
+            if (!HasRecord(record))
             {
                 return "NO RECORD";
             }
 
             return mode == LankMode.Floor
-                ? $"BEST FLOOR  {UserProfileManager.BestHighestFloor}F"
-                : $"BEST SCORE  {UserProfileManager.BestScore:N0}";
+                ? $"BEST FLOOR  {record.HighestFloor}F"
+                : $"BEST SCORE  {record.Score:N0}";
         }
 
-        private static bool HasLocalRecord()
+        private static bool HasRecord(LeaderboardRecord record)
         {
-            return UserProfileManager.BestHighestFloor > 0
-                || UserProfileManager.BestScore > 0;
+            return record != null && record.HasRecord;
         }
 
-        private static string GetCharacterLevelText()
+        private static string GetCharacterLevelText(
+            LeaderboardRecord record)
         {
-            return HasLocalRecord()
-                ? $"LV. {UserProfileManager.BestCharacterLevel}"
+            return HasRecord(record)
+                ? $"LV. {record.CharacterLevel}"
                 : "LV. -";
         }
 
-        private CharacterDefinition FindBestCharacterDefinition()
+        private string GetScopeText()
         {
-            string characterId = UserProfileManager.BestCharacterId;
+            return LeaderboardManager.Snapshot.State switch
+            {
+                LeaderboardLoadState.Online => "ONLINE",
+                LeaderboardLoadState.Loading => "SYNC",
+                LeaderboardLoadState.Error => "ERROR",
+                _ => "LOCAL"
+            };
+        }
+
+        private static string GetErrorMessage(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return "SERVER ERROR";
+            }
+
+            string normalized = message.Trim().ToUpperInvariant();
+            return normalized.Length <= 72
+                ? normalized
+                : normalized.Substring(0, 72);
+        }
+
+        private void UpdateMyPortrait(LeaderboardRecord record)
+        {
+            DestroyGeneratedCharacterPortraitSprite();
+            bestCharacterDefinition =
+                FindCharacterDefinition(
+                    record != null ? record.CharacterId : string.Empty);
+            generatedCharacterPortraitSprite =
+                CreateFacePortraitSprite(bestCharacterDefinition);
+        }
+
+        private CharacterDefinition FindCharacterDefinition(
+            string characterId)
+        {
             if (availableCharacters == null
                 || string.IsNullOrWhiteSpace(characterId))
             {
