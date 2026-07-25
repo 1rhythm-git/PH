@@ -80,6 +80,7 @@ namespace LootUp.Core.UI
         private Text loginStateText;
         private Text bestFloorText;
         private Text bestScoreText;
+        private Image bestCharacterPortraitImage;
         private Text selectedCharacterLevelText;
         private Text selectedCharacterPositionText;
         private Text selectedCharacterNameText;
@@ -92,6 +93,8 @@ namespace LootUp.Core.UI
         private RectTransform selectedCharacterExperienceFillRect;
         private Rect lastSafeArea;
         private Vector2Int lastScreenSize;
+        private string bestCharacterId = string.Empty;
+        private Sprite generatedBestCharacterPortraitSprite;
 
         private static Sprite leftArrowSprite;
         private static Sprite rightArrowSprite;
@@ -126,6 +129,11 @@ namespace LootUp.Core.UI
             UserProfileManager.ProfileChanged -= HandleUserProfileChanged;
             AuthenticationManager.AuthenticationStateChanged -= HandleAuthenticationStateChanged;
             ItemCollectionManager.CollectionChanged -= HandleCollectionChanged;
+        }
+
+        private void OnDestroy()
+        {
+            DestroyGeneratedBestCharacterPortraitSprite();
         }
 
         private void Update()
@@ -230,8 +238,23 @@ namespace LootUp.Core.UI
             Text title = CreateText(panel, "RecordTitleText", "BEST", new Vector2(0.03f, 0.52f), new Vector2(0.3f, 0.94f), TextAnchor.MiddleLeft, 32, primaryTextColor);
             title.fontStyle = FontStyle.Bold;
             bestFloorText = CreateText(panel, "BestFloorText", string.Empty, new Vector2(0.03f, 0.05f), new Vector2(0.48f, 0.54f), TextAnchor.MiddleLeft, 29, primaryTextColor);
-            bestScoreText = CreateText(panel, "BestScoreText", string.Empty, new Vector2(0.53f, 0.05f), new Vector2(0.97f, 0.54f), TextAnchor.MiddleRight, 29, primaryTextColor);
-            CreateDivider(panel, "RecordDivider", new Vector2(0.498f, 0f), new Vector2(0.501f, 1f));
+            bestScoreText = CreateText(panel, "BestScoreText", string.Empty, new Vector2(0.36f, 0.05f), new Vector2(0.64f, 0.54f), TextAnchor.MiddleLeft, 29, primaryTextColor);
+
+            RectTransform portraitArea = CreatePanel(
+                panel,
+                "BestCharacterPortraitArea",
+                new Vector2(0.815f, 0.08f),
+                new Vector2(0.97f, 0.92f),
+                new Color(0f, 0f, 0f, 0.35f),
+                true);
+            bestCharacterPortraitImage = CreateImage(
+                portraitArea,
+                "BestCharacterPortrait",
+                new Vector2(0.15f, 0f),
+                new Vector2(0.85f, 0.7f),
+                Color.white);
+            bestCharacterPortraitImage.preserveAspect = true;
+            bestCharacterPortraitImage.enabled = false;
         }
 
         private void BuildCharacterStage(RectTransform parent)
@@ -347,6 +370,7 @@ namespace LootUp.Core.UI
                 bestScoreText.text = $"Score :  {Mathf.Max(0, bestScore):N0}";
             }
 
+            RefreshBestCharacterPortrait();
             RefreshSelectedCharacterInfo();
         }
 
@@ -357,6 +381,10 @@ namespace LootUp.Core.UI
             {
                 playerNickname = profileNickname;
             }
+
+            bestHighestFloor = UserProfileManager.BestHighestFloor;
+            bestScore = UserProfileManager.BestScore;
+            bestCharacterId = UserProfileManager.BestCharacterId;
         }
 
         private void RefreshSelectedCharacterInfo()
@@ -486,6 +514,118 @@ namespace LootUp.Core.UI
             Sprite portrait = selectedCharacter != null ? selectedCharacter.PortraitSprite : null;
             selectedCharacterPortraitImage.sprite = portrait;
             selectedCharacterPortraitImage.enabled = portrait != null;
+        }
+
+        private void RefreshBestCharacterPortrait()
+        {
+            if (bestCharacterPortraitImage == null)
+            {
+                return;
+            }
+
+            DestroyGeneratedBestCharacterPortraitSprite();
+            CharacterDefinition bestCharacter =
+                FindCharacterDefinitionById(bestCharacterId);
+            generatedBestCharacterPortraitSprite =
+                CreateFacePortraitSprite(bestCharacter);
+            bestCharacterPortraitImage.sprite =
+                generatedBestCharacterPortraitSprite;
+            bestCharacterPortraitImage.enabled =
+                generatedBestCharacterPortraitSprite != null;
+        }
+
+        private CharacterDefinition FindCharacterDefinitionById(
+            string characterId)
+        {
+            if (availableCharacters == null
+                || string.IsNullOrWhiteSpace(characterId))
+            {
+                return null;
+            }
+
+            for (int i = 0; i < availableCharacters.Length; i++)
+            {
+                CharacterDefinition candidate = availableCharacters[i];
+                if (candidate != null
+                    && string.Equals(
+                        candidate.CharacterId,
+                        characterId,
+                        System.StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private static Sprite CreateFacePortraitSprite(
+            CharacterDefinition definition)
+        {
+            Sprite source =
+                definition != null ? definition.PortraitSprite : null;
+            if (source == null)
+            {
+                return null;
+            }
+
+            Rect normalizedRect =
+                ClampNormalizedRect(definition.IngamePortraitFaceRect);
+            Rect sourceRect = source.textureRect;
+            Rect faceRect = new Rect(
+                sourceRect.x + sourceRect.width * normalizedRect.x,
+                sourceRect.y + sourceRect.height * normalizedRect.y,
+                Mathf.Max(1f, sourceRect.width * normalizedRect.width),
+                Mathf.Max(1f, sourceRect.height * normalizedRect.height));
+            Sprite portrait = Sprite.Create(
+                source.texture,
+                PixelSnapRect(faceRect),
+                new Vector2(0.5f, 0.5f),
+                source.pixelsPerUnit,
+                0,
+                SpriteMeshType.FullRect,
+                Vector4.zero,
+                false);
+            portrait.name = $"{source.name}_BestFace";
+            portrait.hideFlags = HideFlags.HideAndDontSave;
+            return portrait;
+        }
+
+        private void DestroyGeneratedBestCharacterPortraitSprite()
+        {
+            if (generatedBestCharacterPortraitSprite == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(generatedBestCharacterPortraitSprite);
+            }
+            else
+            {
+                DestroyImmediate(generatedBestCharacterPortraitSprite);
+            }
+
+            generatedBestCharacterPortraitSprite = null;
+        }
+
+        private static Rect ClampNormalizedRect(Rect rect)
+        {
+            float width = Mathf.Clamp(rect.width, 0.01f, 1f);
+            float height = Mathf.Clamp(rect.height, 0.01f, 1f);
+            float x = Mathf.Clamp(rect.x, 0f, 1f - width);
+            float y = Mathf.Clamp(rect.y, 0f, 1f - height);
+            return new Rect(x, y, width, height);
+        }
+
+        private static Rect PixelSnapRect(Rect rect)
+        {
+            return new Rect(
+                Mathf.Round(rect.x),
+                Mathf.Round(rect.y),
+                Mathf.Max(1f, Mathf.Round(rect.width)),
+                Mathf.Max(1f, Mathf.Round(rect.height)));
         }
 
         private void SelectPreviousCharacter()

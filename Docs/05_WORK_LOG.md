@@ -4208,22 +4208,350 @@ ________________________________________
 
 ________________________________________
 
+2.127 핵심 런타임 책임 분리 리팩터링
+
+목표:
+• `GameStateController`, `PlayerSpawner`, `ItemSpawner`의 과도한 책임 분리
+• 기존 공개 API, Inspector 연결과 게임 규칙을 유지한 상태로 내부 구조 개선
+
+완료 내용:
+• `GameStateController`에서 결과 생성/보상 정산을 `RunResultService`로 분리
+• 게임 종료 결과 UI 생성을 `RunResultPresenter`로 분리
+• `PlayerSpawner`의 치트 입력을 `PlayerDebugInput`으로 분리
+• Player 생성/필수 컴포넌트/캐릭터 비주얼 구성을 `PlayerRuntimeFactory`로 분리
+• HUD, Health, 이동, Fever 런타임 연결을 `PlayerRuntimeBinder`로 분리
+• `ItemSpawner`의 일반/수집형 드랍 정책을 `ItemSpawnPolicy`로 분리
+• 페이지 셀 배치와 통과 횟수 계획을 `ItemPagePlanner`로 분리
+• 아이템 UI 오브젝트 생성을 `ItemViewFactory`로 분리
+• 페이지 배치 재현성을 위해 기존 난수 호출 순서를 유지
+• 기존 public API와 직렬화 필드 이름을 유지해 Scene/Inspector 재설정이 필요 없도록 구성
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Game/GameStateController.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Game/RunResultService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/RunResultPresenter.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerDebugInput.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Player/PlayerRuntimeFactory.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemSpawner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemPagePlanner.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Items/ItemViewFactory.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batchmode 전체 스크립트 컴파일 및 Tundra build 성공
+• 신규 스크립트 6개가 `Assembly-CSharp.rsp`에 포함된 것 확인
+• 변경 스크립트 대상 `git diff --check` 통과
+• `GameStateController`, `PlayerSpawner`, `ItemSpawner` 기존 public API 유지 확인
+• 기존 `ProjectSettings/TagManager.asset` 41행 파싱 경고는 이번 리팩터링과 분리된 이슈로 확인
+
+남은 확인:
+• Game Over 결과, 보상 1회 지급, CONFIRM Lobby 이동 Play Mode 확인
+• 숫자 1/2/3 치트 입력과 Player 생성/캐릭터 애니메이션 Play Mode 확인
+• 고정 Seed 페이지 배치, Golden Cup 보장, Artifact 드랍과 Fever 셀 점유 회귀 확인
+• `TagManager.asset` 파싱 경고와 저장소 줄바꿈 변경은 별도 저장소 정리 작업으로 처리
+
+관련 작업 기준:
+• 사용자 요청: 권장 순서대로 핵심 리팩터링 진행
+• 재시작 최우선: 핵심 리팩터링 Play Mode 회귀 검증
+
+________________________________________
+
+2.128 Guest 로그인 프로세스 강화 및 Title UI 개편
+
+목표:
+• 로그인 선택지를 Google 회원가입과 Guest 로그인/가입으로 구분
+• Guest 최초 가입 시 닉네임 중복 확인과 비밀번호 설정 적용
+• 신규 Guest 테스트 시 Unity Editor의 기존 플레이어 진행 정보 초기화
+
+완료 내용:
+• 로컬 Guest 계정 등록, 닉네임 중복 확인, 닉네임/비밀번호 로그인을 인증 서비스에 추가
+• 닉네임은 2~12자 영문/한글/숫자/밑줄 조합으로 검증하고 대소문자 구분 없이 중복 확인
+• 비밀번호는 6~32자로 제한하고 PBKDF2-SHA256 Salt Hash만 로컬 저장
+• 신규 Guest 등록 성공 시 Unity Editor에서 프로필, 재화, 특성, 캐릭터 레벨/보유/선택, 수집품 진행 데이터 초기화
+• 로그인 세션과 Guest 계정 정보, 광고 제거 상태는 플레이어 진행 초기화 대상에서 제외
+• 기존 자동 Guest 세션을 제거하고 저장된 유효 세션이 없으면 로그인 선택 UI를 표시
+• Title UI를 `GOOGLE SIGN UP`, 닉네임 확인, Guest `SIGN UP`/`LOGIN` 흐름으로 개편
+• Google 회원가입 버튼은 BackND 연동 전까지 준비 중 상태와 연동 필요 안내만 표시
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationModels.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/IAuthenticationService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/LocalAuthenticationService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/EditorGuestDataResetter.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Characters/CharacterSelectionState.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batchmode 전체 스크립트 컴파일 및 Tundra build 성공
+• 로그인 변경 스크립트 대상 `git diff --check` 통과
+• 기존 `ProjectSettings/TagManager.asset` 41행 파싱 경고는 이번 작업과 분리된 이슈로 확인
+
+남은 확인:
+• Title Play Mode에서 첫 실행 가입, 닉네임 중복, 잘못된 비밀번호, 세션 복원 흐름 확인
+• 신규 Guest 가입 직후 캐릭터 레벨, 재화, 특성, 수집품과 선택 캐릭터 초기화 확인
+• Google 회원가입과 전역 닉네임 중복 확인은 BackND SDK 연동 시 구현
+• 현재 닉네임 중복 확인은 동일 Unity PlayerPrefs 저장소에 등록된 로컬 Guest 계정 기준
+• Guest별 플레이어 진행 데이터 분리는 BackND 계정 저장 구조 도입 시 함께 적용
+
+관련 작업 기준:
+• 사용자 요청: 로그인 프로세스 강화와 로그인 UI 개편
+• 재시작 최우선: Guest 가입/로그인과 기존 핵심 리팩터링 Play Mode 회귀 검증
+
+________________________________________
+
+2.129 Title 로그인 상태 검증 및 로그인 UI 복귀 개선
+
+목표:
+• Title Scene 진입마다 저장된 로그인 세션 유효성 확인
+• Guest ID/PW 기억하기 옵션 제공
+• Google 로그인 안내 화면에서 Guest 로그인 화면으로 복귀 가능하도록 수정
+
+완료 내용:
+• `AuthenticationManager.InitializeAsync`에 강제 세션 검증 옵션을 추가
+• Title Scene은 매 진입 시 현재 정적 인증 상태와 관계없이 저장된 세션을 다시 검증
+• `REMEMBER ID / PASSWORD` Toggle을 추가하고 로그인/가입 성공 시 선택 상태에 따라 자격 증명 저장 또는 삭제
+• 기억하기가 활성화된 경우 Title 로그인 UI 생성 시 Guest 닉네임과 비밀번호 복원
+• Google 회원가입 선택 시 별도 BackND 연동 안내 화면 표시
+• Google 안내 화면에 `BACK TO GUEST` 버튼을 추가해 Guest 입력 화면으로 복귀
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/LocalLoginCredentialPreferences.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batchmode 전체 스크립트 컴파일 및 Tundra build 성공
+• 변경 스크립트 대상 `git diff --check` 통과
+• 기존 `ProjectSettings/TagManager.asset` 41행 파싱 경고는 이번 작업과 분리된 이슈로 확인
+
+남은 확인:
+• Title 재진입 시 유효/무효 세션 분기 Play Mode 확인
+• 기억하기 Toggle On/Off 후 앱 재실행 시 입력값 복원/삭제 확인
+• Google 안내 화면과 `BACK TO GUEST` 복귀 UI 배치 및 터치 확인
+• 현재 Guest 비밀번호 기억 정보는 로컬 `PlayerPrefs` 기반이므로 BackND 연동 시 플랫폼 보안 저장소 또는 인증 토큰 방식으로 교체
+
+관련 작업 기준:
+• 사용자 요청: 로그인 상태 상시 확인, ID/PW 기억하기, Google 화면 Guest 복귀 수정
+• 재시작 최우선: Title 로그인 수정사항과 기존 핵심 리팩터링 Play Mode 회귀 검증
+
+________________________________________
+
+2.130 Title Guest 자동 로그인 차단
+
+목표:
+• Guest 등록 후 앱을 재실행해도 Title에서 ID/PW 확인 절차를 생략하지 않도록 수정
+
+완료 내용:
+• 저장 세션 검증 성공을 Lobby 진입용 로그인 성공으로 사용하던 흐름 제거
+• 저장 세션은 등록된 Guest 계정 존재 여부 확인에만 사용
+• Title 초기 세션 확인 후 런타임 인증 상태를 `SignedOut`으로 전환
+• 유효한 저장 세션이 있어도 `CONFIRM ID AND PASSWORD` 로그인 화면을 항상 표시
+• Guest ID/PW 로그인 성공 후에만 `TOUCH` 단계와 Lobby 진입 허용
+• 기억하기가 활성화된 경우 ID/PW는 채워지지만 사용자가 `LOGIN`을 눌러 재검증해야 함
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batchmode 전체 스크립트 컴파일 및 Tundra build 성공
+• 변경 스크립트 대상 `git diff --check` 통과
+• 기존 `ProjectSettings/TagManager.asset` 41행 파싱 경고는 이번 작업과 분리된 이슈로 확인
+
+남은 확인:
+• Guest 가입 완료 후 앱 재실행 시 로그인 화면 유지 확인
+• 기억된 ID/PW가 있어도 `LOGIN` 전에는 Lobby로 진입하지 않는지 Play Mode 확인
+• 올바른 ID/PW 로그인 후에만 `TOUCH`와 Lobby 진입이 활성화되는지 확인
+
+관련 작업 기준:
+• 사용자 수정 요청: Guest 등록 후 재실행 시에도 항상 ID/PW 확인
+• 재시작 최우선: Guest 자동 로그인 차단 Play Mode 검증
+
+________________________________________
+
+2.131 플랫폼별 Guest 계정 보유 제한
+
+목표:
+• Unity Editor에서는 여러 Guest 계정 등록 허용
+• Android 실제 기기에서는 로컬 Guest 계정을 하나만 보유하도록 제한
+
+완료 내용:
+• Guest 닉네임 중복 확인 단계에 플랫폼별 계정 수 정책 적용
+• 실제 Guest 등록 단계에도 동일 정책을 적용해 UI 우회 등록 차단
+• `Application.isEditor`에서는 Android 빌드 타깃 선택 여부와 관계없이 다중 계정 허용
+• `RuntimePlatform.Android` 실제 실행 환경에서는 기존 Guest 계정이 하나라도 있으면 추가 가입 차단
+• Android 추가 가입 시 `ANDROID DEVICE ALREADY HAS A GUEST ACCOUNT` 안내 표시
+• Android 기존 Guest 계정의 ID/PW 로그인은 제한 없이 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationModels.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/LocalAuthenticationService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 변경 스크립트 대상 `git diff --check` 통과
+• Unity Editor가 동일 프로젝트를 실행 중이어서 Batchmode 컴파일은 중단됨
+
+남은 확인:
+• Unity Editor에서 서로 다른 닉네임으로 Guest 계정 2개 이상 등록 확인
+• Android Development Build에서 첫 Guest 가입 성공과 두 번째 가입 차단 확인
+• Android 앱 데이터 삭제 또는 재설치 시 로컬 Guest 계정도 제거되는 현재 정책 확인
+• 기기 영구 귀속이 필요하면 BackND 연동 후 서버 계정/기기 식별 정책으로 전환
+
+관련 작업 기준:
+• 사용자 요청: Editor 다중 Guest, Android 기기당 Guest 1개
+• 재시작 최우선: Unity 컴파일 및 플랫폼별 Guest 가입 Play Mode/기기 검증
+
+________________________________________
+
+2.132 Lobby BEST 기록 캐릭터 초상화 추가
+
+목표:
+• Lobby BEST 영역의 Score를 중앙 구분선 오른쪽에 붙여 좌정렬
+• BEST 기록을 달성한 캐릭터의 얼굴 초상화 영역 추가
+
+완료 내용:
+• BEST 영역을 `Floor | Score | 기록 캐릭터 얼굴` 구조로 재배치
+• Score 시작 위치를 중앙 구분선 직후로 이동하고 `TextAnchor.MiddleLeft` 적용
+• 우측 끝에 별도 구분선과 얼굴 초상화 프레임 추가
+• 캐릭터 `IngamePortraitFaceRect` 기준으로 전신 초상화에서 얼굴 Sprite 생성
+• 프로필 저장 데이터에 `BestHighestFloor`, `BestScore`, `BestCharacterId` 추가
+• 최고 Floor를 우선 비교하고 같은 Floor에서는 Score가 높은 런을 BEST로 갱신
+• 런 보상 정산 시 BEST 기록과 기록 달성 캐릭터 ID를 함께 저장
+• Lobby 진입 시 저장된 BEST 기록과 캐릭터 얼굴을 복원
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Profile/UserProfileData.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/IUserProfileService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/LocalUserProfileService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/UserProfileManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Game/RunResultService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Batchmode 전체 스크립트 컴파일 및 Tundra build 성공
+• 변경 스크립트 대상 `git diff --check` 통과
+• 기존 `ProjectSettings/TagManager.asset` 41행 파싱 경고는 이번 작업과 분리된 이슈로 확인
+
+남은 확인:
+• Lobby 9:20 화면에서 Score 좌정렬과 긴 점수 문자열 여백 확인
+• BEST 기록 갱신 후 Lobby에서 해당 캐릭터 얼굴 표시 확인
+• 더 낮은 Floor 런이 기존 BEST 기록과 캐릭터를 덮어쓰지 않는지 확인
+• 동일 Floor에서 더 높은 Score 달성 시 기록 캐릭터가 교체되는지 확인
+
+관련 작업 기준:
+• 사용자 요청: BEST Score 좌정렬 및 기록 달성 캐릭터 얼굴 영역 추가
+• 재시작 최우선: Lobby BEST 배치와 기록 캐릭터 초상화 Play Mode 검증
+
+________________________________________
+
+2.133 Lobby BEST 구분선 제거 및 Score 중앙 배치
+
+목표:
+• Lobby BEST 영역의 모든 세로 구분선 제거
+• Score의 X축 중심을 BEST 스트립 중심에 정렬하고 기존 Y 위치 유지
+
+완료 내용:
+• Floor/Score 사이 `RecordDivider` 제거
+• Score/초상화 사이 `RecordPortraitDivider` 제거
+• Score X 앵커를 `0.36~0.64`로 변경해 중심을 BEST 스트립 중심 `0.5`에 정렬
+• Score Y 앵커 `0.05~0.54`와 좌정렬 유지
+• 우측 BEST 캐릭터 얼굴 초상화 영역 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 변경 스크립트 대상 `git diff --check` 통과
+• Unity Editor가 동일 프로젝트를 실행 중이어서 Batchmode 컴파일은 중단됨
+
+남은 확인:
+• Lobby 9:20 화면에서 Floor와 Score 문자열이 겹치지 않는지 확인
+• Score 중심과 BEST 스트립 중심 정렬 확인
+• 세로 구분선이 모두 제거됐는지 Play Mode 확인
+
+관련 작업 기준:
+• 사용자 요청: BEST 세로선 전체 제거 및 Score X축 중앙 정렬
+• 재시작 최우선: Lobby BEST 최종 배치 Play Mode 검증
+
+________________________________________
+
+2.134 Lobby BEST 캐릭터 초상화 축소 및 하단 정렬
+
+목표:
+• BEST 캐릭터 초상화를 슬롯 대비 70% 크기로 축소
+• 초상화 이미지를 슬롯 바닥에 정렬
+
+완료 내용:
+• `BestCharacterPortrait` X 앵커를 `0.15~0.85`로 변경해 슬롯 폭의 70% 적용
+• Y 앵커를 `0~0.7`로 변경해 슬롯 높이의 70% 적용
+• 가로 중앙 정렬을 유지하고 이미지 영역 하단을 슬롯 바닥에 밀착
+• 기존 얼굴 비율 유지 설정 `preserveAspect` 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/UI/LobbyController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 변경 스크립트 대상 `git diff --check` 통과
+• Unity Editor가 동일 프로젝트를 실행 중이어서 Batchmode 컴파일은 중단됨
+• 사용자 Play Mode 확인 완료: 초상화 70% 크기와 슬롯 하단 정렬
+
+남은 확인:
+• 추가 확인 없음
+
+관련 작업 기준:
+• 사용자 요청: BEST 캐릭터 초상화 0.7배 및 슬롯 바닥 정렬
+• 사용자 확인: Lobby BEST 초상화 최종 배치 완료
+
+________________________________________
+
+2.135 로그인·핵심 책임 분리·Lobby BEST 작업 커밋 준비
+
+완료 범위:
+• `GameStateController`, `PlayerSpawner`, `ItemSpawner` 핵심 책임 분리
+• Guest 가입/로그인, 닉네임 중복 확인, Editor 데이터 초기화
+• Title 매회 ID/PW 확인, 기억하기, Google 안내 화면 Guest 복귀
+• Editor 다중 Guest 및 Android 로컬 Guest 1계정 제한
+• Lobby BEST 기록 저장, Score 배치, 기록 캐릭터 얼굴 초상화
+• BEST 세로 구분선 제거, Score 중앙 배치, 초상화 70% 하단 정렬
+
+검증 상태:
+• 책임 분리 및 로그인/BEST 기록 변경 Unity Batchmode 컴파일 성공
+• 최종 Lobby BEST 초상화 배치는 사용자 Play Mode 확인 완료
+• 커밋 대상 스크립트 `git diff --check` 통과
+• 기존 대량 CRLF 변경, Scene, ProjectSettings, 아트 및 이번 범위 외 사용자 변경은 커밋에서 제외
+
+관련 작업 기준:
+• 사용자 요청: 현재 작업까지 모두 기록하고 커밋
+• 관련 커밋: 본 기록을 포함하는 커밋
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
-1. 재시작 최우선: `GameStateController` 런 정산 / 결과 UI 책임 분리
-2. `PlayerSpawner` 치트 입력 / Player 생성 / 런타임 연결 책임 분리
-3. `ItemSpawner` Page 배치 / 수집형 드랍 / View 생성 책임 분리
-4. PlayerRespawnController 정식 분리
-5. 캐릭터 강화 시스템 기획 및 CharacterCoin 콘텐츠 구현
-6. 피버타임 및 Artifact Play Mode 회귀 검증
+1. 재시작 최우선: Lobby BEST 초상화 최종 배치와 플랫폼별 Guest 가입 회귀 검증
+2. PlayerRespawnController 정식 분리
+3. Artifact 상태 평가 순수화
+4. Lobby / TopHUD UI 빌더 공통화
+5. 로컬 저장소 추상화 및 반복 `PlayerPrefs` 직렬화 제거
+6. 캐릭터 강화 시스템 기획 및 CharacterCoin 콘텐츠 구현
 7. Normal / Hard 게임 모드 정책 및 Lobby 선택값 연결
 8. Google AdMob 보상형 광고 부활 흐름 설계
 
 현재 권장 다음 작업:
-• 다음 세션 시작 시 `GameStateController`의 런 결과 생성/정산과 결과 UI 생성을 분리한다.
-• 이후 `PlayerSpawner`, `ItemSpawner` 순으로 책임을 분리하며 기존 게임 동작은 변경하지 않는다.
-• 리팩터링 후 Artifact 강제 획득, Lobby 해금, 효과 적용과 피버타임 회귀 테스트를 수행한다.
+• 다음 세션 시작 시 Lobby BEST 최종 배치/초상화와 Editor 다중 Guest, Android 1계정 제한을 우선 검증한다.
+• 회귀 검증 후 `PlayerRespawnController`를 정식 분리한다.
+• 이후 Artifact 상태 평가 순수화, Lobby/TopHUD UI 빌더 공통화와 로컬 저장소 추상화를 진행한다.
 • 구조 안정화 후 캐릭터 강화 정책과 실제 CharacterCoin 콘텐츠를 진행한다.
 • 광고 부활은 `PlayerRespawnController`와 결과 정산 책임 분리가 끝난 뒤 연결한다.
 

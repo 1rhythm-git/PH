@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Threading.Tasks;
 using LootUp.Core.Authentication;
@@ -24,41 +25,55 @@ namespace LootUp.Core.SceneFlow
         private float touchBlinkInterval = 0.45f;
 
         [SerializeField]
-        private Color loadingBarBackgroundColor = new Color(0f, 0f, 0f, 0.72f);
+        private Color loadingBarBackgroundColor =
+            new Color(0f, 0f, 0f, 0.72f);
 
         [SerializeField]
-        private Color loadingBarFillColor = new Color(0.96f, 0.82f, 0.22f, 1f);
+        private Color loadingBarFillColor =
+            new Color(0.96f, 0.82f, 0.22f, 1f);
 
         private RectTransform loadingBarFillRect;
         private Text statusText;
         private RectTransform loginPanelRoot;
+        private RectTransform guestLoginRoot;
+        private RectTransform googleLoginRoot;
         private Text loginMessageText;
-        private InputField accountIdInput;
+        private InputField nicknameInput;
         private InputField passwordInput;
-        private Button guestButton;
-        private Button accountLoginButton;
+        private Toggle rememberCredentialsToggle;
+        private Button googleSignupButton;
+        private Button backToGuestButton;
+        private Button nicknameCheckButton;
+        private Button guestRegisterButton;
+        private Button guestLoginButton;
         private AsyncOperation lobbyLoadOperation;
         private bool isReadyForTouch;
         private bool isLoginPanelVisible;
         private bool isAuthenticationOperationActive;
         private bool sceneActivationRequested;
         private float blinkElapsed;
+        private string verifiedNickname = string.Empty;
 
         private IEnumerator Start()
         {
             BuildTitleUI();
             EnsureEventSystem();
 
-            Task<AuthenticationResult> authenticationTask = AuthenticationManager.InitializeAsync(false);
+            Task<AuthenticationResult> authenticationTask =
+                AuthenticationManager.InitializeAsync(false, true);
 
-            lobbyLoadOperation = SceneManager.LoadSceneAsync(SceneFlowManager.LobbySceneName, LoadSceneMode.Single);
+            lobbyLoadOperation = SceneManager.LoadSceneAsync(
+                SceneFlowManager.LobbySceneName,
+                LoadSceneMode.Single);
             if (lobbyLoadOperation != null)
             {
                 lobbyLoadOperation.allowSceneActivation = false;
             }
 
             float elapsed = 0f;
-            while (!IsLobbyReady() || elapsed < minimumLoadingDuration || !authenticationTask.IsCompleted)
+            while (!IsLobbyReady()
+                   || elapsed < minimumLoadingDuration
+                   || !authenticationTask.IsCompleted)
             {
                 elapsed += Time.unscaledDeltaTime;
                 float loadProgress = lobbyLoadOperation != null
@@ -67,9 +82,12 @@ namespace LootUp.Core.SceneFlow
                 float minimumDurationProgress = minimumLoadingDuration > 0f
                     ? Mathf.Clamp01(elapsed / minimumLoadingDuration)
                     : 1f;
-                SetLoadingProgress(Mathf.Min(loadProgress, minimumDurationProgress));
+                SetLoadingProgress(
+                    Mathf.Min(loadProgress, minimumDurationProgress));
 
-                if (IsLobbyReady() && elapsed >= minimumLoadingDuration && !authenticationTask.IsCompleted)
+                if (IsLobbyReady()
+                    && elapsed >= minimumLoadingDuration
+                    && !authenticationTask.IsCompleted)
                 {
                     statusText.text = "SIGNING IN";
                 }
@@ -83,13 +101,16 @@ namespace LootUp.Core.SceneFlow
 
         private void Update()
         {
-            if (isLoginPanelVisible || !isReadyForTouch || sceneActivationRequested)
+            if (isLoginPanelVisible
+                || !isReadyForTouch
+                || sceneActivationRequested)
             {
                 return;
             }
 
             blinkElapsed += Time.unscaledDeltaTime;
-            bool isBright = Mathf.FloorToInt(blinkElapsed / touchBlinkInterval) % 2 == 0;
+            bool isBright =
+                Mathf.FloorToInt(blinkElapsed / touchBlinkInterval) % 2 == 0;
             Color textColor = statusText.color;
             textColor.a = isBright ? 1f : 0.25f;
             statusText.color = textColor;
@@ -106,48 +127,154 @@ namespace LootUp.Core.SceneFlow
                 return;
             }
 
-            SceneManager.LoadScene(SceneFlowManager.LobbySceneName, LoadSceneMode.Single);
+            SceneManager.LoadScene(
+                SceneFlowManager.LobbySceneName,
+                LoadSceneMode.Single);
         }
 
-        private void OnGuestButtonPressed()
+        private void OnGoogleSignupButtonPressed()
         {
             if (isAuthenticationOperationActive)
             {
                 return;
             }
 
-            if (AuthenticationManager.IsAuthenticated)
-            {
-                ShowReadyForTouch("TOUCH");
-                return;
-            }
-
-            StartCoroutine(RunAuthenticationOperation(
-                AuthenticationManager.SignInAsGuestAsync(),
-                "CREATING GUEST SESSION"));
+            ShowGoogleLoginView();
         }
 
-        private void OnAccountLoginButtonPressed()
+        private void OnBackToGuestButtonPressed()
         {
             if (isAuthenticationOperationActive)
             {
                 return;
             }
 
-            string accountId = accountIdInput != null ? accountIdInput.text.Trim() : string.Empty;
-            string password = passwordInput != null ? passwordInput.text : string.Empty;
-            if (string.IsNullOrWhiteSpace(accountId) || string.IsNullOrWhiteSpace(password))
+            ShowGuestLoginView("SELECT LOGIN METHOD");
+        }
+
+        private void OnRememberCredentialsChanged(bool isEnabled)
+        {
+            if (!isEnabled)
             {
-                SetLoginMessage("ENTER ID AND PASSWORD");
+                LocalLoginCredentialPreferences.Clear();
+            }
+        }
+
+        private void OnNicknameChanged(string nickname)
+        {
+            if (!string.Equals(
+                verifiedNickname,
+                nickname?.Trim(),
+                StringComparison.OrdinalIgnoreCase))
+            {
+                verifiedNickname = string.Empty;
+            }
+        }
+
+        private void OnNicknameCheckButtonPressed()
+        {
+            if (isAuthenticationOperationActive)
+            {
                 return;
             }
 
-            StartCoroutine(RunAuthenticationOperation(
-                AuthenticationManager.SignInAsync(accountId, password),
-                "SIGNING IN"));
+            string nickname = GetNickname();
+            if (string.IsNullOrWhiteSpace(nickname))
+            {
+                SetLoginMessage("ENTER A NICKNAME");
+                return;
+            }
+
+            StartCoroutine(
+                RunNicknameAvailabilityCheck(
+                    AuthenticationManager
+                        .CheckGuestNicknameAvailabilityAsync(nickname),
+                    nickname));
         }
 
-        private IEnumerator RunAuthenticationOperation(Task<AuthenticationResult> authenticationTask, string progressMessage)
+        private void OnGuestRegisterButtonPressed()
+        {
+            if (isAuthenticationOperationActive
+                || !TryGetGuestCredentials(
+                    out string nickname,
+                    out string password))
+            {
+                return;
+            }
+
+            if (!string.Equals(
+                verifiedNickname,
+                nickname,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                SetLoginMessage("CHECK NICKNAME FIRST");
+                return;
+            }
+
+            StartCoroutine(
+                RunAuthenticationOperation(
+                    AuthenticationManager.RegisterGuestAsync(
+                        nickname,
+                        password),
+                    "CREATING GUEST ACCOUNT"));
+        }
+
+        private void OnGuestLoginButtonPressed()
+        {
+            if (isAuthenticationOperationActive
+                || !TryGetGuestCredentials(
+                    out string nickname,
+                    out string password))
+            {
+                return;
+            }
+
+            StartCoroutine(
+                RunAuthenticationOperation(
+                    AuthenticationManager.SignInGuestAsync(
+                        nickname,
+                        password),
+                    "SIGNING IN AS GUEST"));
+        }
+
+        private IEnumerator RunNicknameAvailabilityCheck(
+            Task<NicknameAvailabilityResult> availabilityTask,
+            string checkedNickname)
+        {
+            isAuthenticationOperationActive = true;
+            SetLoginControlsInteractable(false);
+            SetLoginMessage("CHECKING NICKNAME");
+
+            while (!availabilityTask.IsCompleted)
+            {
+                yield return null;
+            }
+
+            isAuthenticationOperationActive = false;
+            SetLoginControlsInteractable(true);
+
+            if (availabilityTask.IsFaulted)
+            {
+                verifiedNickname = string.Empty;
+                SetLoginMessage("NICKNAME CHECK FAILED");
+                yield break;
+            }
+
+            NicknameAvailabilityResult result = availabilityTask.Result;
+            if (result.IsAvailable)
+            {
+                verifiedNickname = checkedNickname.Trim();
+                SetLoginMessage("NICKNAME AVAILABLE");
+                yield break;
+            }
+
+            verifiedNickname = string.Empty;
+            SetLoginMessage(GetNicknameAvailabilityMessage(result));
+        }
+
+        private IEnumerator RunAuthenticationOperation(
+            Task<AuthenticationResult> authenticationTask,
+            string progressMessage)
         {
             isAuthenticationOperationActive = true;
             isReadyForTouch = false;
@@ -165,29 +292,97 @@ namespace LootUp.Core.SceneFlow
             ApplyLoginAuthenticationResult(authenticationTask.Result);
         }
 
-        private void ApplyInitialAuthenticationResult(AuthenticationResult result)
+        private void ApplyInitialAuthenticationResult(
+            AuthenticationResult result)
         {
+            // (수정) 저장 세션은 계정 확인에만 사용하고 Title에서는 매번 ID/PW를 다시 검증한다.
+            AuthenticationManager.RequireCredentialConfirmation();
             if (result.Succeeded)
             {
-                ShowLoginPanel(result.Session.IsGuest ? "GUEST SESSION READY" : "ONLINE SESSION READY");
+                ShowLoginPanel("CONFIRM ID AND PASSWORD");
                 return;
             }
 
-            string message = result.Failure == AuthenticationFailure.NoSavedSession
-                ? "SIGN IN TO CONTINUE"
-                : GetAuthenticationFailureMessage(result);
+            string message =
+                result.Failure == AuthenticationFailure.NoSavedSession
+                    ? "SELECT LOGIN METHOD"
+                    : GetAuthenticationFailureMessage(result);
             ShowLoginPanel(message);
         }
 
-        private void ApplyLoginAuthenticationResult(AuthenticationResult result)
+        private void ApplyLoginAuthenticationResult(
+            AuthenticationResult result)
         {
             if (result.Succeeded)
             {
+                SaveCredentialPreference();
+                if (passwordInput != null)
+                {
+                    passwordInput.text = string.Empty;
+                }
+
                 ShowReadyForTouch("TOUCH");
                 return;
             }
 
             ShowLoginPanel(GetAuthenticationFailureMessage(result));
+        }
+
+        private bool TryGetGuestCredentials(
+            out string nickname,
+            out string password)
+        {
+            nickname = GetNickname();
+            password = passwordInput != null ? passwordInput.text : string.Empty;
+            if (string.IsNullOrWhiteSpace(nickname)
+                || string.IsNullOrEmpty(password))
+            {
+                SetLoginMessage("ENTER NICKNAME AND PASSWORD");
+                return false;
+            }
+
+            return true;
+        }
+
+        private string GetNickname()
+        {
+            return nicknameInput != null
+                ? nicknameInput.text.Trim()
+                : string.Empty;
+        }
+
+        private void SaveCredentialPreference()
+        {
+            if (rememberCredentialsToggle != null
+                && rememberCredentialsToggle.isOn)
+            {
+                LocalLoginCredentialPreferences.Save(
+                    GetNickname(),
+                    passwordInput != null ? passwordInput.text : string.Empty);
+                return;
+            }
+
+            LocalLoginCredentialPreferences.Clear();
+        }
+
+        private void RestoreCredentialPreference()
+        {
+            bool hasCredentials =
+                LocalLoginCredentialPreferences.TryLoad(
+                    out string nickname,
+                    out string password);
+            if (rememberCredentialsToggle != null)
+            {
+                rememberCredentialsToggle.SetIsOnWithoutNotify(hasCredentials);
+            }
+
+            if (!hasCredentials)
+            {
+                return;
+            }
+
+            nicknameInput.text = nickname;
+            passwordInput.text = password;
         }
 
         private void ShowReadyForTouch(string message)
@@ -208,10 +403,43 @@ namespace LootUp.Core.SceneFlow
                 loginPanelRoot.gameObject.SetActive(true);
             }
 
+            ShowGuestLoginView(message);
             SetLoginControlsInteractable(true);
+            statusText.text = "LOGIN REQUIRED";
+            SetStatusTextAlpha(1f);
+        }
+
+        private void ShowGuestLoginView(string message)
+        {
+            if (guestLoginRoot != null)
+            {
+                guestLoginRoot.gameObject.SetActive(true);
+            }
+
+            if (googleLoginRoot != null)
+            {
+                googleLoginRoot.gameObject.SetActive(false);
+            }
+
             SetLoginMessage(message);
-            SetButtonLabel(guestButton, AuthenticationManager.IsAuthenticated ? "CONTINUE" : "GUEST");
-            statusText.text = AuthenticationManager.IsAuthenticated ? "LOGIN READY" : "LOGIN REQUIRED";
+            statusText.text = "LOGIN REQUIRED";
+            SetStatusTextAlpha(1f);
+        }
+
+        private void ShowGoogleLoginView()
+        {
+            if (guestLoginRoot != null)
+            {
+                guestLoginRoot.gameObject.SetActive(false);
+            }
+
+            if (googleLoginRoot != null)
+            {
+                googleLoginRoot.gameObject.SetActive(true);
+            }
+
+            SetLoginMessage("GOOGLE SIGN UP REQUIRES BACKND");
+            statusText.text = "COMING SOON";
             SetStatusTextAlpha(1f);
         }
 
@@ -227,24 +455,44 @@ namespace LootUp.Core.SceneFlow
 
         private void SetLoginControlsInteractable(bool interactable)
         {
-            if (guestButton != null)
+            if (googleSignupButton != null)
             {
-                guestButton.interactable = interactable;
+                googleSignupButton.interactable = interactable;
             }
 
-            if (accountLoginButton != null)
+            if (backToGuestButton != null)
             {
-                accountLoginButton.interactable = interactable;
+                backToGuestButton.interactable = interactable;
             }
 
-            if (accountIdInput != null)
+            if (nicknameCheckButton != null)
             {
-                accountIdInput.interactable = interactable;
+                nicknameCheckButton.interactable = interactable;
+            }
+
+            if (guestRegisterButton != null)
+            {
+                guestRegisterButton.interactable = interactable;
+            }
+
+            if (guestLoginButton != null)
+            {
+                guestLoginButton.interactable = interactable;
+            }
+
+            if (nicknameInput != null)
+            {
+                nicknameInput.interactable = interactable;
             }
 
             if (passwordInput != null)
             {
                 passwordInput.interactable = interactable;
+            }
+
+            if (rememberCredentialsToggle != null)
+            {
+                rememberCredentialsToggle.interactable = interactable;
             }
         }
 
@@ -252,26 +500,65 @@ namespace LootUp.Core.SceneFlow
         {
             if (loginMessageText != null)
             {
-                loginMessageText.text = string.IsNullOrWhiteSpace(message) ? "SIGN IN TO CONTINUE" : message;
+                loginMessageText.text = string.IsNullOrWhiteSpace(message)
+                    ? "SELECT LOGIN METHOD"
+                    : message;
             }
         }
 
-        private static string GetAuthenticationFailureMessage(AuthenticationResult result)
+        private static string GetNicknameAvailabilityMessage(
+            NicknameAvailabilityResult result)
+        {
+            switch (result.Failure)
+            {
+                case AuthenticationFailure.InvalidNickname:
+                    return string.IsNullOrWhiteSpace(result.Message)
+                        ? "INVALID NICKNAME"
+                        : result.Message.ToUpperInvariant();
+                case AuthenticationFailure.NicknameAlreadyExists:
+                    return "NICKNAME ALREADY EXISTS";
+                case AuthenticationFailure.GuestAccountLimitReached:
+                    return "ANDROID DEVICE ALREADY HAS A GUEST ACCOUNT";
+                default:
+                    return string.IsNullOrWhiteSpace(result.Message)
+                        ? "NICKNAME CHECK FAILED"
+                        : result.Message.ToUpperInvariant();
+            }
+        }
+
+        private static string GetAuthenticationFailureMessage(
+            AuthenticationResult result)
         {
             switch (result.Failure)
             {
                 case AuthenticationFailure.InvalidCredentials:
-                    return "INVALID ID OR PASSWORD";
+                    return "INVALID NICKNAME OR PASSWORD";
+                case AuthenticationFailure.InvalidNickname:
+                    return string.IsNullOrWhiteSpace(result.Message)
+                        ? "INVALID NICKNAME"
+                        : result.Message.ToUpperInvariant();
+                case AuthenticationFailure.NicknameAlreadyExists:
+                    return "NICKNAME ALREADY EXISTS";
+                case AuthenticationFailure.NicknameNotFound:
+                    return "GUEST NICKNAME NOT FOUND";
+                case AuthenticationFailure.GuestAccountLimitReached:
+                    return "ANDROID DEVICE ALREADY HAS A GUEST ACCOUNT";
+                case AuthenticationFailure.WeakPassword:
+                    return string.IsNullOrWhiteSpace(result.Message)
+                        ? "PASSWORD MUST BE 6-32 CHARACTERS"
+                        : result.Message.ToUpperInvariant();
                 case AuthenticationFailure.NetworkUnavailable:
                     return "NETWORK UNAVAILABLE";
                 case AuthenticationFailure.ProviderUnavailable:
-                    return "SERVER LOGIN IS NOT READY";
+                    return "GOOGLE SIGN UP REQUIRES BACKND";
                 case AuthenticationFailure.OperationInProgress:
                     return "LOGIN IS ALREADY RUNNING";
                 case AuthenticationFailure.NoSavedSession:
-                    return "SIGN IN TO CONTINUE";
+                    return "SELECT LOGIN METHOD";
                 default:
-                    return string.IsNullOrWhiteSpace(result.Message) ? "LOGIN FAILED" : result.Message;
+                    return string.IsNullOrWhiteSpace(result.Message)
+                        ? "LOGIN FAILED"
+                        : result.Message.ToUpperInvariant();
             }
         }
 
@@ -289,23 +576,27 @@ namespace LootUp.Core.SceneFlow
 
         private bool IsLobbyReady()
         {
-            return lobbyLoadOperation == null || lobbyLoadOperation.progress >= 0.9f;
+            return lobbyLoadOperation == null
+                || lobbyLoadOperation.progress >= 0.9f;
         }
 
         private static bool WasTouchPressed()
         {
-            if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
+            if (Touchscreen.current != null
+                && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
             {
                 return true;
             }
 
-            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            if (Mouse.current != null
+                && Mouse.current.leftButton.wasPressedThisFrame)
             {
                 return true;
             }
 
-            return Keyboard.current != null &&
-                (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame);
+            return Keyboard.current != null
+                && (Keyboard.current.spaceKey.wasPressedThisFrame
+                    || Keyboard.current.enterKey.wasPressedThisFrame);
         }
 
         private void BuildTitleUI()
@@ -316,25 +607,41 @@ namespace LootUp.Core.SceneFlow
                 Destroy(existingRoot.gameObject);
             }
 
-            GameObject rootObject = new GameObject(RuntimeRootName, typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            GameObject rootObject = new GameObject(
+                RuntimeRootName,
+                typeof(RectTransform),
+                typeof(Canvas),
+                typeof(CanvasScaler),
+                typeof(GraphicRaycaster));
             rootObject.transform.SetParent(transform, false);
 
             Canvas canvas = rootObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
             CanvasScaler scaler = rootObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.uiScaleMode =
+                CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080f, 2400f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.screenMatchMode =
+                CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 0.5f;
 
             RectTransform root = rootObject.GetComponent<RectTransform>();
-            Image background = CreateImage(root, "Background", Vector2.zero, Vector2.one, Color.white, backgroundSprite);
+            Image background = CreateImage(
+                root,
+                "Background",
+                Vector2.zero,
+                Vector2.one,
+                Color.white,
+                backgroundSprite);
             if (backgroundSprite != null)
             {
-                AspectRatioFitter backgroundFitter = background.gameObject.AddComponent<AspectRatioFitter>();
-                backgroundFitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
-                backgroundFitter.aspectRatio = backgroundSprite.rect.width / backgroundSprite.rect.height;
+                AspectRatioFitter backgroundFitter =
+                    background.gameObject.AddComponent<AspectRatioFitter>();
+                backgroundFitter.aspectMode =
+                    AspectRatioFitter.AspectMode.EnvelopeParent;
+                backgroundFitter.aspectRatio =
+                    backgroundSprite.rect.width / backgroundSprite.rect.height;
             }
 
             CreateLoginPanel(root);
@@ -347,7 +654,13 @@ namespace LootUp.Core.SceneFlow
                 loadingBarBackgroundColor,
                 null).rectTransform;
 
-            Image fill = CreateImage(loadingBarRoot, "Fill", Vector2.zero, new Vector2(0f, 1f), loadingBarFillColor, null);
+            Image fill = CreateImage(
+                loadingBarRoot,
+                "Fill",
+                Vector2.zero,
+                new Vector2(0f, 1f),
+                loadingBarFillColor,
+                null);
             loadingBarFillRect = fill.rectTransform;
             loadingBarFillRect.pivot = new Vector2(0f, 0.5f);
             loadingBarFillRect.offsetMin = new Vector2(5f, 5f);
@@ -367,12 +680,17 @@ namespace LootUp.Core.SceneFlow
             progress = Mathf.Clamp01(progress);
             if (loadingBarFillRect != null)
             {
-                loadingBarFillRect.anchorMax = new Vector2(progress, 1f);
+                loadingBarFillRect.anchorMax =
+                    new Vector2(progress, 1f);
             }
 
-            if (statusText != null && !isReadyForTouch && !isLoginPanelVisible && !isAuthenticationOperationActive)
+            if (statusText != null
+                && !isReadyForTouch
+                && !isLoginPanelVisible
+                && !isAuthenticationOperationActive)
             {
-                statusText.text = $"LOADING {Mathf.RoundToInt(progress * 100f)}%";
+                statusText.text =
+                    $"LOADING {Mathf.RoundToInt(progress * 100f)}%";
             }
         }
 
@@ -381,35 +699,192 @@ namespace LootUp.Core.SceneFlow
             Image panelImage = CreateImage(
                 root,
                 "LoginPanel",
-                new Vector2(0.16f, 0.31f),
-                new Vector2(0.84f, 0.56f),
-                new Color(0.02f, 0.025f, 0.035f, 0.76f),
+                new Vector2(0.13f, 0.22f),
+                new Vector2(0.87f, 0.73f),
+                new Color(0.02f, 0.025f, 0.035f, 0.86f),
                 null);
             panelImage.raycastTarget = true;
             loginPanelRoot = panelImage.rectTransform;
 
-            CreateText(loginPanelRoot, "LoginTitle", "LOGIN", new Vector2(0.08f, 0.78f), new Vector2(0.92f, 0.96f), 42);
-            loginMessageText = CreateText(loginPanelRoot, "LoginMessage", "SIGN IN TO CONTINUE", new Vector2(0.08f, 0.64f), new Vector2(0.92f, 0.78f), 24);
-            accountIdInput = CreateInputField(loginPanelRoot, "AccountIdInput", "ID", new Vector2(0.08f, 0.47f), new Vector2(0.92f, 0.61f), false);
-            passwordInput = CreateInputField(loginPanelRoot, "PasswordInput", "PASSWORD", new Vector2(0.08f, 0.31f), new Vector2(0.92f, 0.45f), true);
-            accountLoginButton = CreateButton(loginPanelRoot, "AccountLoginButton", "LOGIN", new Vector2(0.08f, 0.14f), new Vector2(0.48f, 0.27f), OnAccountLoginButtonPressed);
-            guestButton = CreateButton(loginPanelRoot, "GuestLoginButton", "GUEST", new Vector2(0.52f, 0.14f), new Vector2(0.92f, 0.27f), OnGuestButtonPressed);
+            CreateText(
+                loginPanelRoot,
+                "LoginTitle",
+                "LOGIN",
+                new Vector2(0.08f, 0.87f),
+                new Vector2(0.92f, 0.97f),
+                42);
+            loginMessageText = CreateText(
+                loginPanelRoot,
+                "LoginMessage",
+                "SELECT LOGIN METHOD",
+                new Vector2(0.08f, 0.77f),
+                new Vector2(0.92f, 0.87f),
+                24);
 
+            guestLoginRoot = CreateRectTransform(
+                loginPanelRoot,
+                "GuestLoginRoot",
+                Vector2.zero,
+                Vector2.one);
+            googleSignupButton = CreateButton(
+                guestLoginRoot,
+                "GoogleSignupButton",
+                "GOOGLE SIGN UP",
+                new Vector2(0.08f, 0.65f),
+                new Vector2(0.92f, 0.75f),
+                OnGoogleSignupButtonPressed);
+            CreateText(
+                guestLoginRoot,
+                "GuestSectionTitle",
+                "GUEST LOGIN / SIGN UP",
+                new Vector2(0.08f, 0.56f),
+                new Vector2(0.92f, 0.64f),
+                25);
+
+            nicknameInput = CreateInputField(
+                guestLoginRoot,
+                "NicknameInput",
+                "NICKNAME",
+                new Vector2(0.08f, 0.44f),
+                new Vector2(0.65f, 0.55f),
+                false,
+                12);
+            nicknameInput.onValueChanged.AddListener(OnNicknameChanged);
+            nicknameCheckButton = CreateButton(
+                guestLoginRoot,
+                "NicknameCheckButton",
+                "CHECK NAME",
+                new Vector2(0.68f, 0.44f),
+                new Vector2(0.92f, 0.55f),
+                OnNicknameCheckButtonPressed,
+                22);
+            passwordInput = CreateInputField(
+                guestLoginRoot,
+                "PasswordInput",
+                "PASSWORD",
+                new Vector2(0.08f, 0.31f),
+                new Vector2(0.92f, 0.42f),
+                true,
+                32);
+            rememberCredentialsToggle = CreateToggle(
+                guestLoginRoot,
+                "RememberCredentialsToggle",
+                "REMEMBER ID / PASSWORD",
+                new Vector2(0.08f, 0.23f),
+                new Vector2(0.92f, 0.30f),
+                OnRememberCredentialsChanged);
+            guestRegisterButton = CreateButton(
+                guestLoginRoot,
+                "GuestRegisterButton",
+                "SIGN UP",
+                new Vector2(0.08f, 0.09f),
+                new Vector2(0.48f, 0.21f),
+                OnGuestRegisterButtonPressed);
+            guestLoginButton = CreateButton(
+                guestLoginRoot,
+                "GuestLoginButton",
+                "LOGIN",
+                new Vector2(0.52f, 0.09f),
+                new Vector2(0.92f, 0.21f),
+                OnGuestLoginButtonPressed);
+
+            googleLoginRoot = CreateRectTransform(
+                loginPanelRoot,
+                "GoogleLoginRoot",
+                new Vector2(0.08f, 0.09f),
+                new Vector2(0.92f, 0.75f));
+            CreateText(
+                googleLoginRoot,
+                "GoogleLoginTitle",
+                "GOOGLE SIGN UP",
+                new Vector2(0f, 0.58f),
+                new Vector2(1f, 0.82f),
+                34);
+            CreateText(
+                googleLoginRoot,
+                "GoogleLoginDescription",
+                "BACKND CONNECTION REQUIRED",
+                new Vector2(0f, 0.38f),
+                new Vector2(1f, 0.58f),
+                23);
+            backToGuestButton = CreateButton(
+                googleLoginRoot,
+                "BackToGuestButton",
+                "BACK TO GUEST",
+                new Vector2(0.12f, 0.10f),
+                new Vector2(0.88f, 0.30f),
+                OnBackToGuestButtonPressed,
+                26);
+            googleLoginRoot.gameObject.SetActive(false);
+            RestoreCredentialPreference();
             loginPanelRoot.gameObject.SetActive(false);
         }
 
-        private static void SetButtonLabel(Button button, string label)
+        private static RectTransform CreateRectTransform(
+            RectTransform parent,
+            string objectName,
+            Vector2 anchorMin,
+            Vector2 anchorMax)
         {
-            if (button == null)
+            GameObject childObject =
+                new GameObject(objectName, typeof(RectTransform));
+            childObject.transform.SetParent(parent, false);
+
+            RectTransform rect = childObject.GetComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return rect;
+        }
+
+        private static Toggle CreateToggle(
+            RectTransform parent,
+            string objectName,
+            string label,
+            Vector2 anchorMin,
+            Vector2 anchorMax,
+            UnityEngine.Events.UnityAction<bool> onValueChanged)
+        {
+            RectTransform root = CreateRectTransform(
+                parent,
+                objectName,
+                anchorMin,
+                anchorMax);
+
+            Image background = CreateImage(
+                root,
+                "Background",
+                new Vector2(0f, 0.16f),
+                new Vector2(0.09f, 0.84f),
+                new Color(1f, 1f, 1f, 0.2f),
+                null);
+            background.raycastTarget = true;
+            Image checkmark = CreateImage(
+                background.rectTransform,
+                "Checkmark",
+                new Vector2(0.18f, 0.18f),
+                new Vector2(0.82f, 0.82f),
+                new Color(0.96f, 0.82f, 0.22f, 1f),
+                null);
+            Text labelText = CreateText(
+                root,
+                "Label",
+                label,
+                new Vector2(0.12f, 0f),
+                Vector2.one,
+                22);
+            labelText.alignment = TextAnchor.MiddleLeft;
+
+            Toggle toggle = root.gameObject.AddComponent<Toggle>();
+            toggle.targetGraphic = background;
+            toggle.graphic = checkmark;
+            if (onValueChanged != null)
             {
-                return;
+                toggle.onValueChanged.AddListener(onValueChanged);
             }
 
-            Text labelText = button.GetComponentInChildren<Text>();
-            if (labelText != null)
-            {
-                labelText.text = label;
-            }
+            return toggle;
         }
 
         private static InputField CreateInputField(
@@ -418,9 +893,15 @@ namespace LootUp.Core.SceneFlow
             string placeholderText,
             Vector2 anchorMin,
             Vector2 anchorMax,
-            bool isPassword)
+            bool isPassword,
+            int characterLimit)
         {
-            GameObject inputObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(InputField));
+            GameObject inputObject = new GameObject(
+                objectName,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(InputField));
             inputObject.transform.SetParent(parent, false);
 
             RectTransform rect = inputObject.GetComponent<RectTransform>();
@@ -432,11 +913,23 @@ namespace LootUp.Core.SceneFlow
             Image image = inputObject.GetComponent<Image>();
             image.color = new Color(1f, 1f, 1f, 0.14f);
 
-            Text text = CreateText(rect, "Text", string.Empty, new Vector2(0.04f, 0f), new Vector2(0.96f, 1f), 28);
+            Text text = CreateText(
+                rect,
+                "Text",
+                string.Empty,
+                new Vector2(0.04f, 0f),
+                new Vector2(0.96f, 1f),
+                28);
             text.alignment = TextAnchor.MiddleLeft;
             text.fontStyle = FontStyle.Normal;
 
-            Text placeholder = CreateText(rect, "Placeholder", placeholderText, new Vector2(0.04f, 0f), new Vector2(0.96f, 1f), 28);
+            Text placeholder = CreateText(
+                rect,
+                "Placeholder",
+                placeholderText,
+                new Vector2(0.04f, 0f),
+                new Vector2(0.96f, 1f),
+                28);
             placeholder.alignment = TextAnchor.MiddleLeft;
             placeholder.fontStyle = FontStyle.Normal;
             placeholder.color = new Color(1f, 1f, 1f, 0.45f);
@@ -445,7 +938,10 @@ namespace LootUp.Core.SceneFlow
             inputField.textComponent = text;
             inputField.placeholder = placeholder;
             inputField.targetGraphic = image;
-            inputField.contentType = isPassword ? InputField.ContentType.Password : InputField.ContentType.Standard;
+            inputField.contentType = isPassword
+                ? InputField.ContentType.Password
+                : InputField.ContentType.Standard;
+            inputField.characterLimit = Mathf.Max(0, characterLimit);
             return inputField;
         }
 
@@ -455,9 +951,15 @@ namespace LootUp.Core.SceneFlow
             string label,
             Vector2 anchorMin,
             Vector2 anchorMax,
-            UnityEngine.Events.UnityAction onClick)
+            UnityEngine.Events.UnityAction onClick,
+            int fontSize = 30)
         {
-            GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            GameObject buttonObject = new GameObject(
+                objectName,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Button));
             buttonObject.transform.SetParent(parent, false);
 
             RectTransform rect = buttonObject.GetComponent<RectTransform>();
@@ -476,7 +978,13 @@ namespace LootUp.Core.SceneFlow
                 button.onClick.AddListener(onClick);
             }
 
-            Text buttonText = CreateText(rect, "Label", label, Vector2.zero, Vector2.one, 30);
+            Text buttonText = CreateText(
+                rect,
+                "Label",
+                label,
+                Vector2.zero,
+                Vector2.one,
+                fontSize);
             buttonText.color = new Color(0.05f, 0.06f, 0.08f, 1f);
             return button;
         }
@@ -489,7 +997,11 @@ namespace LootUp.Core.SceneFlow
             Color color,
             Sprite sprite)
         {
-            GameObject imageObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            GameObject imageObject = new GameObject(
+                objectName,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
             imageObject.transform.SetParent(parent, false);
 
             RectTransform rect = imageObject.GetComponent<RectTransform>();
@@ -514,7 +1026,11 @@ namespace LootUp.Core.SceneFlow
             Vector2 anchorMax,
             int fontSize)
         {
-            GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            GameObject textObject = new GameObject(
+                objectName,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Text));
             textObject.transform.SetParent(parent, false);
 
             RectTransform rect = textObject.GetComponent<RectTransform>();
@@ -525,7 +1041,8 @@ namespace LootUp.Core.SceneFlow
 
             Text text = textObject.GetComponent<Text>();
             text.text = content;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font =
+                Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = fontSize;
             text.fontStyle = FontStyle.Bold;
             text.alignment = TextAnchor.MiddleCenter;
@@ -541,7 +1058,10 @@ namespace LootUp.Core.SceneFlow
                 return;
             }
 
-            new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            new GameObject(
+                "EventSystem",
+                typeof(EventSystem),
+                typeof(InputSystemUIInputModule));
         }
     }
 }

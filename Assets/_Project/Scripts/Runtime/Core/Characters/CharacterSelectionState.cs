@@ -22,6 +22,12 @@ namespace LootUp.Core.Characters
             selectedCharacter = characterDefinition;
         }
 
+        // (추가) 신규 Guest 등록 시 이전 Editor 런타임 선택 상태를 제거한다.
+        public static void Reset()
+        {
+            selectedCharacter = null;
+        }
+
         public static CharacterDefinition Resolve(CharacterDefinition fallbackCharacter)
         {
             if (selectedCharacter != null && CharacterProgressionState.IsOwned(selectedCharacter))

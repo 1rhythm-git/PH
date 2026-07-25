@@ -1,10 +1,7 @@
 using System.Collections.Generic;
-using LootUp.Core.Characters;
 using LootUp.Core.Player;
-using LootUp.Core.Profile;
 using LootUp.Core.World;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace LootUp.Core.Items
 {
@@ -154,7 +151,10 @@ namespace LootUp.Core.Items
             EnsureIconProvider();
             TryResolvePlayerMotor();
 
-            if (buildingGridUI == null || floorManager == null || itemLayer == null || itemTable == null)
+            if (buildingGridUI == null
+                || floorManager == null
+                || itemLayer == null
+                || itemTable == null)
             {
                 return;
             }
@@ -169,111 +169,30 @@ namespace LootUp.Core.Items
 
             EnsureRuntimeSeed();
 
-            int pageSeed = unchecked(runtimeSeed + floorManager.CurrentPageIndex * 73856093);
+            int pageSeed = unchecked(
+                runtimeSeed + floorManager.CurrentPageIndex * 73856093);
             System.Random random = new System.Random(pageSeed);
-            HashSet<int> occupied = new HashSet<int>();
-            HashSet<string> spawnedCollectionIds = new HashSet<string>();
-            int spawnedCount = 0;
-            bool needsItemChanceRewardForPage = RollItemChance(random);
-            int pageReferenceFloor = pageData.GetAddressByRow(0).AbsoluteFloor;
-            ItemDefinition pageCollectionItem = GetGuaranteedGoldenCup(pageData)
-                ?? TryPickCollectionItem(pageReferenceFloor, random, spawnedCollectionIds);
-            if (pageCollectionItem != null
-                && TrySpawnPageCollectionItem(pageCollectionItem, pageData, random, occupied))
+
+            // (변경) 드랍 선택과 셀 배치는 Planner가 담당한다.
+            ItemPagePlanner planner = CreatePagePlanner();
+            IReadOnlyList<ItemSpawnPlan> plans = planner.CreatePlan(
+                pageData,
+                buildingGridUI.Rows,
+                buildingGridUI.Columns,
+                maxItemsPerPage,
+                random);
+
+            // (변경) 계획된 데이터의 UI 생성은 View Factory에 위임한다.
+            ItemViewFactory viewFactory = CreateViewFactory();
+            for (int i = 0; i < plans.Count; i++)
             {
-                spawnedCollectionIds.Add(pageCollectionItem.CollectionId);
-                spawnedCount++;
-            }
-
-            for (int guard = 0; guard < buildingGridUI.Rows * buildingGridUI.Columns && spawnedCount < maxItemsPerPage; guard++)
-            {
-                int row = random.Next(0, buildingGridUI.Rows);
-                int column = random.Next(0, buildingGridUI.Columns);
-                int key = row * buildingGridUI.Columns + column;
-
-                if (occupied.Contains(key) || IsExcludedCell(column, row))
-                {
-                    continue;
-                }
-
-                FloorAddress address = pageData.GetAddressByRow(row);
-                ItemDefinition definition = needsItemChanceRewardForPage
-                    ? PickItemChanceReward(address.AbsoluteFloor, random)
-                    : null;
-                definition ??= PickItem(address.AbsoluteFloor, random);
-                if (definition == null)
-                {
-                    continue;
-                }
-
-                if (needsItemChanceRewardForPage && IsItemChanceReward(definition))
-                {
-                    needsItemChanceRewardForPage = false;
-                }
-
-                if (definition.ItemType == ItemType.Collection && !string.IsNullOrWhiteSpace(definition.CollectionId))
-                {
-                    spawnedCollectionIds.Add(definition.CollectionId);
-                }
-
-                CreateItem(definition, address, column, random);
-                occupied.Add(key);
-                spawnedCount++;
+                ItemInstance item = viewFactory.Create(plans[i]);
+                item.AvailabilityChanged += HandleItemAvailabilityChanged;
+                spawnedItems.Add(item);
             }
 
             lastSpawnedPageIndex = floorManager.CurrentPageIndex;
             CurrentPageItemsSpawned?.Invoke(lastSpawnedPageIndex);
-        }
-
-        private ItemDefinition GetGuaranteedGoldenCup(FloorPageData pageData)
-        {
-            if (pageData == null
-                || pageData.PageIndex + 1 != Mathf.Max(1, guaranteedGoldenCupPageNumber)
-                || string.IsNullOrWhiteSpace(guaranteedGoldenCupItemId)
-                || !itemTable.TryGet(guaranteedGoldenCupItemId, out ItemDefinition goldenCup)
-                || !CanSpawnForPlayer(goldenCup))
-            {
-                return null;
-            }
-
-            return goldenCup;
-        }
-
-        private bool TrySpawnPageCollectionItem(
-            ItemDefinition definition,
-            FloorPageData pageData,
-            System.Random random,
-            HashSet<int> occupied)
-        {
-            if (definition == null || pageData == null || random == null || occupied == null)
-            {
-                return false;
-            }
-
-            List<int> availableCellKeys = new List<int>();
-            for (int row = 0; row < buildingGridUI.Rows; row++)
-            {
-                for (int column = 0; column < buildingGridUI.Columns; column++)
-                {
-                    int key = row * buildingGridUI.Columns + column;
-                    if (!occupied.Contains(key) && !IsExcludedCell(column, row))
-                    {
-                        availableCellKeys.Add(key);
-                    }
-                }
-            }
-
-            if (availableCellKeys.Count == 0)
-            {
-                return false;
-            }
-
-            int selectedKey = availableCellKeys[random.Next(0, availableCellKeys.Count)];
-            int selectedRow = selectedKey / buildingGridUI.Columns;
-            int selectedColumn = selectedKey % buildingGridUI.Columns;
-            CreateItem(definition, pageData.GetAddressByRow(selectedRow), selectedColumn, random);
-            occupied.Add(selectedKey);
-            return true;
         }
 
         public bool IsCurrentPageCellOccupied(int column, int row)
@@ -341,428 +260,40 @@ namespace LootUp.Core.Items
             }
         }
 
-        private ItemDefinition PickItem(int absoluteFloor, System.Random random)
-        {
-            if (!string.IsNullOrWhiteSpace(forcedTestItemId) && itemTable.TryGet(forcedTestItemId, out ItemDefinition forcedItem))
-            {
-                return forcedItem.CanSpawnAtFloor(absoluteFloor) && CanSpawnForPlayer(forcedItem) ? forcedItem : null;
-            }
-
-            List<ItemDefinition> candidates = itemTable.GetSpawnCandidates(absoluteFloor);
-            int totalWeight = 0;
-
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (candidates[i].ItemType != ItemType.Collection && CanSpawnForPlayer(candidates[i]))
-                {
-                    totalWeight += Mathf.Max(0, candidates[i].SpawnWeight);
-                }
-            }
-
-            if (totalWeight <= 0)
-            {
-                return null;
-            }
-
-            int roll = random.Next(0, totalWeight);
-            int cursor = 0;
-
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (candidates[i].ItemType == ItemType.Collection || !CanSpawnForPlayer(candidates[i]))
-                {
-                    continue;
-                }
-
-                cursor += Mathf.Max(0, candidates[i].SpawnWeight);
-                if (roll < cursor)
-                {
-                    return candidates[i];
-                }
-            }
-
-            return null;
-        }
-
-        private ItemDefinition TryPickCollectionItem(int absoluteFloor, System.Random random, HashSet<string> spawnedCollectionIds)
-        {
-            if (!string.IsNullOrWhiteSpace(forcedTestItemId))
-            {
-                return null;
-            }
-
-            List<ItemDefinition> candidates = itemTable.GetSpawnCandidates(absoluteFloor);
-            Dictionary<CollectionItemType, List<ItemDefinition>> candidatesByType =
-                new Dictionary<CollectionItemType, List<ItemDefinition>>();
-            Dictionary<CollectionItemType, float> chanceByType =
-                new Dictionary<CollectionItemType, float>();
-            float totalChance = 0f;
-
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                ItemDefinition candidate = candidates[i];
-                if (candidate.ItemType != ItemType.Collection
-                    || !CanSpawnForPlayer(candidate)
-                    || spawnedCollectionIds.Contains(candidate.CollectionId))
-                {
-                    continue;
-                }
-
-                float candidateChance = candidate.GetCollectionSpawnChance(
-                    absoluteFloor,
-                    GetPlayerCollectionChanceBonusPercent(candidate.CollectionItemType));
-                if (candidateChance <= 0f)
-                {
-                    continue;
-                }
-
-                if (!candidatesByType.TryGetValue(candidate.CollectionItemType, out List<ItemDefinition> typedCandidates))
-                {
-                    typedCandidates = new List<ItemDefinition>();
-                    candidatesByType.Add(candidate.CollectionItemType, typedCandidates);
-                }
-
-                typedCandidates.Add(candidate);
-                if (!chanceByType.TryGetValue(candidate.CollectionItemType, out float currentChance)
-                    || candidateChance > currentChance)
-                {
-                    chanceByType[candidate.CollectionItemType] = candidateChance;
-                }
-            }
-
-            foreach (KeyValuePair<CollectionItemType, float> chanceEntry in chanceByType)
-            {
-                totalChance += Mathf.Min(
-                    chanceEntry.Value,
-                    GetCollectionPageChanceCap(chanceEntry.Key));
-            }
-
-            if (totalChance <= 0f || random.NextDouble() >= Mathf.Clamp01(totalChance))
-            {
-                return null;
-            }
-
-            double selection = random.NextDouble() * totalChance;
-            float cursor = 0f;
-            foreach (KeyValuePair<CollectionItemType, float> chanceEntry in chanceByType)
-            {
-                cursor += Mathf.Min(
-                    chanceEntry.Value,
-                    GetCollectionPageChanceCap(chanceEntry.Key));
-                if (selection >= cursor
-                    || !candidatesByType.TryGetValue(chanceEntry.Key, out List<ItemDefinition> typedCandidates)
-                    || typedCandidates.Count == 0)
-                {
-                    continue;
-                }
-
-                return typedCandidates[random.Next(0, typedCandidates.Count)];
-            }
-
-            return null;
-        }
-
-        private static float GetCollectionPageChanceCap(CollectionItemType collectionItemType)
-        {
-            return collectionItemType == CollectionItemType.Artifact ? 0.005f : 1f;
-        }
-
-        private bool CanSpawnForPlayer(ItemDefinition definition)
-        {
-            if (definition == null || (eventRecorder != null && eventRecorder.HasReachedAcquireLimit(definition)))
-            {
-                return false;
-            }
-
-            return definition.ItemType != ItemType.Collection || !ItemCollectionManager.HasReachedOwnedLimit(definition);
-        }
-
-        private float GetPlayerCollectionChanceBonusPercent(CollectionItemType collectionItemType)
-        {
-            float userTraitBonusPercent = UserProfileManager.GetCollectionTraitChanceBonusPercent();
-            if (collectionItemType == CollectionItemType.Artifact)
-            {
-                userTraitBonusPercent += UserProfileManager.GetArtifactChanceBonusPercent();
-            }
-            else if (collectionItemType == CollectionItemType.CharacterCoin)
-            {
-                userTraitBonusPercent += UserProfileManager.GetCharacterCoinChanceBonusPercent();
-                userTraitBonusPercent += ArtifactEffectResolver.Resolve().CharacterCoinChanceBonusPercent;
-            }
-
-            CharacterDefinition definition = CharacterSelectionState.SelectedCharacter;
-            if (playerSpawner != null && playerSpawner.SpawnedPlayer != null)
-            {
-                PlayerCharacterRuntime runtime = playerSpawner.SpawnedPlayer.GetComponent<PlayerCharacterRuntime>();
-                if (runtime != null)
-                {
-                    return runtime.CollectionItemChanceBonusPercent + userTraitBonusPercent;
-                }
-            }
-
-            if (definition == null)
-            {
-                return userTraitBonusPercent;
-            }
-
-            CharacterUpgradeModifiers modifiers = CharacterUpgradeResolver.Resolve(definition);
-            return definition.CollectionItemChanceBonusPercent + modifiers.CollectionItemChanceBonusPercent + userTraitBonusPercent;
-        }
-
-        private ItemDefinition PickItemChanceReward(int absoluteFloor, System.Random random)
-        {
-            List<ItemDefinition> candidates = itemTable.GetSpawnCandidates(absoluteFloor);
-            int totalWeight = 0;
-
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (IsItemChanceReward(candidates[i]) && CanSpawnForPlayer(candidates[i]))
-                {
-                    totalWeight += Mathf.Max(0, candidates[i].SpawnWeight);
-                }
-            }
-
-            if (totalWeight <= 0)
-            {
-                return null;
-            }
-
-            int roll = random.Next(0, totalWeight);
-            int cursor = 0;
-
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                ItemDefinition candidate = candidates[i];
-                if (!IsItemChanceReward(candidate) || !CanSpawnForPlayer(candidate))
-                {
-                    continue;
-                }
-
-                cursor += Mathf.Max(0, candidate.SpawnWeight);
-                if (roll < cursor)
-                {
-                    return candidate;
-                }
-            }
-
-            return null;
-        }
-
-        private bool RollItemChance(System.Random random)
-        {
-            if (!string.IsNullOrWhiteSpace(forcedTestItemId))
-            {
-                return false;
-            }
-
-            CharacterDefinition definition = CharacterSelectionState.SelectedCharacter;
-            if (definition == null && playerSpawner != null && playerSpawner.SpawnedPlayer != null)
-            {
-                PlayerCharacterRuntime runtime = playerSpawner.SpawnedPlayer.GetComponent<PlayerCharacterRuntime>();
-                definition = runtime != null ? runtime.CharacterDefinition : null;
-            }
-
-            float chance = CharacterProgressionState.GetItemChance(definition);
-            return chance > 0f && random.NextDouble() <= chance;
-        }
-
-        private bool IsItemChanceReward(ItemDefinition definition)
-        {
-            return definition != null && (definition.ItemType == ItemType.Time || definition.ItemType == ItemType.Skill);
-        }
-
-        private void CreateItem(ItemDefinition definition, FloorAddress address, int column, System.Random random)
-        {
-            GameObject itemObject = new GameObject($"Item_{definition.ItemId}_{address.AbsoluteFloor}_{column}", typeof(RectTransform), typeof(Image), typeof(ItemInstance));
-            RectTransform targetLayer = definition.CollectionItemType == CollectionItemType.Artifact
-                ? artifactLayer
-                : itemLayer;
-            targetLayer ??= itemLayer;
-            itemObject.layer = targetLayer.gameObject.layer;
-            itemObject.transform.SetParent(targetLayer, false);
-
-            RectTransform itemRect = itemObject.GetComponent<RectTransform>();
-            itemRect.anchorMin = new Vector2(0.5f, 0.5f);
-            itemRect.anchorMax = new Vector2(0.5f, 0.5f);
-            itemRect.pivot = new Vector2(0.5f, 0.5f);
-            itemRect.localScale = Vector3.one;
-            itemRect.sizeDelta = itemSize;
-            itemRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, itemSize.x);
-            itemRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, itemSize.y);
-            itemRect.anchoredPosition = GetItemAnchoredPosition(column, address.PageFloorIndex);
-
-            Image image = itemObject.GetComponent<Image>();
-            image.color = new Color(1f, 1f, 1f, 0f);
-            image.raycastTarget = false;
-
-            CreateIconImage(itemObject.transform, definition);
-            CreateProgressText(itemObject.transform);
-
-            ItemInstance item = itemObject.GetComponent<ItemInstance>();
-            int runtimePassCount = ResolveRuntimePassCount(definition, random);
-            int scoreBonusPercent = ResolveScoreBonusPercent(definition, runtimePassCount);
-            item.Configure(definition, floorManager, playerMotor, eventRecorder, address.AbsoluteFloor, address.PageIndex, address.PageFloorIndex, column, new Color(1f, 1f, 1f, 0f), runtimePassCount, scoreBonusPercent);
-            item.AvailabilityChanged += HandleItemAvailabilityChanged;
-            spawnedItems.Add(item);
-        }
-
         private void HandleItemAvailabilityChanged(ItemInstance item)
         {
             CurrentPageItemOccupancyChanged?.Invoke();
         }
 
-        private int ResolveRuntimePassCount(ItemDefinition definition, System.Random random)
+        private ItemPagePlanner CreatePagePlanner()
         {
-            if (definition == null)
-            {
-                return 1;
-            }
-
-            if (IsMoveSpeedItem(definition))
-            {
-                return RollPassCount(random, speedItemPassCountMin, speedItemPassCountMax);
-            }
-
-            if (IsFeverGaugeItem(definition))
-            {
-                return random.Next(0, 3) * 2 + 1;
-            }
-
-            if (ShouldRandomizePassCount(definition))
-            {
-                return RollPassCount(random, randomPassCountMin, randomPassCountMax);
-            }
-
-            return Mathf.Max(1, definition.RequiredPassCount);
+            ItemSpawnPolicy spawnPolicy = new ItemSpawnPolicy(
+                itemTable,
+                eventRecorder,
+                playerSpawner,
+                forcedTestItemId,
+                guaranteedGoldenCupPageNumber,
+                guaranteedGoldenCupItemId,
+                randomPassCountMin,
+                randomPassCountMax,
+                speedItemPassCountMin,
+                speedItemPassCountMax,
+                scoreBonusPercentPerExtraPass);
+            return new ItemPagePlanner(spawnPolicy);
         }
 
-        private int ResolveScoreBonusPercent(ItemDefinition definition, int passCount)
+        private ItemViewFactory CreateViewFactory()
         {
-            if (definition == null || !IsScoreRelated(definition))
-            {
-                return 0;
-            }
-
-            return Mathf.Max(0, passCount - 1) * Mathf.Max(0, scoreBonusPercentPerExtraPass);
-        }
-
-        private bool ShouldRandomizePassCount(ItemDefinition definition)
-        {
-            return definition != null && (definition.ItemType == ItemType.Time || IsScoreRelated(definition));
-        }
-
-        private bool IsMoveSpeedItem(ItemDefinition definition)
-        {
-            return definition != null && definition.EffectKey == ItemEffectKeys.AddMoveSpeedPercent;
-        }
-
-        private bool IsFeverGaugeItem(ItemDefinition definition)
-        {
-            return definition != null
-                && (definition.ItemType == ItemType.Fever || definition.EffectKey == ItemEffectKeys.AddFeverGauge);
-        }
-
-        private int RollPassCount(System.Random random, int minimum, int maximum)
-        {
-            int min = Mathf.Max(1, Mathf.Min(minimum, maximum));
-            int max = Mathf.Max(min, Mathf.Max(minimum, maximum));
-            return random.Next(min, max + 1);
-        }
-
-        private bool IsScoreRelated(ItemDefinition definition)
-        {
-            return definition != null && (definition.ItemType == ItemType.Score || definition.EffectKey == ItemEffectKeys.AddScore || definition.AffectsScore);
-        }
-
-        private void CreateIconImage(Transform parent, ItemDefinition definition)
-        {
-            GameObject shapeObject = new GameObject("IconImage", typeof(RectTransform), typeof(Image), typeof(Outline));
-            shapeObject.layer = parent.gameObject.layer;
-            shapeObject.transform.SetParent(parent, false);
-
-            RectTransform shapeRect = shapeObject.GetComponent<RectTransform>();
-            shapeRect.anchorMin = Vector2.zero;
-            shapeRect.anchorMax = Vector2.one;
-            shapeRect.offsetMin = Vector2.zero;
-            shapeRect.offsetMax = Vector2.zero;
-
-            Image image = shapeObject.GetComponent<Image>();
-            ItemIconData iconData = iconProvider.GetIcon(definition);
-            image.sprite = iconData.Sprite;
-            image.color = iconData.Color;
-            image.preserveAspect = true;
-            image.raycastTarget = false;
-
-            Outline outline = shapeObject.GetComponent<Outline>();
-            outline.effectColor = new Color(1f, 1f, 1f, 0.65f);
-            outline.effectDistance = new Vector2(2f, -2f);
-            outline.useGraphicAlpha = true;
-        }
-
-        private void CreateProgressText(Transform parent)
-        {
-            GameObject textObject = new GameObject("ProgressText", typeof(RectTransform), typeof(Text), typeof(Outline), typeof(Shadow));
-            textObject.layer = parent.gameObject.layer;
-            textObject.transform.SetParent(parent, false);
-
-            RectTransform textRect = textObject.GetComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = Vector2.zero;
-            textRect.offsetMax = Vector2.zero;
-
-            Text text = textObject.GetComponent<Text>();
-            text.alignment = TextAnchor.MiddleCenter;
-            text.color = Color.white;
-            text.fontSize = passCountFontSize;
-            text.fontStyle = FontStyle.Bold;
-            text.raycastTarget = false;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
-            Outline outline = textObject.GetComponent<Outline>();
-            outline.effectColor = new Color(0f, 0f, 0f, 0.95f);
-            outline.effectDistance = new Vector2(3f, -3f);
-            outline.useGraphicAlpha = true;
-
-            Shadow shadow = textObject.GetComponent<Shadow>();
-            shadow.effectColor = new Color(0f, 0f, 0f, 0.85f);
-            shadow.effectDistance = new Vector2(2f, -2f);
-            shadow.useGraphicAlpha = true;
-        }
-
-        private Vector2 GetItemAnchoredPosition(int column, int row)
-        {
-            RectTransform cellRect = buildingGridUI.GetCellRectTransform(column, row);
-            if (cellRect == null)
-            {
-                Rect layerRect = itemLayer.rect;
-                float normalizedX = (column + 0.5f) / Mathf.Max(1, buildingGridUI.Columns);
-                float x = Mathf.Lerp(layerRect.xMin, layerRect.xMax, normalizedX);
-                float rowHeight = layerRect.height / Mathf.Max(1, buildingGridUI.Rows);
-                float floorLineY = layerRect.yMin + rowHeight * Mathf.Clamp(row, 0, Mathf.Max(0, buildingGridUI.Rows - 1));
-
-                return new Vector2(x, floorLineY + itemSize.y * 0.5f);
-            }
-
-            Vector3[] corners = new Vector3[4];
-            cellRect.GetWorldCorners(corners);
-
-            Vector3 bottomCenterWorld = Vector3.Lerp(corners[0], corners[3], 0.5f);
-            Vector2 bottomCenterLocal = itemLayer.InverseTransformPoint(bottomCenterWorld);
-
-            return new Vector2(bottomCenterLocal.x, bottomCenterLocal.y + itemSize.y * 0.5f);
-        }
-
-        private bool IsExcludedCell(int column, int row)
-        {
-            if (floorManager == null || buildingGridUI == null)
-            {
-                return true;
-            }
-
-            int maxColumn = Mathf.Max(0, buildingGridUI.Columns - 1);
-
-            return column <= 0 || column >= maxColumn;
+            return new ItemViewFactory(
+                buildingGridUI,
+                floorManager,
+                playerMotor,
+                eventRecorder,
+                itemLayer,
+                artifactLayer,
+                iconProvider,
+                itemSize,
+                passCountFontSize);
         }
 
         private void EnsureReferences()
@@ -797,7 +328,9 @@ namespace LootUp.Core.Items
 
             if (iconProvider == null)
             {
-                iconProvider = new ResourceItemIconProvider(itemIconTable, new FallbackItemIconProvider(defaultItemColor));
+                iconProvider = new ResourceItemIconProvider(
+                    itemIconTable,
+                    new FallbackItemIconProvider(defaultItemColor));
             }
         }
 
@@ -822,7 +355,9 @@ namespace LootUp.Core.Items
 
         private void EnsureArtifactLayer()
         {
-            if (artifactLayer != null || buildingGridUI == null || buildingGridUI.transform.parent == null)
+            if (artifactLayer != null
+                || buildingGridUI == null
+                || buildingGridUI.transform.parent == null)
             {
                 return;
             }
@@ -834,7 +369,8 @@ namespace LootUp.Core.Items
             }
             else
             {
-                GameObject layerObject = new GameObject("ArtifactLayer", typeof(RectTransform));
+                GameObject layerObject =
+                    new GameObject("ArtifactLayer", typeof(RectTransform));
                 layerObject.layer = buildingGridUI.gameObject.layer;
                 layerObject.transform.SetParent(buildingGridUI.transform.parent, false);
                 artifactLayer = layerObject.GetComponent<RectTransform>();
@@ -869,7 +405,11 @@ namespace LootUp.Core.Items
             }
 
             runtimeSeed = randomizeSeedOnStart
-                ? unchecked(randomSeed ^ Random.Range(int.MinValue, int.MaxValue) ^ GetInstanceID() ^ System.Environment.TickCount)
+                ? unchecked(
+                    randomSeed
+                    ^ Random.Range(int.MinValue, int.MaxValue)
+                    ^ GetInstanceID()
+                    ^ System.Environment.TickCount)
                 : randomSeed;
             hasRuntimeSeed = true;
         }
@@ -882,8 +422,12 @@ namespace LootUp.Core.Items
             randomPassCountMin = Mathf.Max(1, randomPassCountMin);
             randomPassCountMax = Mathf.Max(randomPassCountMin, randomPassCountMax);
             speedItemPassCountMin = Mathf.Max(1, speedItemPassCountMin);
-            speedItemPassCountMax = Mathf.Max(speedItemPassCountMin, speedItemPassCountMax);
-            scoreBonusPercentPerExtraPass = Mathf.Max(0, scoreBonusPercentPerExtraPass);
+            speedItemPassCountMax = Mathf.Max(
+                speedItemPassCountMin,
+                speedItemPassCountMax);
+            scoreBonusPercentPerExtraPass = Mathf.Max(
+                0,
+                scoreBonusPercentPerExtraPass);
             itemSize.x = Mathf.Max(1f, itemSize.x);
             itemSize.y = Mathf.Max(1f, itemSize.y);
         }

@@ -5,6 +5,7 @@ namespace LootUp.Core.Authentication
     public enum AuthenticationProvider
     {
         LocalGuest,
+        Google,
         Backnd
     }
 
@@ -21,6 +22,11 @@ namespace LootUp.Core.Authentication
         None,
         NoSavedSession,
         InvalidCredentials,
+        InvalidNickname,
+        NicknameAlreadyExists,
+        NicknameNotFound,
+        GuestAccountLimitReached,
+        WeakPassword,
         NetworkUnavailable,
         ProviderUnavailable,
         OperationInProgress,
@@ -29,7 +35,11 @@ namespace LootUp.Core.Authentication
 
     public sealed class AuthenticationSession
     {
-        public AuthenticationSession(string userId, string nickname, AuthenticationProvider provider, bool isGuest)
+        public AuthenticationSession(
+            string userId,
+            string nickname,
+            AuthenticationProvider provider,
+            bool isGuest)
         {
             UserId = string.IsNullOrWhiteSpace(userId) ? string.Empty : userId.Trim();
             Nickname = string.IsNullOrWhiteSpace(nickname) ? "Player" : nickname.Trim();
@@ -46,7 +56,11 @@ namespace LootUp.Core.Authentication
 
     public readonly struct AuthenticationResult
     {
-        private AuthenticationResult(bool succeeded, AuthenticationSession session, AuthenticationFailure failure, string message)
+        private AuthenticationResult(
+            bool succeeded,
+            AuthenticationSession session,
+            AuthenticationFailure failure,
+            string message)
         {
             Succeeded = succeeded;
             Session = session;
@@ -63,15 +77,55 @@ namespace LootUp.Core.Authentication
         {
             if (session == null || !session.IsValid)
             {
-                return Fail(AuthenticationFailure.Unexpected, "Authentication provider returned an invalid session.");
+                return Fail(
+                    AuthenticationFailure.Unexpected,
+                    "Authentication provider returned an invalid session.");
             }
 
-            return new AuthenticationResult(true, session, AuthenticationFailure.None, string.Empty);
+            return new AuthenticationResult(
+                true,
+                session,
+                AuthenticationFailure.None,
+                string.Empty);
         }
 
-        public static AuthenticationResult Fail(AuthenticationFailure failure, string message)
+        public static AuthenticationResult Fail(
+            AuthenticationFailure failure,
+            string message)
         {
             return new AuthenticationResult(false, null, failure, message);
+        }
+    }
+
+    public readonly struct NicknameAvailabilityResult
+    {
+        private NicknameAvailabilityResult(
+            bool isAvailable,
+            AuthenticationFailure failure,
+            string message)
+        {
+            IsAvailable = isAvailable;
+            Failure = failure;
+            Message = message ?? string.Empty;
+        }
+
+        public bool IsAvailable { get; }
+        public AuthenticationFailure Failure { get; }
+        public string Message { get; }
+
+        public static NicknameAvailabilityResult Available()
+        {
+            return new NicknameAvailabilityResult(
+                true,
+                AuthenticationFailure.None,
+                string.Empty);
+        }
+
+        public static NicknameAvailabilityResult Unavailable(
+            AuthenticationFailure failure,
+            string message)
+        {
+            return new NicknameAvailabilityResult(false, failure, message);
         }
     }
 }

@@ -11,28 +11,36 @@ namespace LootUp.Core.Authentication
 
         public static event Action<AuthenticationState> AuthenticationStateChanged;
 
-        public static IAuthenticationService Service => service ??= CreateDefaultService();
-        public static AuthenticationState State { get; private set; } = AuthenticationState.SignedOut;
+        public static IAuthenticationService Service =>
+            service ??= CreateDefaultService();
+        public static AuthenticationState State { get; private set; } =
+            AuthenticationState.SignedOut;
         public static AuthenticationSession CurrentSession { get; private set; }
-        public static bool IsAuthenticated => State == AuthenticationState.Authenticated && CurrentSession != null;
+        public static bool IsAuthenticated =>
+            State == AuthenticationState.Authenticated
+            && CurrentSession != null;
 
-        public static void Configure(IAuthenticationService authenticationService)
+        public static void Configure(
+            IAuthenticationService authenticationService)
         {
             service = authenticationService ?? CreateDefaultService();
             CurrentSession = null;
             SetState(AuthenticationState.SignedOut);
         }
 
-        public static async Task<AuthenticationResult> InitializeAsync(bool allowGuestFallback = true)
+        public static async Task<AuthenticationResult> InitializeAsync(
+            bool allowGuestFallback = false,
+            bool forceSessionValidation = false)
         {
-            if (IsAuthenticated)
+            if (IsAuthenticated && !forceSessionValidation)
             {
                 return AuthenticationResult.Success(CurrentSession);
             }
 
             return await RunAuthenticationOperationAsync(async () =>
             {
-                AuthenticationResult result = await Service.TryRestoreSessionAsync();
+                AuthenticationResult result =
+                    await Service.TryRestoreSessionAsync();
                 if (!result.Succeeded
                     && allowGuestFallback
                     && result.Failure == AuthenticationFailure.NoSavedSession)
@@ -44,14 +52,47 @@ namespace LootUp.Core.Authentication
             });
         }
 
-        public static Task<AuthenticationResult> SignInAsGuestAsync()
+        public static Task<NicknameAvailabilityResult>
+            CheckGuestNicknameAvailabilityAsync(string nickname)
         {
-            return RunAuthenticationOperationAsync(() => Service.SignInAsGuestAsync());
+            return Service.CheckNicknameAvailabilityAsync(nickname);
         }
 
-        public static Task<AuthenticationResult> SignInAsync(string accountId, string password)
+        public static Task<AuthenticationResult> RegisterGuestAsync(
+            string nickname,
+            string password)
         {
-            return RunAuthenticationOperationAsync(() => Service.SignInAsync(accountId, password));
+            return RunAuthenticationOperationAsync(
+                () => Service.RegisterGuestAsync(nickname, password),
+                true);
+        }
+
+        public static Task<AuthenticationResult> SignInGuestAsync(
+            string nickname,
+            string password)
+        {
+            return RunAuthenticationOperationAsync(
+                () => Service.SignInGuestAsync(nickname, password));
+        }
+
+        public static Task<AuthenticationResult> SignInAsGuestAsync()
+        {
+            return RunAuthenticationOperationAsync(
+                () => Service.SignInAsGuestAsync());
+        }
+
+        public static Task<AuthenticationResult> SignInAsync(
+            string accountId,
+            string password)
+        {
+            return RunAuthenticationOperationAsync(
+                () => Service.SignInAsync(accountId, password));
+        }
+
+        public static void RequireCredentialConfirmation()
+        {
+            CurrentSession = null;
+            SetState(AuthenticationState.SignedOut);
         }
 
         public static async Task SignOutAsync()
@@ -78,8 +119,10 @@ namespace LootUp.Core.Authentication
             }
         }
 
-        private static async Task<AuthenticationResult> RunAuthenticationOperationAsync(
-            Func<Task<AuthenticationResult>> operation)
+        private static async Task<AuthenticationResult>
+            RunAuthenticationOperationAsync(
+                Func<Task<AuthenticationResult>> operation,
+                bool resetEditorPlayerDataOnSuccess = false)
         {
             if (isOperationInProgress)
             {
@@ -98,7 +141,9 @@ namespace LootUp.Core.Authentication
             }
             catch (Exception exception)
             {
-                result = AuthenticationResult.Fail(AuthenticationFailure.Unexpected, exception.Message);
+                result = AuthenticationResult.Fail(
+                    AuthenticationFailure.Unexpected,
+                    exception.Message);
             }
             finally
             {
@@ -107,8 +152,15 @@ namespace LootUp.Core.Authentication
 
             if (result.Succeeded)
             {
+                if (resetEditorPlayerDataOnSuccess)
+                {
+                    EditorGuestDataResetter.ResetPlayerData();
+                }
+
                 CurrentSession = result.Session;
-                UserProfileManager.SetIdentity(result.Session.UserId, result.Session.Nickname);
+                UserProfileManager.SetIdentity(
+                    result.Session.UserId,
+                    result.Session.Nickname);
                 SetState(AuthenticationState.Authenticated);
             }
             else
@@ -122,7 +174,9 @@ namespace LootUp.Core.Authentication
 
         private static IAuthenticationService CreateDefaultService()
         {
-            return new LocalAuthenticationService(UserProfileManager.UserId, UserProfileManager.Nickname);
+            return new LocalAuthenticationService(
+                UserProfileManager.UserId,
+                UserProfileManager.Nickname);
         }
 
         private static void SetState(AuthenticationState state)

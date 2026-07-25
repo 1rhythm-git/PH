@@ -11,6 +11,9 @@ namespace LootUp.Core.Profile
         public static IUserProfileService Service => service ??= new LocalUserProfileService();
         public static string UserId => Service.UserId;
         public static string Nickname => Service.Nickname;
+        public static int BestHighestFloor => Service.BestHighestFloor;
+        public static int BestScore => Service.BestScore;
+        public static string BestCharacterId => Service.BestCharacterId;
         public static int GameMoney => Service.GetCurrencyAmount(UserCurrencyType.GameMoney);
         public static int Ruby => Service.GetCurrencyAmount(UserCurrencyType.Ruby);
 
@@ -24,6 +27,21 @@ namespace LootUp.Core.Profile
         {
             Service.SetIdentity(userId, nickname);
             ProfileChanged?.Invoke();
+        }
+
+        public static bool TrySetBestRun(
+            int highestFloor,
+            int score,
+            string characterId)
+        {
+            bool updated =
+                Service.TrySetBestRun(highestFloor, score, characterId);
+            if (updated)
+            {
+                ProfileChanged?.Invoke();
+            }
+
+            return updated;
         }
 
         public static UserCurrencyChangeResult AddCurrency(UserCurrencyType currencyType, int amount)
