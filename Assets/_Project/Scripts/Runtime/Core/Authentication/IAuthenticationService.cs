@@ -6,6 +6,10 @@ namespace LootUp.Core.Authentication
     {
         Task<AuthenticationResult> TryRestoreSessionAsync();
         Task<NicknameAvailabilityResult> CheckNicknameAvailabilityAsync(string nickname);
+        Task<AuthenticationResult> RegisterAsync(
+            string accountId,
+            string password,
+            string nickname);
         Task<AuthenticationResult> RegisterGuestAsync(string nickname, string password);
         Task<AuthenticationResult> SignInGuestAsync(string nickname, string password);
         Task<AuthenticationResult> SignInAsGuestAsync();

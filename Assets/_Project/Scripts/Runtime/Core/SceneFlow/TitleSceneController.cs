@@ -38,6 +38,7 @@ namespace LootUp.Core.SceneFlow
         private RectTransform guestLoginRoot;
         private RectTransform googleLoginRoot;
         private Text loginMessageText;
+        private InputField accountIdInput;
         private InputField nicknameInput;
         private InputField passwordInput;
         private Toggle rememberCredentialsToggle;
@@ -152,14 +153,6 @@ namespace LootUp.Core.SceneFlow
             ShowGuestLoginView("SELECT LOGIN METHOD");
         }
 
-        private void OnRememberCredentialsChanged(bool isEnabled)
-        {
-            if (!isEnabled)
-            {
-                LocalLoginCredentialPreferences.Clear();
-            }
-        }
-
         private void OnNicknameChanged(string nickname)
         {
             if (!string.Equals(
@@ -168,6 +161,14 @@ namespace LootUp.Core.SceneFlow
                 StringComparison.OrdinalIgnoreCase))
             {
                 verifiedNickname = string.Empty;
+            }
+        }
+
+        private void OnRememberCredentialsChanged(bool isEnabled)
+        {
+            if (!isEnabled)
+            {
+                LocalLoginCredentialPreferences.Clear();
             }
         }
 
@@ -195,9 +196,10 @@ namespace LootUp.Core.SceneFlow
         private void OnGuestRegisterButtonPressed()
         {
             if (isAuthenticationOperationActive
-                || !TryGetGuestCredentials(
-                    out string nickname,
-                    out string password))
+                || !TryGetRegistrationCredentials(
+                    out string accountId,
+                    out string password,
+                    out string nickname))
             {
                 return;
             }
@@ -213,17 +215,18 @@ namespace LootUp.Core.SceneFlow
 
             StartCoroutine(
                 RunAuthenticationOperation(
-                    AuthenticationManager.RegisterGuestAsync(
-                        nickname,
-                        password),
-                    "CREATING GUEST ACCOUNT"));
+                    AuthenticationManager.RegisterAsync(
+                        accountId,
+                        password,
+                        nickname),
+                    "CREATING ACCOUNT"));
         }
 
         private void OnGuestLoginButtonPressed()
         {
             if (isAuthenticationOperationActive
-                || !TryGetGuestCredentials(
-                    out string nickname,
+                || !TryGetLoginCredentials(
+                    out string accountId,
                     out string password))
             {
                 return;
@@ -231,10 +234,10 @@ namespace LootUp.Core.SceneFlow
 
             StartCoroutine(
                 RunAuthenticationOperation(
-                    AuthenticationManager.SignInGuestAsync(
-                        nickname,
+                    AuthenticationManager.SignInAsync(
+                        accountId,
                         password),
-                    "SIGNING IN AS GUEST"));
+                    "SIGNING IN"));
         }
 
         private IEnumerator RunNicknameAvailabilityCheck(
@@ -264,7 +267,7 @@ namespace LootUp.Core.SceneFlow
             if (result.IsAvailable)
             {
                 verifiedNickname = checkedNickname.Trim();
-                SetLoginMessage("NICKNAME AVAILABLE");
+                SetLoginMessage("NICKNAME FORMAT OK");
                 yield break;
             }
 
@@ -295,11 +298,9 @@ namespace LootUp.Core.SceneFlow
         private void ApplyInitialAuthenticationResult(
             AuthenticationResult result)
         {
-            // (수정) 저장 세션은 계정 확인에만 사용하고 Title에서는 매번 ID/PW를 다시 검증한다.
-            AuthenticationManager.RequireCredentialConfirmation();
             if (result.Succeeded)
             {
-                ShowLoginPanel("CONFIRM ID AND PASSWORD");
+                ShowReadyForTouch("TOUCH");
                 return;
             }
 
@@ -328,20 +329,46 @@ namespace LootUp.Core.SceneFlow
             ShowLoginPanel(GetAuthenticationFailureMessage(result));
         }
 
-        private bool TryGetGuestCredentials(
-            out string nickname,
-            out string password)
+        private bool TryGetRegistrationCredentials(
+            out string accountId,
+            out string password,
+            out string nickname)
         {
-            nickname = GetNickname();
+            accountId = GetAccountId();
             password = passwordInput != null ? passwordInput.text : string.Empty;
-            if (string.IsNullOrWhiteSpace(nickname)
-                || string.IsNullOrEmpty(password))
+            nickname = GetNickname();
+            if (string.IsNullOrWhiteSpace(accountId)
+                || string.IsNullOrEmpty(password)
+                || string.IsNullOrWhiteSpace(nickname))
             {
-                SetLoginMessage("ENTER NICKNAME AND PASSWORD");
+                SetLoginMessage("ENTER ID, PASSWORD, AND NICKNAME");
                 return false;
             }
 
             return true;
+        }
+
+        private bool TryGetLoginCredentials(
+            out string accountId,
+            out string password)
+        {
+            accountId = GetAccountId();
+            password = passwordInput != null ? passwordInput.text : string.Empty;
+            if (string.IsNullOrWhiteSpace(accountId)
+                || string.IsNullOrEmpty(password))
+            {
+                SetLoginMessage("ENTER ID AND PASSWORD");
+                return false;
+            }
+
+            return true;
+        }
+
+        private string GetAccountId()
+        {
+            return accountIdInput != null
+                ? accountIdInput.text.Trim()
+                : string.Empty;
         }
 
         private string GetNickname()
@@ -357,7 +384,7 @@ namespace LootUp.Core.SceneFlow
                 && rememberCredentialsToggle.isOn)
             {
                 LocalLoginCredentialPreferences.Save(
-                    GetNickname(),
+                    GetAccountId(),
                     passwordInput != null ? passwordInput.text : string.Empty);
                 return;
             }
@@ -367,22 +394,29 @@ namespace LootUp.Core.SceneFlow
 
         private void RestoreCredentialPreference()
         {
+            LocalLoginCredentialPreferences.DeleteLegacyCredentials();
             bool hasCredentials =
                 LocalLoginCredentialPreferences.TryLoad(
-                    out string nickname,
+                    out string accountId,
                     out string password);
             if (rememberCredentialsToggle != null)
             {
                 rememberCredentialsToggle.SetIsOnWithoutNotify(hasCredentials);
             }
 
-            if (!hasCredentials)
+            if (accountIdInput != null)
             {
-                return;
+                accountIdInput.text = hasCredentials
+                    ? accountId
+                    : string.Empty;
             }
 
-            nicknameInput.text = nickname;
-            passwordInput.text = password;
+            if (passwordInput != null)
+            {
+                passwordInput.text = hasCredentials
+                    ? password
+                    : string.Empty;
+            }
         }
 
         private void ShowReadyForTouch(string message)
@@ -485,6 +519,11 @@ namespace LootUp.Core.SceneFlow
                 nicknameInput.interactable = interactable;
             }
 
+            if (accountIdInput != null)
+            {
+                accountIdInput.interactable = interactable;
+            }
+
             if (passwordInput != null)
             {
                 passwordInput.interactable = interactable;
@@ -494,6 +533,7 @@ namespace LootUp.Core.SceneFlow
             {
                 rememberCredentialsToggle.interactable = interactable;
             }
+
         }
 
         private void SetLoginMessage(string message)
@@ -532,7 +572,13 @@ namespace LootUp.Core.SceneFlow
             switch (result.Failure)
             {
                 case AuthenticationFailure.InvalidCredentials:
-                    return "INVALID NICKNAME OR PASSWORD";
+                    return "INVALID ID OR PASSWORD";
+                case AuthenticationFailure.InvalidAccountId:
+                    return string.IsNullOrWhiteSpace(result.Message)
+                        ? "INVALID ACCOUNT ID"
+                        : result.Message.ToUpperInvariant();
+                case AuthenticationFailure.AccountAlreadyExists:
+                    return "ACCOUNT ID ALREADY EXISTS";
                 case AuthenticationFailure.InvalidNickname:
                     return string.IsNullOrWhiteSpace(result.Message)
                         ? "INVALID NICKNAME"
@@ -540,7 +586,7 @@ namespace LootUp.Core.SceneFlow
                 case AuthenticationFailure.NicknameAlreadyExists:
                     return "NICKNAME ALREADY EXISTS";
                 case AuthenticationFailure.NicknameNotFound:
-                    return "GUEST NICKNAME NOT FOUND";
+                    return "NICKNAME NOT FOUND";
                 case AuthenticationFailure.GuestAccountLimitReached:
                     return "ANDROID DEVICE ALREADY HAS A GUEST ACCOUNT";
                 case AuthenticationFailure.WeakPassword:
@@ -729,24 +775,32 @@ namespace LootUp.Core.SceneFlow
             googleSignupButton = CreateButton(
                 guestLoginRoot,
                 "GoogleSignupButton",
-                "GOOGLE SIGN UP",
-                new Vector2(0.08f, 0.65f),
-                new Vector2(0.92f, 0.75f),
+                "GOOGLE LOGIN",
+                new Vector2(0.08f, 0.68f),
+                new Vector2(0.92f, 0.76f),
                 OnGoogleSignupButtonPressed);
             CreateText(
                 guestLoginRoot,
                 "GuestSectionTitle",
-                "GUEST LOGIN / SIGN UP",
-                new Vector2(0.08f, 0.56f),
-                new Vector2(0.92f, 0.64f),
+                "ACCOUNT LOGIN / SIGN UP",
+                new Vector2(0.08f, 0.61f),
+                new Vector2(0.92f, 0.67f),
                 25);
 
+            accountIdInput = CreateInputField(
+                guestLoginRoot,
+                "AccountIdInput",
+                "ACCOUNT ID",
+                new Vector2(0.08f, 0.49f),
+                new Vector2(0.92f, 0.59f),
+                false,
+                20);
             nicknameInput = CreateInputField(
                 guestLoginRoot,
                 "NicknameInput",
                 "NICKNAME",
-                new Vector2(0.08f, 0.44f),
-                new Vector2(0.65f, 0.55f),
+                new Vector2(0.08f, 0.37f),
+                new Vector2(0.65f, 0.47f),
                 false,
                 12);
             nicknameInput.onValueChanged.AddListener(OnNicknameChanged);
@@ -754,38 +808,38 @@ namespace LootUp.Core.SceneFlow
                 guestLoginRoot,
                 "NicknameCheckButton",
                 "CHECK NAME",
-                new Vector2(0.68f, 0.44f),
-                new Vector2(0.92f, 0.55f),
+                new Vector2(0.68f, 0.37f),
+                new Vector2(0.92f, 0.47f),
                 OnNicknameCheckButtonPressed,
                 22);
             passwordInput = CreateInputField(
                 guestLoginRoot,
                 "PasswordInput",
                 "PASSWORD",
-                new Vector2(0.08f, 0.31f),
-                new Vector2(0.92f, 0.42f),
+                new Vector2(0.08f, 0.25f),
+                new Vector2(0.92f, 0.35f),
                 true,
                 32);
             rememberCredentialsToggle = CreateToggle(
                 guestLoginRoot,
                 "RememberCredentialsToggle",
-                "REMEMBER ID / PASSWORD",
-                new Vector2(0.08f, 0.23f),
-                new Vector2(0.92f, 0.30f),
+                "REMEMBER ID / PW",
+                new Vector2(0.08f, 0.18f),
+                new Vector2(0.92f, 0.245f),
                 OnRememberCredentialsChanged);
             guestRegisterButton = CreateButton(
                 guestLoginRoot,
                 "GuestRegisterButton",
                 "SIGN UP",
-                new Vector2(0.08f, 0.09f),
-                new Vector2(0.48f, 0.21f),
+                new Vector2(0.08f, 0.04f),
+                new Vector2(0.48f, 0.16f),
                 OnGuestRegisterButtonPressed);
             guestLoginButton = CreateButton(
                 guestLoginRoot,
                 "GuestLoginButton",
                 "LOGIN",
-                new Vector2(0.52f, 0.09f),
-                new Vector2(0.92f, 0.21f),
+                new Vector2(0.52f, 0.04f),
+                new Vector2(0.92f, 0.16f),
                 OnGuestLoginButtonPressed);
 
             googleLoginRoot = CreateRectTransform(
@@ -810,7 +864,7 @@ namespace LootUp.Core.SceneFlow
             backToGuestButton = CreateButton(
                 googleLoginRoot,
                 "BackToGuestButton",
-                "BACK TO GUEST",
+                "BACK TO ACCOUNT",
                 new Vector2(0.12f, 0.10f),
                 new Vector2(0.88f, 0.30f),
                 OnBackToGuestButtonPressed,

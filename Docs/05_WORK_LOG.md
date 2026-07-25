@@ -4745,6 +4745,319 @@ ________________________________________
 
 ________________________________________
 
+2.142 BackND 5.18.3 로그인/LANK 연동 사전 검토
+
+완료 내용:
+• 프로젝트 루트의 `Backend-5.18.3.unitypackage` 구성과 SDK 어셈블리 버전 `5.18.3.0` 확인
+• SDK가 아직 Unity 프로젝트에 임포트되지 않은 상태임을 확인
+• 기존 `IAuthenticationService`, `AuthenticationManager`, `LankLobbyPanel`과 연동 지점 대조
+• 로그인 Custom ID/표시 닉네임 분리 가능성과 기존 로컬 Guest 계정 이전 이슈 식별
+• 유저 랭킹의 단일 숫자 정렬 컬럼과 `층수 > 스코어 > 캐릭터 레벨` 규칙 간 차이 식별
+• 수동 선행 설정과 자동 구현 범위를 우선순위별 단계로 분류
+• SDK를 즉시 임포트하지 않고 `Docs/06_BACKND_INTEGRATION_PLAN.md`에 적용 계획 기록
+
+변경된 주요 파일:
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 패키지 압축 구조와 포함 DLL/AAR 확인
+• Android AAR 최소 SDK 22와 프로젝트 최소 SDK 25의 직접 충돌 없음 확인
+• 로컬 SDK DLL에서 Custom 로그인, 자동 로그인, 닉네임, 유저 랭킹 API 존재 확인
+• 현재 코드에 `ILeaderboardService` 구현이 없고 LANK가 로컬 프로필 1개 행을 직접 표시함을 확인
+
+남은 확인:
+• 뒤끝 콘솔의 LootUp 앱 등록과 Client App ID/Signature Key 준비
+• Custom ID와 표시 닉네임 정책 확정
+• 층수/스코어/캐릭터 레벨 상한과 랭킹 초기화 주기 확정
+• 게임 데이터 테이블 및 유저 랭킹 생성
+• 준비 완료 후 SDK 임포트, Unity 6.3 컴파일, Android 실기기 검증
+
+관련 작업 기준:
+• 사용자 요청: BackND SDK 적용 전 수동 세팅 검토 및 자동/수동 작업 분류
+• 작업 보류 기준: 콘솔 설정과 랭킹 합성값 정책 확정 전 SDK 임포트 금지
+
+________________________________________
+
+2.143 BackND 5.18.3 SDK 임포트 및 인증 설정
+
+완료 내용:
+• 사용자 제공 Client App ID와 Signature Key를 일반 문서에 노출하지 않고 SDK 설정 자산에 저장
+• `Backend-5.18.3.unitypackage`를 Unity 6000.3.17f1 배치 모드로 임포트
+• `Assets/TheBackend/Resources/TheBackendSettings.asset` 생성
+• Android 패키지 이름 `com.lafgames.LootUp` 설정
+• SDK 기본값인 로그 전송, 100초 타임아웃, 자동 토큰 갱신과 재시도 설정 유지
+• 인증값 전달에 사용한 평문 임시 파일과 일회성 Editor 스크립트 제거
+
+변경된 주요 파일:
+• `Assets/TheBackend/**`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• SDK 임포트 직후 Unity 스크립트 컴파일 성공
+• 임시 설정 도구 제거 후 Unity 스크립트 재컴파일 성공
+• Client App ID와 Signature Key가 비어 있지 않고 각각 41자임을 값 출력 없이 확인
+• 설정 자산의 Android 패키지 이름이 프로젝트 설정과 일치함을 확인
+• 컴파일 로그에서 C# 오류와 컴파일 실패 없음 확인
+
+남은 확인:
+• Custom ID와 표시 닉네임 정책 확정
+• 층수/스코어/캐릭터 레벨 상한과 랭킹 초기화 주기 확정
+• 뒤끝 콘솔 게임 데이터 테이블과 유저 랭킹 생성
+• P2 SDK 초기화 계층과 P3 로그인 어댑터 구현
+• Editor 및 Android 실계정 로그인 검증
+
+관련 작업 기준:
+• 사용자 제공: 뒤끝 Client App ID와 Signature Key
+• 인증값은 작업 로그와 기획 문서에 기록하지 않음
+
+________________________________________
+
+2.144 BackND SDK 런타임 초기화 계층 구현
+
+완료 내용:
+• 씬과 독립적으로 앱 시작 전에 자동 생성되는 `BackndSdkManager` 추가
+• 앱 생명주기 동안 SDK 초기화를 한 번만 수행하도록 Task 공유
+• SDK 초기화 상태를 `NotStarted`, `Initializing`, `Initialized`, `Failed`로 분리
+• BackND 비동기 콜백 결과를 Unity 메인 스레드 큐에서 처리
+• 초기화 성공/실패 결과와 상태 변경 이벤트 제공
+• SDK 5.18.3 실제 `InitializeAsync(BackendCallback)` 시그니처 적용
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Backend/BackndInitializationResult.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Backend/BackndSdkManager.cs`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 Editor 스크립트 컴파일 성공
+• SDK 클래스와 프로젝트 Backend 네임스페이스 충돌을 명시적 별칭으로 해소
+• 씬 GameObject 및 Inspector 수동 연결이 필요하지 않음을 확인
+• 사용자 Play Mode 확인에서 실제 BackND SDK 초기화 성공
+
+남은 확인:
+• Custom ID와 표시 닉네임 정책 확정 후 P3 인증 어댑터 구현
+• Android 실기기 네트워크 및 토큰 복구 검증
+
+관련 작업 기준:
+• BackND SDK 5.18.3 로컬 DLL의 실제 초기화 API
+• SDK 호출은 전용 초기화 계층에 한정
+
+________________________________________
+
+2.145 BackND Custom 로그인 및 토큰 자동 로그인 구현
+
+완료 내용:
+• 로그인 ID와 표시 닉네임을 별도 입력값으로 분리
+• `BackndAuthenticationService`를 추가하고 기본 인증 서비스를 BackND로 전환
+• Custom 회원가입, 닉네임 중복 확인/등록, ID·비밀번호 로그인 연결
+• 뒤끝 토큰을 사용한 재실행 자동 로그인과 사용자 정보 조회 연결
+• 뒤끝 `gamerInDate`를 사용자 식별자로, 닉네임을 표시 이름으로 연결
+• 비동기 회원 API 콜백을 Unity 메인 스레드로 전달
+• 기존 Guest 인증 public API와 로컬 서비스는 호환용으로 유지
+• 기존 Base64 비밀번호 `PlayerPrefs` 키를 삭제하고 비밀번호 저장 로직 제거
+• 자동 로그인 설정에는 계정 ID와 사용 여부만 저장
+• Title 로그인 UI를 Account ID, Nickname, Password 구성으로 재배치
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/BackndAuthenticationService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationModels.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/IAuthenticationService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/LocalAuthenticationService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/LocalLoginCredentialPreferences.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Backend/BackndSdkManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 설치된 SDK 5.18.3 DLL에서 회원 API와 중첩 콜백 타입 시그니처 직접 확인
+• Unity가 생성한 Assembly-CSharp Roslyn 응답 설정으로 C# 컴파일 성공
+• 계정 ID/닉네임/비밀번호 클라이언트 검증 및 서버 오류 변환 경로 확인
+• 기존 비밀번호 저장 API 호출이 남아 있지 않음을 정적 검색으로 확인
+
+남은 확인:
+• 열린 Unity가 Play Mode를 종료한 뒤 Editor 정식 자동 컴파일 확인
+• 실제 Custom 회원가입과 뒤끝 콘솔 사용자 생성 확인
+• 닉네임 중복, 잘못된 비밀번호, 중복 ID 오류 표시 확인
+• 앱 재실행 시 토큰 자동 로그인 확인
+• AUTO LOGIN 해제 시 로그인 화면 복귀 확인
+• Android 실기기 토큰 복구 및 다른 기기 로그인 만료 확인
+
+관련 작업 기준:
+• 사용자 확정: 로그인 ID와 표시 닉네임 분리 정책 진행
+• 기존 로컬 계정은 서버로 자동 이전하지 않음
+
+________________________________________
+
+2.146 BackND 회원가입 후 `login is yet` 수정
+
+완료 내용:
+• `CustomSignUp` 성공만으로 로그인 세션이 생성된다고 가정한 호출 순서 오류 수정
+• 회원가입 순서를 `CustomSignUp -> CustomLogin -> CreateNickname -> GetUserInfo`로 변경
+• 이전 실패에서 계정만 생성되고 닉네임이 없는 경우 동일 ID/비밀번호 재시도로 복구
+• 기존 계정에 닉네임이 이미 있으면 중복 생성하지 않고 정상 세션으로 전환
+• 복구 계정의 실제 닉네임 필드 존재 여부를 뒤끝 사용자 정보 응답에서 판정
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/BackndAuthenticationService.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity Assembly-CSharp Roslyn 설정 기반 컴파일 성공
+• 신규 계정과 닉네임 미등록 계정의 호출 분기 정적 검토 완료
+• 임시 컴파일 산출물 제거 완료
+
+남은 확인:
+• 동일 ID/비밀번호/닉네임으로 `CHECK NAME -> SIGN UP` 재실행
+• 성공 후 Title이 `TOUCH` 상태로 전환되는지 확인
+• 뒤끝 콘솔에서 기존 계정에 닉네임이 등록됐는지 확인
+• Play Mode 재시작 시 토큰 자동 로그인 확인
+
+관련 작업 기준:
+• 사용자 재현: 입력 및 닉네임 확인 후 SIGN UP에서 `LOGIN IS YET` 표시
+• 원인: 회원가입 직후 미로그인 상태에서 로그인 필수 API인 닉네임 등록 호출
+
+________________________________________
+
+2.147 로그인 전 닉네임 중복 검사 `LOGIN IS YET` 수정
+
+완료 내용:
+• 뒤끝 `CheckNicknameDuplication`도 로그인 필수 API임을 사용자 재현으로 확인
+• 로그인 전 `CHECK NAME`은 서버 호출 없이 닉네임 형식만 검증하도록 변경
+• 로그인 전 확인 성공 문구를 `NICKNAME FORMAT OK`로 변경
+• 실제 서버 닉네임 중복 검사를 `CustomLogin` 성공 이후로 이동
+• 회원가입 순서를 `CustomSignUp -> CustomLogin -> CheckNicknameDuplication -> CreateNickname -> GetUserInfo`로 확정
+• 서버 닉네임 중복 검사 실패 시 로그아웃하고 오류를 표시하도록 정리
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/BackndAuthenticationService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity Assembly-CSharp Roslyn 설정 기반 컴파일 성공
+• `CHECK NAME` 경로에서 BackND 로그인 필수 API 호출이 제거됐음을 정적 확인
+• 서버 닉네임 중복 검사가 Custom 로그인 이후 실행됨을 확인
+• 임시 컴파일 산출물 제거 완료
+
+남은 확인:
+• 동일 ID/비밀번호/닉네임으로 `CHECK NAME` 실행 시 `NICKNAME FORMAT OK` 표시
+• `SIGN UP` 실행 후 서버 닉네임 등록과 `TOUCH` 전환 확인
+• 중복 닉네임 입력 시 회원가입 화면에 오류가 표시되는지 확인
+• Play Mode 재시작 시 토큰 자동 로그인 확인
+
+관련 작업 기준:
+• 사용자 재현: `CHECK NAME`에서 `LOGIN IS YET`, `SIGN UP`에서 `CHECK NICKNAME FIRST`
+• 원인: 로그인 전 뒤끝 닉네임 중복 검사 API 호출
+
+________________________________________
+
+2.148 앱 재실행 시 수동 로그인 정책 복원
+
+완료 내용:
+• Custom 회원가입, 닉네임 등록, 수동 로그인이 정상 동작함을 사용자 확인
+• 기존 토큰을 사용한 재실행 자동 로그인 경로 제거
+• 앱 시작 시 SDK 초기화 후 남아 있는 뒤끝 세션을 로그아웃하고 항상 로그인 화면 표시
+• 로그인 화면의 `AUTO LOGIN` 선택 항목 제거
+• 로컬에는 마지막 계정 ID만 저장하고 비밀번호는 항상 빈 상태로 시작
+• 기존 자동 로그인 및 구형 로그인 정보 `PlayerPrefs` 키 삭제
+• 수동 로그인 성공 후 기존 `TOUCH` 및 Lobby 진입 흐름 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/BackndAuthenticationService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/LocalLoginCredentialPreferences.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity Assembly-CSharp Roslyn 설정 기반 컴파일 성공
+• 앱 시작 인증 복구 경로에서 `LoginWithTheBackendToken` 호출이 제거됐음을 정적 확인
+• 비밀번호 및 자동 로그인 선택값 저장 API가 남아 있지 않음을 정적 확인
+• 임시 컴파일 산출물 제거 완료
+
+남은 확인:
+• Play Mode 종료 후 재실행 시 저장 세션과 관계없이 로그인 화면 표시
+• 마지막 계정 ID만 복원되고 비밀번호 입력란은 비어 있는지 확인
+• ID/비밀번호 수동 로그인 성공 후 `TOUCH` 및 Lobby 진입 확인
+• Android 앱 완전 종료 후 재실행에서도 동일 정책 확인
+
+관련 작업 기준:
+• 사용자 확정: 앱 종료 후 재실행할 때 자동 로그인하지 않고 항상 로그인 화면을 거침
+• 2.145의 토큰 자동 로그인 정책은 이 항목의 수동 로그인 정책으로 폐기
+
+________________________________________
+
+2.149 ID/PW 기억하기와 자동 로그인 정책 분리
+
+완료 내용:
+• 로그인 화면에 `REMEMBER ID / PW` 체크 항목 복원
+• 체크 후 회원가입 또는 로그인에 성공하면 ID/PW 입력값 저장
+• 다음 실행 시 저장된 ID/PW와 체크 상태를 로그인 화면에 복원
+• 체크를 해제하면 저장된 ID/PW를 즉시 삭제
+• 저장된 입력값이 있어도 자동 로그인하지 않고 사용자가 `LOGIN`을 직접 누르는 정책 유지
+• 기억하기 UI 공간을 확보하도록 로그인 버튼 영역을 하단으로 조정
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/LocalLoginCredentialPreferences.cs`
+• `Assets/_Project/Scripts/Runtime/Core/SceneFlow/TitleSceneController.cs`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity Assembly-CSharp Roslyn 설정 기반 컴파일 성공
+• ID/PW 기억하기와 BackND 토큰 세션 복원 경로가 분리됐음을 정적 확인
+• 체크 해제 시 저장 정보 삭제 경로 확인
+• 임시 컴파일 산출물 제거 완료
+
+남은 확인:
+• 기억하기 체크 후 로그인 및 Play Mode 재실행 시 ID/PW 입력란 복원
+• 저장 정보가 있어도 자동으로 Lobby로 이동하지 않는지 확인
+• 체크 해제 후 재실행 시 ID/PW 입력란이 비어 있는지 확인
+• Android 저장 및 완전 종료 후 재실행 동작 확인
+
+관련 작업 기준:
+• 사용자 확정: ID/PW 기억하기는 입력값 유지 기능이며 자동 로그인 기능이 아님
+• 비밀번호 저장은 `PlayerPrefs` 기반 난독화이며 OS 보안 저장소 수준의 암호화가 아님
+
+________________________________________
+
+2.150 BackND P3 로그인 연동 완료 확정
+
+완료 내용:
+• 사용자가 Custom 회원가입, 닉네임 등록, 수동 로그인의 정상 동작 확인
+• 앱 종료 후 재실행 시 자동 로그인하지 않고 로그인 화면이 표시되는 정책 확인
+• `REMEMBER ID / PW` 체크 시 입력값만 복원되고 사용자가 직접 로그인하는 정책 확인
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`의 P3 상태를 완료로 변경
+• 다음 연동 단계를 P4 LANK 서비스 경계와 P5 뒤끝 랭킹 저장/조회로 확정
+
+커밋 범위:
+• BackND 5.18.3 임포트 자산과 SDK 설정 자산
+• BackND 런타임 초기화 계층
+• Custom 인증 서비스와 기존 인증 인터페이스 확장
+• Title Account 로그인 UI 및 ID/PW 기억하기
+• BackND 연동 계획서와 작업 로그
+
+검증 상태:
+• 사용자 Play Mode 기능 확인 완료
+• Unity Assembly-CSharp Roslyn 설정 기반 컴파일 성공
+• `git diff --check` 확인 후 관련 파일만 선별 커밋
+
+남은 이슈:
+• P4 진행 전 층수, 스코어, 캐릭터 레벨 상한 확정
+• 뒤끝 콘솔 게임 데이터 테이블과 유저 랭킹 생성
+• 랭킹 UUID와 초기화 주기 확정
+• Android 실기기에서 로그인 정책 최종 회귀 확인
+
+관련 작업 기준:
+• 사용자 승인: 현재까지 작업사항을 기획서에 반영하고 커밋
+• 커밋 메시지: `Integrate BackND custom authentication`
+
+________________________________________
+
 3. 다음 작업 후보
 
 우선순위 후보:
@@ -4769,7 +5082,8 @@ ________________________________________
 4. 서버 / BackND 고려 사항
 
 현재 기준:
-• BackND SDK는 아직 설치하지 않는다.
+• BackND 5.18.3 SDK 임포트, 인증 설정, 초기화, P3 Custom 로그인을 구현했다.
+• 실제 계정 검증과 랭킹 정책 확정 후 `Docs/06_BACKND_INTEGRATION_PLAN.md`의 P4부터 적용한다.
 • 게임 플레이 로직은 서버 SDK를 직접 호출하지 않는다.
 • 런 결과, 아이템 획득 이벤트, 최고 층, 점수, 수집형 아이템은 서비스 인터페이스 뒤로 분리한다.
 

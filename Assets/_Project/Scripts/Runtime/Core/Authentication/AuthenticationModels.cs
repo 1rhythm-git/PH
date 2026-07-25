@@ -21,7 +21,9 @@ namespace LootUp.Core.Authentication
     {
         None,
         NoSavedSession,
+        InvalidAccountId,
         InvalidCredentials,
+        AccountAlreadyExists,
         InvalidNickname,
         NicknameAlreadyExists,
         NicknameNotFound,
@@ -39,18 +41,23 @@ namespace LootUp.Core.Authentication
             string userId,
             string nickname,
             AuthenticationProvider provider,
-            bool isGuest)
+            bool isGuest,
+            string accountId = null)
         {
             UserId = string.IsNullOrWhiteSpace(userId) ? string.Empty : userId.Trim();
             Nickname = string.IsNullOrWhiteSpace(nickname) ? "Player" : nickname.Trim();
             Provider = provider;
             IsGuest = isGuest;
+            AccountId = string.IsNullOrWhiteSpace(accountId)
+                ? string.Empty
+                : accountId.Trim();
         }
 
         public string UserId { get; }
         public string Nickname { get; }
         public AuthenticationProvider Provider { get; }
         public bool IsGuest { get; }
+        public string AccountId { get; }
         public bool IsValid => !string.IsNullOrWhiteSpace(UserId);
     }
 

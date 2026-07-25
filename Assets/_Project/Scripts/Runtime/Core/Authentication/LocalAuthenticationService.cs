@@ -163,6 +163,14 @@ namespace LootUp.Core.Authentication
             }
         }
 
+        public Task<AuthenticationResult> RegisterAsync(
+            string accountId,
+            string password,
+            string nickname)
+        {
+            return RegisterGuestAsync(nickname, password);
+        }
+
         public Task<AuthenticationResult> SignInGuestAsync(
             string nickname,
             string password)

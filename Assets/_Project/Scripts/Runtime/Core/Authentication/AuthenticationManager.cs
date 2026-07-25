@@ -67,6 +67,19 @@ namespace LootUp.Core.Authentication
                 true);
         }
 
+        public static Task<AuthenticationResult> RegisterAsync(
+            string accountId,
+            string password,
+            string nickname)
+        {
+            return RunAuthenticationOperationAsync(
+                () => Service.RegisterAsync(
+                    accountId,
+                    password,
+                    nickname),
+                true);
+        }
+
         public static Task<AuthenticationResult> SignInGuestAsync(
             string nickname,
             string password)
@@ -174,9 +187,7 @@ namespace LootUp.Core.Authentication
 
         private static IAuthenticationService CreateDefaultService()
         {
-            return new LocalAuthenticationService(
-                UserProfileManager.UserId,
-                UserProfileManager.Nickname);
+            return new BackndAuthenticationService();
         }
 
         private static void SetState(AuthenticationState state)
