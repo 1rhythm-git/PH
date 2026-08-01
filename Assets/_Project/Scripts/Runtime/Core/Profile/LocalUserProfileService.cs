@@ -130,6 +130,13 @@ namespace LootUp.Core.Profile
             return new UserCurrencyChangeResult(addAmount > 0, currencyType, previousAmount, entry.Amount);
         }
 
+        public void SetCurrencyAmount(UserCurrencyType currencyType, int amount)
+        {
+            UserCurrencyData entry = FindOrCreateCurrency(currencyType);
+            entry.Amount = Mathf.Max(0, amount);
+            TrySave();
+        }
+
         public UserCurrencyChangeResult TrySpendCurrency(UserCurrencyType currencyType, int amount)
         {
             int spendAmount = Mathf.Max(0, amount);

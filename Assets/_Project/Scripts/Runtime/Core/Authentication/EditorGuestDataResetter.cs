@@ -14,7 +14,8 @@ namespace LootUp.Core.Authentication
             "LootUp.CharacterProgression.v1",
             "PH.CharacterProgression.v1",
             "LootUp.CollectionProgress.v1",
-            "PH.CollectionProgress.v1"
+            "PH.CollectionProgress.v1",
+            LocalCollectionInventoryService.SharedMigrationOwnerKey
         };
 
         public static void ResetPlayerData()

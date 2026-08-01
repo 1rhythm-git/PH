@@ -202,7 +202,47 @@ Lobby `BEST`는 리더보드 기간과 무관한 계정 누적 최고 기록이�
 소스 수정은 필요 없다. 교체 시 동일 계약의 리더보드를 동시에 둘 이상
 활성화하지 않고, 재로그인 또는 앱 재시작으로 메모리의 UUID 캐시를 갱신한다.
 
-### P7. 선택 작업
+### P7. 재화 서버 원장과 최초 이관
+
+- `ICurrencyLedgerService`와 BackND 구현을 추가해 게임 로직의 SDK 직접 참조 차단
+- 로그인 시 서버 프로필이 없으면 계정별 로컬 `GameMoney`, `Ruby`를 최초 1회 이전
+- 서버 프로필이 있으면 서버 잔액으로 계정별 로컬 캐시 복구
+- `requestId` 조회 후 중복 요청은 잔액을 다시 변경하지 않음
+- 프로필 잔액 갱신과 원장 행 추가를 `TransactionWriteV2`로 함께 처리
+- 네트워크 실패 요청을 계정별 Pending Queue에 저장하고 다음 로그인에 재처리
+- 계정 전환 중 완료된 이전 계정 응답은 현재 계정 캐시에 적용하지 않음
+- 런 결과 게임머니 요청 ID는 `run:{runId}:game-money` 사용
+
+뒤끝 콘솔에 다음 Private 테이블을 생성해야 한다.
+
+`LootUpPlayerProfile`:
+
+| 컬럼 | 타입 | NULL | 용도 |
+| --- | --- | --- | --- |
+| `schemaVersion` | INT | 허용 | 프로필 스키마 버전 |
+| `migrationVersion` | INT | 허용 | 최초 로컬 이전 완료 버전 |
+| `gameMoney` | INT | 허용 | 서버 권한 게임머니 잔액 |
+| `ruby` | INT | 허용 | 서버 권한 Ruby 잔액 |
+| `lastRequestId` | STRING | 허용 | 마지막 반영 요청 추적 |
+| `updatedAt` | STRING | 허용 | UTC ISO-8601 갱신 시각 |
+
+`LootUpCurrencyLedger`:
+
+| 컬럼 | 타입 | NULL | 용도 |
+| --- | --- | --- | --- |
+| `schemaVersion` | INT | 허용 | 원장 스키마 버전 |
+| `requestId` | STRING | 허용 | 재시도 중복 확인용 고유 키 |
+| `currencyType` | STRING | 허용 | `GameMoney` 또는 `Ruby` |
+| `deltaAmount` | INT | 허용 | 양수 지급, 음수 사용 |
+| `balanceAfter` | INT | 허용 | 처리 완료 후 잔액 |
+| `reason` | STRING | 허용 | 지급·사용 사유 |
+| `runId` | STRING | 허용 | 런 보상 연계 ID, 비런 요청은 빈 값 |
+| `createdAt` | STRING | 허용 | UTC ISO-8601 요청 시각 |
+
+두 테이블은 운영 리더보드에 연결하지 않는다. 클라이언트 구현은 완료됐지만
+실제 서버 검증은 위 테이블 생성 후 진행한다.
+
+### P8. 선택 작업
 
 - Google Play Games Services 로그인
 - 기존 로컬 계정과 소셜 계정 연결 또는 이전
@@ -216,6 +256,7 @@ Lobby `BEST`는 리더보드 기간과 무관한 계정 누적 최고 기록이�
 | 수동 | 뒤끝 프로젝트 및 앱 등록 | 사용자 | 뒤끝 콘솔 접근 |
 | 수동 | Client App ID, Signature Key 설정 | 사용자 | 앱 등록 완료 |
 | 수동 | `LootUpRank`, `LootUpBest` 테이블과 유저 랭킹 생성 | 사용자 | 정렬 정책 확정 |
+| 수동 | `LootUpPlayerProfile`, `LootUpCurrencyLedger` Private 테이블 생성 | 사용자 | 재화 원장 클라이언트 구현 완료 |
 | 수동 | 랭킹 상한과 초기화 주기 확정 | 사용자 | 게임 운영 정책 |
 | 수동 | Google Play/OAuth/GPGS 설정 | 사용자 | Google 로그인 진행 시 |
 | 자동 | SDK 임포트 및 컴파일 수정 | Codex | 인증 정보 준비 |
@@ -223,6 +264,7 @@ Lobby `BEST`는 리더보드 기간과 무관한 계정 누적 최고 기록이�
 | 자동 | LANK 서비스 및 UI 상태 구현 | Codex | 테이블/랭킹 UUID 준비 |
 | 자동 | 기록 저장, 전역 순위, MY LANK 연결 | Codex | 랭킹 정책 확정 |
 | 자동 | 계정별 누적 BEST와 기간 랭킹 저장 분리 | Codex | `LootUpBest` 테이블 준비 |
+| 자동 | 재화 서버 원장, 최초 이전, Pending Queue 구현 | Codex | BackND SDK 5.18.3 |
 | 공동 | Editor/Android 실제 계정 검증 | 사용자/Codex | 각 구현 단계 완료 |
 
 ## 5. 완료 상태와 후속 작업
@@ -231,6 +273,8 @@ P0 인증 설정, P1 SDK 임포트, P2 SDK 초기화, P3 Custom 로그인,
 P4~P5 LANK 클라이언트 구현, 기간 랭킹 서버 콘솔 설정과 실제 계정 검증을 완료했다.
 P6 클라이언트 분리 구현을 완료했으며 `LootUpBest` 콘솔 테이블 생성과
 Editor/Android 실기기 검증도 완료했다.
+재화 서버 원장 클라이언트와 최초 이관 로직을 구현했으며
+`LootUpPlayerProfile`, `LootUpCurrencyLedger` 콘솔 생성과 실제 계정 검증이 남아 있다.
 
 - Unity Editor에서 `LEADERBOARD NOT FOUND` 오류가 사라지고 LANK 조회 정상 동작 확인
 - 게임 종료 후 `LootUpRank` 행과 `LootUp Global Rank` 반영 확인
@@ -239,7 +283,7 @@ Editor/Android 실기기 검증도 완료했다.
 
 향후 서버 이관 대상과 로컬 유지 정보, 충돌 정책 및 테이블 경계는
 `Docs/07_BACKND_DATA_MIGRATION_PLAN.md`를 기준으로 진행한다. 다음 우선순위는
-수집 저장소 계정별 격리, 재화 원장, 캐릭터 성장, Artifact/Character Coin,
+재화 원장 실제 서버 검증, 캐릭터 성장, Artifact/Character Coin,
 런 정산 원장 순서다.
 
 다음 서버 연동 후보는 기간 랭킹 보상/지급 원장, Google 로그인,

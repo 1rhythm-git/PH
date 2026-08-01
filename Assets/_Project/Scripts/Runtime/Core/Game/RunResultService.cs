@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using LootUp.Core.Characters;
+using LootUp.Core.Currency;
 using LootUp.Core.Items;
 using LootUp.Core.Profile;
 
@@ -46,6 +48,7 @@ namespace LootUp.Core.Game
     public sealed class RunResultService
     {
         private readonly RunRewardSettings rewardSettings;
+        private readonly string runId = Guid.NewGuid().ToString("N");
         private bool rewardsSettled;
 
         public RunResultService(RunRewardSettings rewardSettings)
@@ -95,7 +98,12 @@ namespace LootUp.Core.Game
 
             if (resultData.TotalGameMoney > 0)
             {
-                UserProfileManager.AddCurrency(UserCurrencyType.GameMoney, resultData.TotalGameMoney);
+                _ = CurrencyLedgerManager.AddCurrencyAsync(
+                    UserCurrencyType.GameMoney,
+                    resultData.TotalGameMoney,
+                    $"run:{runId}:game-money",
+                    "run_reward",
+                    runId);
             }
 
             if (characterDefinition != null && resultData.TotalExperience > 0)

@@ -454,12 +454,16 @@ PART 16
 •	프로필 재화와 수집/강화 데이터의 로컬 저장 기반은 구현됨
 •	캐릭터별 레벨/경험치와 선택/보유/장착 상태를 `ICharacterProgressionService` 뒤에 분리해 로컬 저장 완료
 •	캐릭터 진행 저장 키를 `LootUp.CharacterProgression.v2`와 `LootUp.CharacterProgression.Account.v2.{gamerInDate}`로 분리
+•	수집/강화 저장 키를 `LootUp.CollectionProgress.v1`과 `LootUp.CollectionProgress.Account.v2.{gamerInDate}`로 분리
+•	기존 공용 수집 데이터는 최초 로그인 계정 한 곳만 승계하고 MigrationOwner로 중복 이전 차단
 •	Ninja의 과거 ID `triangle_low_spec`는 로드 시 `ninja`로 변환하고 진행/선택/장착/강화 데이터를 병합
 •	프로필/인증/캐릭터 진행/수집 저장 키는 `LootUp.*` 형식을 사용
 •	테스트 초기화를 위해 캐릭터 진행 `v1`은 자동 이전하지 않으며 다른 구 키는 각 저장 서비스 정책에 따라 처리
 •	최초 캐릭터 데이터는 캐릭터 에셋의 `InitiallyOwned` 기준으로 생성
 •	레벨별 필요 XP와 기본 런 XP는 `CharacterDefinition` 에셋에서 계속 관리하여 추후 레벨 디자인 변경 가능
 •	최고 층, 최고 점수, 기록 캐릭터 ID와 플레이 당시 레벨의 로컬 저장 완료
+•	`ICurrencyLedgerService`와 `CurrencyLedgerManager`를 추가해 재화 서버 권한, Pending Queue, 최초 이관 경계 구현
+•	런 결과 게임머니 지급을 고유 RunId 기반 서버 원장 요청으로 전환
 •	선택 게임 모드와 직전 런 기록의 통합 저장은 후속 작업
 ________________________________________
 PART 17
@@ -479,10 +483,11 @@ BackND SDK를 서비스 경계 뒤에 연결하고 계정별 인증과 LANK를 �
 •	Title에서 Lobby를 사전 로드하되 앱 시작마다 로그인 UI를 표시하고 자동 로그인하지 않음
 •	Title 로그인 UI에 Account ID, Nickname, Password, `CHECK NAME`, `SIGN UP`, `LOGIN` 구성
 •	`REMEMBER ID / PW` 선택 시 입력값만 복원하고 사용자가 직접 로그인
-•	로그인 성공 시 `gamerInDate`별 캐릭터 진행 저장소와 LANK 서비스를 구성
+•	로그인 성공 시 `gamerInDate`별 캐릭터 진행·수집/강화 저장소와 LANK 서비스를 구성
 •	로그인 성공 시 `gamerInDate`별 사용자 프로필을 구성하고 `LootUpBest`의 계정 누적 최고 기록과 동기화
 •	Private `LootUpRank` 테이블과 `LootUp Global Rank` 유저 리더보드 연동
 •	Private `LootUpBest` 누적 최고 기록과 기간용 `LootUpRank`를 분리
+•	Private `LootUpPlayerProfile`, `LootUpCurrencyLedger` 기반 재화 원장 클라이언트 구현 완료, 콘솔 테이블 생성 및 실제 계정 검증 필요
 •	게임 종료 기록 제출, MY LANK, 전역 상위 5개 기록 조회 및 오류/재시도 구현
 •	리더보드 초기화 후 MY LANK가 없으면 이전 테이블 기록 비교를 건너뛰고 첫 플레이 기록을 다시 등록
 •	현재 초기화 주기에 등록된 이후에는 도달 층수, 스코어, 캐릭터 레벨 순으로 최고 기록 유지

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using LootUp.Core.Characters;
 using UnityEngine;
 
@@ -10,11 +11,29 @@ namespace LootUp.Core.Items
         private const int CurrentVersion = 2;
         private const string SaveKey = "LootUp.CollectionProgress.v1";
         private const string LegacySaveKey = "PH.CollectionProgress.v1";
+        private const string AccountSaveKeyPrefix =
+            "LootUp.CollectionProgress.Account.v2.";
+        internal const string SharedMigrationOwnerKey =
+            "LootUp.CollectionProgress.Account.v2.MigrationOwner";
 
         private readonly CollectionSaveData saveData;
+        private readonly string activeSaveKey;
+        private readonly string accountUserId;
+        private readonly bool isAccountScoped;
+        private bool claimSharedSaveOnNextSuccessfulSave;
 
         public LocalCollectionInventoryService()
+            : this(string.Empty)
         {
+        }
+
+        public LocalCollectionInventoryService(string userId)
+        {
+            accountUserId = userId?.Trim() ?? string.Empty;
+            isAccountScoped = !string.IsNullOrWhiteSpace(accountUserId);
+            activeSaveKey = isAccountScoped
+                ? CreateAccountSaveKey(accountUserId)
+                : SaveKey;
             saveData = Load();
             NormalizeSaveData();
         }
@@ -148,9 +167,19 @@ namespace LootUp.Core.Items
         {
             try
             {
-                PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(saveData));
-                PlayerPrefs.DeleteKey(LegacySaveKey);
+                PlayerPrefs.SetString(activeSaveKey, JsonUtility.ToJson(saveData));
+                if (!isAccountScoped)
+                {
+                    PlayerPrefs.DeleteKey(LegacySaveKey);
+                }
+
+                if (claimSharedSaveOnNextSuccessfulSave)
+                {
+                    PlayerPrefs.SetString(SharedMigrationOwnerKey, accountUserId);
+                }
+
                 PlayerPrefs.Save();
+                claimSharedSaveOnNextSuccessfulSave = false;
                 return true;
             }
             catch (Exception exception)
@@ -183,12 +212,49 @@ namespace LootUp.Core.Items
             }
         }
 
-        private static string GetSavedJson()
+        private string GetSavedJson()
         {
-            string json = PlayerPrefs.GetString(SaveKey, string.Empty);
-            return string.IsNullOrWhiteSpace(json)
-                ? PlayerPrefs.GetString(LegacySaveKey, string.Empty)
-                : json;
+            string json = PlayerPrefs.GetString(activeSaveKey, string.Empty);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                return json;
+            }
+
+            string sharedJson = PlayerPrefs.GetString(SaveKey, string.Empty);
+            if (string.IsNullOrWhiteSpace(sharedJson))
+            {
+                sharedJson = PlayerPrefs.GetString(LegacySaveKey, string.Empty);
+            }
+
+            if (!isAccountScoped || string.IsNullOrWhiteSpace(sharedJson))
+            {
+                return sharedJson;
+            }
+
+            string migrationOwner = PlayerPrefs.GetString(
+                SharedMigrationOwnerKey,
+                string.Empty);
+            if (!string.IsNullOrWhiteSpace(migrationOwner)
+                && !string.Equals(
+                    migrationOwner,
+                    accountUserId,
+                    StringComparison.Ordinal))
+            {
+                return string.Empty;
+            }
+
+            claimSharedSaveOnNextSuccessfulSave = true;
+            return sharedJson;
+        }
+
+        private static string CreateAccountSaveKey(string userId)
+        {
+            string encodedUserId = Convert.ToBase64String(
+                    Encoding.UTF8.GetBytes(userId.Trim()))
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+            return AccountSaveKeyPrefix + encodedUserId;
         }
 
         private CollectionData FindCollection(string collectionId)

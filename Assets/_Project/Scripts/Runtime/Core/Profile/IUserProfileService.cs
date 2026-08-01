@@ -16,6 +16,7 @@ namespace LootUp.Core.Profile
         float GetTraitBonusPercent(UserTraitEffectType effectType);
         void SetIdentity(string userId, string nickname);
         bool TrySetBestRun(int highestFloor, int score, string characterId, int characterLevel);
+        void SetCurrencyAmount(UserCurrencyType currencyType, int amount);
         UserCurrencyChangeResult AddCurrency(UserCurrencyType currencyType, int amount);
         UserCurrencyChangeResult TrySpendCurrency(UserCurrencyType currencyType, int amount);
         void SetTrait(string traitId, UserTraitEffectType effectType, int level, float value);

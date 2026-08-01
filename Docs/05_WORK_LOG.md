@@ -5377,25 +5377,117 @@ ________________________________________
 • 재개 시 수집 저장소 계정별 격리부터 진행
 • 이후 재화 원장 > 캐릭터 성장 > Artifact/Character Coin/강화 > 런 정산 원장 순서 권장
 
+2.161 수집 및 캐릭터 강화 저장소 계정별 격리
+
+사용자 확인:
+• 실제 BackND 계정 A/B 교차 로그인과 Android 업데이트 승계 테스트 완료
+• `LootUpBest`, `LootUpRank`, 일일 초기화 후 BEST 유지 및 기간 랭킹 재등록 테스트 완료
+
+완료 내용:
+• `LocalCollectionInventoryService`에 `gamerInDate` 기반 계정별 `v2` 저장 키 추가
+• 로그인 성공 시 계정 전용 수집 저장소를 구성하고 로그아웃, 인증 실패, 자격 증명 재확인 시 공용 저장소로 복귀
+• 소유자 정보가 없는 기존 공용 수집 데이터는 업데이트 후 처음 로그인한 계정 한 곳만 승계
+• `MigrationOwner`를 기록해 두 번째 계정부터 공용 Artifact, Character Coin, 강화, Pending Event가 복제되지 않도록 차단
+• 공용 저장 데이터는 백업과 비로그인 호환을 위해 유지
+• Editor 신규 가입 초기화 시 공용 데이터와 MigrationOwner를 함께 삭제
+• CRLF로만 변경된 330개 파일과 `TagManager.asset` 빈 태그 직렬화 노이즈 정리
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Items/LocalCollectionInventoryService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/EditorGuestDataResetter.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/07_BACKND_DATA_MIGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• Unity 6000.3.17f1 생성 Roslyn 응답 파일과 BackND SDK 참조 기반 전체 Runtime C# 컴파일 성공
+• Unity 배치 모드 실제 `PlayerPrefs`에서 공용 Artifact, Character Coin, 강화, Pending Event의 계정 A 단일 승계 확인
+• 계정 B가 빈 독립 저장소로 시작하고 계정 B 전용 값이 계정 A를 오염시키지 않는지 확인
+• 검증 전 Editor `PlayerPrefs` 값을 백업하고 검증 후 복원
+• 임시 Editor 검증 스크립트와 생성된 `.meta` 제거
+
+후속 개발:
+• 재화 서버 원장과 최초 서버 이관은 아직 구현되지 않았으므로 현재 빌드의 테스트 항목이 아님
+• 구현 후 서버 잔액 복구, 최초 1회 이전, 중복 요청 차단, 계정/기기 간 분리 검증 필요
+
+2.162 재화 서버 원장 및 최초 로컬 이관 클라이언트 구현
+
+완료 내용:
+• `ICurrencyLedgerService`와 `BackndCurrencyLedgerService` 추가
+• Private `LootUpPlayerProfile`을 서버 권한 GameMoney/Ruby 잔액 저장소로 연결
+• Private `LootUpCurrencyLedger`에 requestId, 증감량, 처리 후 잔액, 사유, runId를 기록하도록 구성
+• 프로필 잔액 갱신과 원장 Insert를 BackND `TransactionWriteV2` 한 요청으로 처리
+• 서버 프로필이 없는 계정은 기존 계정별 로컬 잔액을 migrationVersion 1로 최초 한 번 이전
+• 서버 프로필이 있으면 서버 잔액으로 로컬 프로필 캐시 복구
+• 동일 requestId 원장이 있으면 잔액을 다시 변경하지 않고 서버 잔액만 복구
+• 네트워크 실패 요청을 계정별 `LootUp.CurrencyLedger.Pending.v1.*`에 저장하고 다음 로그인에 재전송
+• 서버에서 확정되지 않은 Pending 재화는 로컬 표시 잔액에 선반영하지 않도록 처리
+• 계정 전환 중 완료된 이전 계정 서버 응답이 현재 계정 캐시에 적용되지 않도록 구성 세대 검증 추가
+• 런 결과 게임머니 지급을 `run:{runId}:game-money` 고유 요청으로 전환
+• 기존 로컬 인증 및 서버 서비스 미구성 환경에서는 기존 로컬 재화 증감 동작 유지
+
+변경된 주요 파일:
+• `Assets/_Project/Scripts/Runtime/Core/Currency/ICurrencyLedgerService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Currency/CurrencyLedgerModels.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Currency/CurrencyLedgerManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Currency/PendingCurrencyTransactionStore.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Currency/BackndCurrencyLedgerService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/IUserProfileService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/LocalUserProfileService.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Profile/UserProfileManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Authentication/AuthenticationManager.cs`
+• `Assets/_Project/Scripts/Runtime/Core/Game/RunResultService.cs`
+• `Docs/00_MASTER_PROJECT_BRIEF.md`
+• `Docs/04_CODEX_EXECUTION_PLAN.md`
+• `Docs/06_BACKND_INTEGRATION_PLAN.md`
+• `Docs/07_BACKND_DATA_MIGRATION_PLAN.md`
+• `Docs/05_WORK_LOG.md`
+
+검증 상태:
+• 로컬 BackND 5.18.3 `Backend.dll` 리플렉션으로 `TransactionWriteV2`, `TransactionValue.SetInsert`, `SetUpdateV2` 실제 시그니처 확인
+• Unity 6000.3.17f1 생성 Roslyn 응답 파일과 BackND SDK 참조 기반 전체 Runtime C# 컴파일 성공
+• 기존 `PlayerSpawner.moveSpeedColumnsPerSecond` 미사용 경고 1건 외 신규 컴파일 경고 없음
+• Unity 배치 자동 검증은 동일 프로젝트가 열린 Unity Editor 때문에 중복 실행 제한으로 미실행
+
+수동 설정:
+• 뒤끝 콘솔에 Private `LootUpPlayerProfile`, `LootUpCurrencyLedger` 생성 필요
+• 정확한 컬럼과 타입은 `Docs/06_BACKND_INTEGRATION_PLAN.md` P7 기준
+
+남은 확인:
+• 콘솔 테이블 생성 후 기존 재화 보유 계정 최초 로그인 시 서버 잔액 일치 확인
+• 재로그인 시 migration 원장이 중복 생성되지 않는지 확인
+• 게임 종료 보상 후 프로필 잔액과 원장 행이 함께 갱신되는지 확인
+• 동일 requestId 재시도, 오프라인 Pending Queue, 계정 A/B 및 다른 기기 복구 확인
+
+다음 확인 재개 기준:
+• 재시작 최우선: 뒤끝 콘솔에 Private `LootUpPlayerProfile`, `LootUpCurrencyLedger`를 생성하고 실제 계정 검증을 순서대로 진행
+• 확인 순서: 최초 이관 잔액 및 migration 원장 -> 재로그인 중복 방지 -> 런 보상 프로필/원장 동시 반영 -> 동일 requestId -> 오프라인 Pending Queue -> 계정 A/B 및 다른 기기 복구
+• 위 확인이 끝날 때까지 재화 서버 원장 항목은 구현 완료, 운영 검증 보류 상태로 유지
+• 커밋 기준: `f183f4c` 이후 계정별 수집 데이터 분리와 재화 서버 원장/최초 이관 구현
+
+제약 및 후속 보강:
+• 클라이언트 GameData API만으로 악의적인 금액 조작과 다중 기기 동시 요청의 강한 멱등성은 보장하지 않음
+• 운영 전 BackND Function에서 보상 사유와 허용 금액, requestId를 검증하는 단계 필요
+
 ________________________________________
 
 3. 다음 작업 후보
 
 우선순위 후보:
-1. 재시작 최우선: 수집 저장소 `gamerInDate`별 격리
-2. 재화 서버 원장과 최초 이관 정책 구현
-3. 캐릭터 성장/보유/선택/장착 서버 이관
-4. Artifact/Character Coin/강화 서버 이관
-5. 런 정산 원장 및 기록 검증
-6. 기간 랭킹 보상 및 지급 원장 설계
-7. BEST 얼굴 크롭 UI 회귀 검증
-8. PlayerRespawnController 정식 분리
-9. Artifact 상태 평가 순수화
-10. Lobby / TopHUD UI 빌더 공통화
+1. 재화 원장 BackND 콘솔 설정 및 실제 계정 검증
+2. 캐릭터 성장/보유/선택/장착 서버 이관
+3. Artifact/Character Coin/강화 서버 이관
+4. 런 정산 원장 및 기록 검증
+5. 기간 랭킹 보상 및 지급 원장 설계
+6. BEST 얼굴 크롭 UI 회귀 검증
+7. PlayerRespawnController 정식 분리
+8. Artifact 상태 평가 순수화
+9. Lobby / TopHUD UI 빌더 공통화
 
 현재 권장 다음 작업:
-• 서버 이관 재개 요청 전까지 추가 이관 코드는 변경하지 않는다.
-• 재개 시 공용 수집 저장소를 계정별로 격리한 뒤 재화 원장과 캐릭터 성장 이관을 진행한다.
+• 재화 원장 콘솔 테이블 생성과 실제 계정 검증을 완료한 뒤 캐릭터 성장 이관을 진행한다.
 • 서버 작업과 별도로 BEST 얼굴 크롭 UI 회귀 후 `PlayerRespawnController`를 정식 분리한다.
 • 이후 Artifact 상태 평가 순수화, Lobby/TopHUD UI 빌더 공통화와 로컬 저장소 추상화를 진행한다.
 • 구조 안정화 후 캐릭터 강화 정책과 실제 CharacterCoin 콘텐츠를 진행한다.

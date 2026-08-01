@@ -40,11 +40,19 @@ BackND로 옮겨야 하는 정보다.
 - `Ruby`
 - 사용자 Trait 데이터
 
+현재 구현 상태:
+
+- `LootUpPlayerProfile` 서버 잔액과 `LootUpCurrencyLedger` 거래 원장 클라이언트 구현 완료
+- 계정별 Pending Queue와 다음 로그인 재전송 구현 완료
+- BackND 콘솔 테이블 생성 및 실제 계정 검증 필요
+
 이관 원칙:
 
 - `GameMoney`, `Ruby`는 서버 권한으로 전환한다.
 - 획득과 사용은 최종 잔액만 덮어쓰지 않고 고유 거래 ID를 가진 증감 요청으로 처리한다.
 - 동일 거래 ID는 한 번만 반영한다.
+- 프로필 잔액 갱신과 원장 추가는 `TransactionWriteV2`로 함께 처리한다.
+- 서버 미확정 요청은 로컬 Pending Queue에 저장하되 표시 잔액에는 선반영하지 않는다.
 - Trait가 Artifact 조합에서 계산되는 파생값이면 서버에 중복 저장하지 않고
   보유 Artifact에서 다시 계산한다.
 - 운영자가 직접 지급한 Trait만 존재한다면 별도 서버 필드로 분리한다.
@@ -53,6 +61,11 @@ BackND로 옮겨야 하는 정보다.
 
 - `LootUpPlayerProfile`: 스키마 버전, GameMoney, Ruby, 갱신 시각
 - `LootUpCurrencyLedger`: 거래 ID, 재화 종류, 증감량, 사유, 런 ID, 처리 시각
+
+콘솔 스키마는 `Docs/06_BACKND_INTEGRATION_PLAN.md`의 P7을 기준으로 생성한다.
+클라이언트 `requestId` 사전 조회는 일반 재시도 중복을 차단하지만, 악의적인
+금액 조작과 다중 기기 동시 요청의 완전한 원자적 멱등성은 BackND Function
+또는 동일 수준의 서버 검증으로 보강해야 한다.
 
 ### 3.2 캐릭터 성장과 보유 상태
 
@@ -79,15 +92,18 @@ BackND로 옮겨야 하는 정보다.
 
 현재 로컬 원본:
 
-- `LootUp.CollectionProgress.v1`
+- `LootUp.CollectionProgress.Account.v2.{gamerInDate}`
+- 기존 공용 데이터 `LootUp.CollectionProgress.v1`
 - CollectionId별 OwnedAmount, LifetimeAcquiredAmount
 - CharacterId와 UpgradeId별 강화 Level
 - 서버 미전송 `PendingCollectionEventData`
 
-현재 위험:
+현재 상태:
 
-- 수집 저장 키가 아직 `gamerInDate`별로 분리되지 않아 같은 기기의 계정 간
-  Artifact, Character Coin, 강화 정보가 공유될 수 있다.
+- 수집 저장 키의 `gamerInDate`별 로컬 격리를 완료했다.
+- 기존 공용 데이터는 업데이트 후 처음 로그인한 계정만 1회 승계한다.
+- `MigrationOwner`가 기록된 뒤 다른 계정은 공용 데이터를 복제하지 않는다.
+- 서버 권한 전환과 다른 기기 복구는 아직 구현되지 않았다.
 
 이관 원칙:
 
@@ -98,6 +114,8 @@ BackND로 옮겨야 하는 정보다.
 - Character Coin 소비와 강화 레벨 증가는 하나의 서버 처리 단위로 묶는다.
 - `PendingEvents`는 영구 보유 정보가 아니라 서버 반영 대기 큐로 사용하고,
   성공 확인 후 로컬에서 제거한다.
+- 소유자 정보가 없는 기존 공용 로컬 데이터는 최초 로그인 계정 한 곳에만
+  귀속하고 서버 최초 이전에서도 같은 계정 ID를 유지한다.
 
 권장 논리 테이블:
 
@@ -249,14 +267,17 @@ BackND로 옮겨야 하는 정보다.
 
 ## 9. 향후 구현 우선순위
 
-1. 수집 저장소를 우선 `gamerInDate`별로 격리해 계정 공유 위험을 제거한다.
-2. 서버 데이터 공통 계약에 SchemaVersion, UpdatedAt, RequestId를 정의한다.
-3. 재화와 거래 원장을 서버 권한으로 전환한다.
-4. 캐릭터 성장, 보유, 선택 및 장착을 이관한다.
-5. Artifact, Character Coin, 강화 및 Pending Event를 이관한다.
-6. 런 결과 정산 원장과 서버 검증을 연결한다.
-7. 광고 제거 및 결제 권리를 영수증 검증 방식으로 전환한다.
-8. 기간 랭킹 보상과 지급 원장을 구현한다.
+완료: 수집 저장소를 `gamerInDate`별로 격리해 계정 공유 위험을 제거했다.
+
+완료: 서버 데이터 공통 계약과 재화 원장 클라이언트, 최초 이전, Pending Queue를 구현했다.
+
+1. 재화 원장용 BackND 콘솔 테이블을 생성하고 실제 계정에서 검증한다.
+2. 캐릭터 성장, 보유, 선택 및 장착을 이관한다.
+3. Artifact, Character Coin, 강화 및 Pending Event를 이관한다.
+4. 런 결과 정산 원장과 서버 검증을 연결한다.
+5. 광고 제거 및 결제 권리를 영수증 검증 방식으로 전환한다.
+6. 기간 랭킹 보상과 지급 원장을 구현한다.
+7. BackND Function으로 재화 금액 검증과 강한 멱등성을 보강한다.
 
 각 단계는 로컬 데이터 백업, 최초 1회 이전 표시, 서버 저장 성공 확인,
 재로그인 복구, 다른 기기 복구, 중복 요청 검증을 완료한 뒤 다음 단계로

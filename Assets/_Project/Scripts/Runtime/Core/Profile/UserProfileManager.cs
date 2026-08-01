@@ -61,6 +61,19 @@ namespace LootUp.Core.Profile
             return result;
         }
 
+        public static void ApplyAuthoritativeCurrencyBalances(
+            int gameMoney,
+            int ruby)
+        {
+            Service.SetCurrencyAmount(
+                UserCurrencyType.GameMoney,
+                gameMoney);
+            Service.SetCurrencyAmount(
+                UserCurrencyType.Ruby,
+                ruby);
+            ProfileChanged?.Invoke();
+        }
+
         public static UserCurrencyChangeResult TrySpendCurrency(UserCurrencyType currencyType, int amount)
         {
             UserCurrencyChangeResult result = Service.TrySpendCurrency(currencyType, amount);

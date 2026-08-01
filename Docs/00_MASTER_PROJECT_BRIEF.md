@@ -784,6 +784,22 @@ ________________________________________
 캐릭터 진행 `v1`을 제외한 다른 구 프로젝트 키의 이전 여부는 각 저장 서비스 정책을 따른다.
 이전 캐릭터 영구 저장 데이터는 존재하지 않으므로 첫 접근 시 `CharacterDefinition.InitiallyOwned`와 Lv.1/XP 0을 기본값으로 생성한다.
 향후 저장 버전이 증가하면 로드 시 버전별 마이그레이션을 수행하고 캐릭터 ID를 데이터 결합 키로 유지한다.
+
+20.2 수집 및 캐릭터 강화 저장 정책
+수집과 캐릭터 강화는 `ICollectionInventoryService`를 통해 접근하며 로컬 구현은 `LocalCollectionInventoryService`를 사용한다.
+비로그인 공용 저장 키는 `LootUp.CollectionProgress.v1`, BackND 로그인 계정 저장 키는 `LootUp.CollectionProgress.Account.v2.{gamerInDate}`이다.
+기존 공용 저장 데이터에는 소유자 정보가 없으므로 업데이트 후 처음 로그인한 계정 한 곳만 데이터를 승계한다.
+승계 계정은 `LootUp.CollectionProgress.Account.v2.MigrationOwner`에 기록하며 다른 계정은 공용 데이터를 복제하지 않고 독립 저장소를 생성한다.
+공용 데이터는 로컬 백업과 비로그인 호환을 위해 즉시 삭제하지 않으며, 서버 이관 완료 전까지 계정별 로컬 저장소를 권한 원본으로 사용한다.
+
+20.3 재화 서버 권한 및 원장 정책
+BackND 로그인 계정의 `GameMoney`, `Ruby`는 Private `LootUpPlayerProfile`의 서버 잔액을 권한 원본으로 사용한다.
+서버 프로필이 없는 계정은 기존 계정별 로컬 잔액을 최초 한 번 이전하며 `migrationVersion`으로 완료 상태를 기록한다.
+재화 증감은 `ICurrencyLedgerService`와 `CurrencyLedgerManager`를 통해 요청하고 고유 `requestId`를 사용한다.
+`LootUpPlayerProfile` 잔액 갱신과 `LootUpCurrencyLedger` 원장 추가는 BackND `TransactionWriteV2` 한 요청으로 처리한다.
+네트워크 실패 요청은 `LootUp.CurrencyLedger.Pending.v1.{gamerInDate}`에 저장하고 다음 로그인 동기화에서 재전송한다.
+서버에서 확정되지 않은 Pending 재화는 표시 잔액에 선반영하지 않는다.
+클라이언트 GameData 트랜잭션은 재시도 중복 방지와 복구를 제공하지만 금액 위변조 방지와 다중 기기 동시 요청의 강한 멱등성은 보장하지 않으므로 운영 전 BackND Function 검증을 추가한다.
 ________________________________________
 21. 저장 시점
 다음 시점에 저장한다.

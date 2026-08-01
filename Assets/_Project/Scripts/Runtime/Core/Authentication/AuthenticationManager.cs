@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using LootUp.Core.Characters;
+using LootUp.Core.Currency;
+using LootUp.Core.Items;
 using LootUp.Core.Leaderboard;
 using LootUp.Core.Profile;
 
@@ -27,7 +29,7 @@ namespace LootUp.Core.Authentication
         {
             service = authenticationService ?? CreateDefaultService();
             CurrentSession = null;
-            LeaderboardManager.Configure(null);
+            ResetSessionServices();
             SetState(AuthenticationState.SignedOut);
         }
 
@@ -108,7 +110,7 @@ namespace LootUp.Core.Authentication
         public static void RequireCredentialConfirmation()
         {
             CurrentSession = null;
-            LeaderboardManager.Configure(null);
+            ResetSessionServices();
             SetState(AuthenticationState.SignedOut);
         }
 
@@ -124,13 +126,13 @@ namespace LootUp.Core.Authentication
             {
                 await Service.SignOutAsync();
                 CurrentSession = null;
-                LeaderboardManager.Configure(null);
+                ResetSessionServices();
                 SetState(AuthenticationState.SignedOut);
             }
             catch
             {
                 CurrentSession = null;
-                LeaderboardManager.Configure(null);
+                ResetSessionServices();
                 SetState(AuthenticationState.Failed);
             }
             finally
@@ -188,6 +190,16 @@ namespace LootUp.Core.Authentication
                 UserProfileManager.SetIdentity(
                     result.Session.UserId,
                     result.Session.Nickname);
+                CurrencyLedgerManager.Configure(
+                    result.Session.Provider == AuthenticationProvider.Backnd
+                        ? new BackndCurrencyLedgerService(
+                            result.Session.UserId)
+                        : null,
+                    result.Session.UserId);
+                await CurrencyLedgerManager.InitializeAsync();
+                ItemCollectionManager.Configure(
+                    new LocalCollectionInventoryService(
+                        result.Session.UserId));
                 LeaderboardManager.Configure(
                     result.Session.Provider == AuthenticationProvider.Backnd
                         ? new BackndLeaderboardService(
@@ -200,7 +212,7 @@ namespace LootUp.Core.Authentication
             else
             {
                 CurrentSession = null;
-                LeaderboardManager.Configure(null);
+                ResetSessionServices();
                 SetState(AuthenticationState.Failed);
             }
 
@@ -210,6 +222,14 @@ namespace LootUp.Core.Authentication
         private static IAuthenticationService CreateDefaultService()
         {
             return new BackndAuthenticationService();
+        }
+
+        private static void ResetSessionServices()
+        {
+            LeaderboardManager.Configure(null);
+            CurrencyLedgerManager.Configure(null, string.Empty);
+            ItemCollectionManager.Configure(
+                new LocalCollectionInventoryService());
         }
 
         private static void SetState(AuthenticationState state)
